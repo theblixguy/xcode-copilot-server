@@ -82,6 +82,16 @@ async function main(): Promise<void> {
   await service.start();
   logger.info("Copilot CLI is up");
 
+  const auth = await service.getAuthStatus();
+  if (!auth.isAuthenticated) {
+    logger.error(
+      "Not authenticated. Sign in with the Copilot CLI (copilot login) or GitHub CLI (gh auth login), or set a GITHUB_TOKEN environment variable.",
+    );
+    await service.stop();
+    process.exit(1);
+  }
+  logger.info(`Authenticated as ${auth.login ?? "unknown"} (${auth.authType ?? "unknown"})`);
+
   const ctx: AppContext = { service, logger, config };
   const app = await createServer(ctx);
   await app.listen({ port, host: "127.0.0.1" });

@@ -3,6 +3,7 @@ import {
   type CopilotSession,
   type SessionConfig,
   type ModelInfo,
+  type GetAuthStatusResponse,
 } from "@github/copilot-sdk";
 import type { LogLevel, Logger } from "./logger.js";
 
@@ -42,6 +43,10 @@ export class CopilotService {
     }
     this.sessionPromise = null;
     await this.client.stop();
+  }
+
+  async getAuthStatus(): Promise<GetAuthStatusResponse> {
+    return this.client.getAuthStatus();
   }
 
   async listModels(): Promise<ModelInfo[]> {

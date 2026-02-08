@@ -12,9 +12,13 @@ It also connects to Xcode's built-in MCP tools (via `xcrun mcpbridge`), giving C
 
 ## Installation
 
-You need [Node.js](https://nodejs.org) 25.6.0 or later and the GitHub Copilot CLI. [Install the Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/install-copilot-cli) and sign in before starting the server.
+You need [Node.js](https://nodejs.org) 25.6.0 or later and a GitHub Copilot subscription. Before starting the server, authenticate using one of the following methods (the Copilot CLI is bundled with the SDK, so you only need one of these for initial sign-in):
 
-Once done, you can install this server via:
+- [Install the Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/install-copilot-cli) and run `copilot login`
+- [Install the GitHub CLI](https://cli.github.com/) and run `gh auth login`
+- Set a `GITHUB_TOKEN` environment variable with a valid fine-grained Copilot access token
+
+Then install the server via:
 
 ```bash
 npm install -g xcode-copilot-server
