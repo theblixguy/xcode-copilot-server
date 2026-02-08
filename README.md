@@ -109,7 +109,7 @@ The config file uses [JSON5](https://json5.org/) format, which supports comments
   // Reasoning effort for models that support it: "low", "medium", "high", "xhigh"
   reasoningEffort: "xhigh",
 
-  // Auto-approve MCP permission requests.
+  // Auto-approve permission requests.
   // true to approve all, false to deny all,
   // or an array of kinds: "read", "write", "shell", "mcp", "url"
   autoApprovePermissions: ["read", "mcp"],

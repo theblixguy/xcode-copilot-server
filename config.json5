@@ -41,7 +41,7 @@
   // E.g: "low", "medium", "high", "xhigh"
   reasoningEffort: "xhigh",
 
-  // Auto-approve MCP permission requests.
+  // Auto-approve permission requests.
   // - true: approve all
   // - false: deny all
   // - ["read", "mcp"]: approve only listed kinds (e.g: "read", "write", "shell", "mcp", "url")
