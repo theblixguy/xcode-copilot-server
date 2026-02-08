@@ -24,10 +24,17 @@
     // },
   },
 
-  // Built-in CLI tools allowlist (glob, grep, bash, etc)
+  // Built-in CLI tools allowlist (glob, grep, bash, etc).
   // - ["*"]: allow all CLI tools
   // - []: deny all CLI tools
   // - ["glob", "grep"]: allow only specific CLI tools
+  //
+  // This is empty by default because Xcode should be the one handling operations
+  // like searching, reading, and editing files. The model tells Xcode what to
+  // change and Xcode applies those changes through its own UI, keeping everything
+  // in sync. If CLI tools are enabled, the Copilot session may perform those
+  // operations itself (e.g. writing files via bash), bypassing Xcode and leaving
+  // its UI out of sync with what actually happened on disk.
   allowedCliTools: [],
 
   // Maximum request body size in MiB.
@@ -35,6 +42,10 @@
 
   // Filename patterns to filter out from search results in the prompt.
   // Code blocks whose filename contains any of these (case-insensitive) are stripped.
+  //
+  // Xcode's search results can include full file contents for every match, which can
+  // bloat the prompt with irrelevant code. Add patterns here to strip those files
+  // before they reach the model (e.g. ["mock", "generated"]).
   excludedFilePatterns: [],
 
   // Reasoning effort for models that support it.

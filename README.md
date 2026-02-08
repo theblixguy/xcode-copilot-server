@@ -102,12 +102,19 @@ The config file uses [JSON5](https://json5.org/) format, which supports comments
 
   // Built-in CLI tools allowlist.
   // ["*"] to allow all, [] to deny all, or a list of specific tool names.
+  //
+  // Empty by default so Xcode can handle all operations (search, read, edit)
+  // through its UI. Enabling CLI tools lets the Copilot session perform
+  // those operations directly, bypassing Xcode.
   allowedCliTools: [],
 
   // Maximum request body size in MiB.
   bodyLimitMiB: 4,
 
   // Filename patterns to filter out from search results in the prompt.
+  //
+  // Xcode can include full file contents for every search match, so add patterns
+  // here to strip files that bloat the prompt (e.g. ["mock", "generated"]).
   excludedFilePatterns: [],
 
   // Reasoning effort for models that support it: "low", "medium", "high", "xhigh"

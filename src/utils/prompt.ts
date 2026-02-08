@@ -6,10 +6,15 @@ function escapeRegex(s: string): string {
 }
 
 /**
- * Strips fenced code blocks whose filename matches any pattern.
+ * Strips fenced code blocks whose header contains any of the given patterns
+ * (case-insensitive). Xcode formats search results as fenced blocks with a
+ * header like ` ```swift:/path/to/File.swift `, so the patterns are matched
+ * against the file path in that header.
  *
- * Xcode search dumps full file contents for every match — excluded files
- * can be thousands of lines and add nothing useful to the prompt.
+ * Xcode's search results can include full file contents for every match, so
+ * some files can be thousands of lines and add nothing useful to the prompt.
+ * For example, a mock data file might match the search query but its contents
+ * aren't helpful for generating a useful response.
  */
 export function filterExcludedFiles(s: string, patterns: string[]): string {
   if (patterns.length === 0) return s;
