@@ -69,6 +69,10 @@ There's an additional step if you want to use Xcode MCP server (requires Xcode 2
 1. Open Xcode and go to Settings > Intelligence
 2. Enable "Xcode Tools" under "Model Context Protocol"
 
+### Agent skills
+
+The underlying Copilot CLI session can access and invoke [Agent skills](https://docs.github.com/en/copilot/customizing-copilot/extending-copilot-coding-agent-with-agent-skills), which are folders of instructions, scripts, and resources that improve Copilot's performance on specialised tasks. Skills which are stored in your repository (`.github/skills/` or `.claude/skills/`) and personal skills in your home directory (`~/.copilot/skills/` or `~/.claude/skills/`) are automatically available.
+
 ## Configuration
 
 The server reads its configuration from a `config.json5` file. By default, it uses the bundled one, but you can point to your own with `--config`:
