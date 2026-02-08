@@ -1,6 +1,6 @@
 {
   "name": "xcode-copilot-server",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "OpenAI-compatible proxy API server for Xcode, powered by GitHub Copilot",
   "type": "module",
   "license": "MIT",
