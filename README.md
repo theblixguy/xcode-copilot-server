@@ -1,4 +1,4 @@
-# xcode-copilot-server
+# xcode-copilot-server [![npm version](https://img.shields.io/npm/v/xcode-copilot-server)](https://www.npmjs.com/package/xcode-copilot-server)
 
 An OpenAI-compatible proxy API server that lets you use GitHub Copilot in Xcode.
 
