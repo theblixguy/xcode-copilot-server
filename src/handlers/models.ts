@@ -11,15 +11,15 @@ export function createModelsHandler({ service, logger }: AppContext) {
     try {
       const models = await service.listModels();
 
-      const response: ModelsResponse = {
+      const response = {
         object: "list",
         data: models.map((m) => ({
           id: m.id,
-          object: "model",
+          object: "model" as const,
           created: currentTimestamp(),
           owned_by: "github-copilot",
         })),
-      };
+      } satisfies ModelsResponse;
 
       reply.send(response);
     } catch (err) {

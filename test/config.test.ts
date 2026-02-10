@@ -26,6 +26,7 @@ function writeConfig(filename: string, content: string): string {
 describe("loadConfig", () => {
   it("returns defaults when config file does not exist", async () => {
     const config = await loadConfig("/nonexistent/config.json5", logger);
+    expect(config.passthroughMcpServer).toBeNull();
     expect(config.mcpServers).toEqual({});
     expect(config.allowedCliTools).toEqual([]);
     expect(config.excludedFilePatterns).toEqual([]);
@@ -129,6 +130,38 @@ describe("loadConfig", () => {
     const config = await loadConfig(path, logger);
     expect(config.bodyLimit).toBe(10 * 1024 * 1024);
   });
+
+  it("loads passthroughMcpServer with relative path resolution", async () => {
+    const path = writeConfig(
+      "passthrough.json5",
+      `{
+        passthroughMcpServer: {
+          command: "node",
+          args: ["./scripts/mcp-passthrough.mjs"],
+        },
+      }`,
+    );
+    const config = await loadConfig(path, logger);
+    expect(config.passthroughMcpServer).toEqual({
+      command: "node",
+      args: [join(tempDir, "scripts/mcp-passthrough.mjs")],
+    });
+  });
+
+  it("defaults passthroughMcpServer to null when absent", async () => {
+    const path = writeConfig("minimal.json5", `{}`);
+    const config = await loadConfig(path, logger);
+    expect(config.passthroughMcpServer).toBeNull();
+  });
+
+  it("allows explicit null for passthroughMcpServer", async () => {
+    const path = writeConfig(
+      "null-passthrough.json5",
+      `{ passthroughMcpServer: null }`,
+    );
+    const config = await loadConfig(path, logger);
+    expect(config.passthroughMcpServer).toBeNull();
+  });
 });
 
 describe("config validation", () => {
@@ -194,9 +227,18 @@ describe("config validation", () => {
     await expect(loadConfig(path, logger)).rejects.toThrow(/url/i);
   });
 
+  it("rejects invalid passthroughMcpServer (missing command)", async () => {
+    const path = writeConfig(
+      "bad.json5",
+      `{ passthroughMcpServer: { args: [] } }`,
+    );
+    await expect(loadConfig(path, logger)).rejects.toThrow(/Invalid/i);
+  });
+
   it("uses defaults for missing optional fields", async () => {
     const path = writeConfig("minimal.json5", `{}`);
     const config = await loadConfig(path, logger);
+    expect(config.passthroughMcpServer).toBeNull();
     expect(config.mcpServers).toEqual({});
     expect(config.allowedCliTools).toEqual([]);
     expect(config.bodyLimit).toBe(4 * 1024 * 1024);

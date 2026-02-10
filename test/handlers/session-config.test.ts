@@ -1,13 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { createSessionConfig } from "../../../src/handlers/completions/session-config.js";
-import { Logger } from "../../../src/logger.js";
-import type { ServerConfig, MCPLocalServer } from "../../../src/config.js";
-
-function mcpStdio(overrides: Partial<MCPLocalServer> = {}): MCPLocalServer {
-  return { type: "stdio", command: "node", args: [], ...overrides };
-}
+import { createSessionConfig } from "../../src/handlers/session-config.js";
+import { Logger } from "../../src/logger.js";
+import type { ServerConfig, MCPLocalServer } from "../../src/config.js";
+import type { PermissionRequest } from "@github/copilot-sdk";
 
 const baseConfig: ServerConfig = {
+  passthroughMcpServer: null,
   mcpServers: {},
   allowedCliTools: [],
   excludedFilePatterns: [],
@@ -19,6 +17,23 @@ function makeConfig(overrides: Partial<ServerConfig> = {}): ServerConfig {
   return { ...baseConfig, ...overrides };
 }
 
+function mcpStdio(overrides: Partial<MCPLocalServer> = {}): MCPLocalServer {
+  return { type: "stdio", command: "node", args: [], ...overrides };
+}
+
+function permissionRequest(kind: PermissionRequest["kind"]): PermissionRequest {
+  return { kind };
+}
+
+function toolUseInput(toolName: string) {
+  return { toolName, toolArgs: {}, timestamp: Date.now(), cwd: "/test" };
+}
+
+function userInputRequest(question: string) {
+  return { question };
+}
+
+const invocation = { sessionId: "test" };
 const logger = new Logger("none");
 
 describe("createSessionConfig", () => {
@@ -72,6 +87,38 @@ describe("createSessionConfig", () => {
       test: { type: "stdio", command: "node", args: ["server.js"], allowedTools: ["tool1"], tools: ["*"] },
     });
   });
+
+  it("sets workingDirectory from cwd parameter", () => {
+    const config = createSessionConfig({
+      model: "gpt-4",
+      logger,
+      config: makeConfig(),
+      supportsReasoningEffort: false,
+      cwd: "/custom/working/dir",
+    });
+    expect(config.workingDirectory).toBe("/custom/working/dir");
+  });
+
+  it("defaults workingDirectory to process.cwd() when cwd not provided", () => {
+    const config = createSessionConfig({
+      model: "gpt-4",
+      logger,
+      config: makeConfig(),
+      supportsReasoningEffort: false,
+    });
+    expect(config.workingDirectory).toBe(process.cwd());
+  });
+
+  it("omits systemMessage when empty string is provided", () => {
+    const config = createSessionConfig({
+      model: "gpt-4",
+      systemMessage: "",
+      logger,
+      config: makeConfig(),
+      supportsReasoningEffort: false,
+    });
+    expect(config.systemMessage).toBeUndefined();
+  });
 });
 
 describe("permission callbacks", () => {
@@ -82,7 +129,7 @@ describe("permission callbacks", () => {
       config: makeConfig({ autoApprovePermissions: true }),
       supportsReasoningEffort: false,
     });
-    const result = await config.onPermissionRequest!({ kind: "shell" } as any, { sessionId: "test" });
+    const result = await config.onPermissionRequest!(permissionRequest("shell"), invocation);
     expect(result).toEqual({ kind: "approved" });
   });
 
@@ -93,7 +140,7 @@ describe("permission callbacks", () => {
       config: makeConfig({ autoApprovePermissions: false }),
       supportsReasoningEffort: false,
     });
-    const result = await config.onPermissionRequest!({ kind: "read" } as any, { sessionId: "test" });
+    const result = await config.onPermissionRequest!(permissionRequest("read"), invocation);
     expect(result).toEqual({ kind: "denied-by-rules" });
   });
 
@@ -104,7 +151,7 @@ describe("permission callbacks", () => {
       config: makeConfig({ autoApprovePermissions: ["read", "write"] }),
       supportsReasoningEffort: false,
     });
-    const result = await config.onPermissionRequest!({ kind: "read" } as any, { sessionId: "test" });
+    const result = await config.onPermissionRequest!(permissionRequest("read"), invocation);
     expect(result).toEqual({ kind: "approved" });
   });
 
@@ -115,7 +162,7 @@ describe("permission callbacks", () => {
       config: makeConfig({ autoApprovePermissions: ["read"] }),
       supportsReasoningEffort: false,
     });
-    const result = await config.onPermissionRequest!({ kind: "shell" } as any, { sessionId: "test" });
+    const result = await config.onPermissionRequest!(permissionRequest("shell"), invocation);
     expect(result).toEqual({ kind: "denied-by-rules" });
   });
 });
@@ -128,7 +175,7 @@ describe("tool filtering", () => {
       config: makeConfig({ allowedCliTools: [], mcpServers: {} }),
       supportsReasoningEffort: false,
     });
-    const result = await config.hooks!.onPreToolUse!({ toolName: "anything" } as any, { sessionId: "test" });
+    const result = await config.hooks!.onPreToolUse!(toolUseInput("anything"), invocation);
     expect(result).toEqual({ permissionDecision: "deny" });
   });
 
@@ -139,9 +186,9 @@ describe("tool filtering", () => {
       config: makeConfig({ allowedCliTools: ["glob", "grep"] }),
       supportsReasoningEffort: false,
     });
-    const allowed = await config.hooks!.onPreToolUse!({ toolName: "glob" } as any, { sessionId: "test" });
+    const allowed = await config.hooks!.onPreToolUse!(toolUseInput("glob"), invocation);
     expect(allowed).toEqual({ permissionDecision: "allow" });
-    const denied = await config.hooks!.onPreToolUse!({ toolName: "bash" } as any, { sessionId: "test" });
+    const denied = await config.hooks!.onPreToolUse!(toolUseInput("bash"), invocation);
     expect(denied).toEqual({ permissionDecision: "deny" });
   });
 
@@ -157,9 +204,9 @@ describe("tool filtering", () => {
       }),
       supportsReasoningEffort: false,
     });
-    const allowed = await config.hooks!.onPreToolUse!({ toolName: "XcodeBuild" } as any, { sessionId: "test" });
+    const allowed = await config.hooks!.onPreToolUse!(toolUseInput("XcodeBuild"), invocation);
     expect(allowed).toEqual({ permissionDecision: "allow" });
-    const denied = await config.hooks!.onPreToolUse!({ toolName: "XcodeTest" } as any, { sessionId: "test" });
+    const denied = await config.hooks!.onPreToolUse!(toolUseInput("XcodeTest"), invocation);
     expect(denied).toEqual({ permissionDecision: "deny" });
   });
 
@@ -170,7 +217,7 @@ describe("tool filtering", () => {
       config: makeConfig({ allowedCliTools: ["*"] }),
       supportsReasoningEffort: false,
     });
-    const result = await config.hooks!.onPreToolUse!({ toolName: "anything" } as any, { sessionId: "test" });
+    const result = await config.hooks!.onPreToolUse!(toolUseInput("anything"), invocation);
     expect(result).toEqual({ permissionDecision: "allow" });
   });
 
@@ -186,7 +233,7 @@ describe("tool filtering", () => {
       }),
       supportsReasoningEffort: false,
     });
-    const result = await config.hooks!.onPreToolUse!({ toolName: "anything" } as any, { sessionId: "test" });
+    const result = await config.hooks!.onPreToolUse!(toolUseInput("anything"), invocation);
     expect(result).toEqual({ permissionDecision: "allow" });
   });
 
@@ -203,13 +250,13 @@ describe("tool filtering", () => {
       }),
       supportsReasoningEffort: false,
     });
-    const cliAllowed = await config.hooks!.onPreToolUse!({ toolName: "glob" } as any, { sessionId: "test" });
+    const cliAllowed = await config.hooks!.onPreToolUse!(toolUseInput("glob"), invocation);
     expect(cliAllowed).toEqual({ permissionDecision: "allow" });
-    const mcp1Allowed = await config.hooks!.onPreToolUse!({ toolName: "XcodeBuild" } as any, { sessionId: "test" });
+    const mcp1Allowed = await config.hooks!.onPreToolUse!(toolUseInput("XcodeBuild"), invocation);
     expect(mcp1Allowed).toEqual({ permissionDecision: "allow" });
-    const mcp2Allowed = await config.hooks!.onPreToolUse!({ toolName: "CustomTool" } as any, { sessionId: "test" });
+    const mcp2Allowed = await config.hooks!.onPreToolUse!(toolUseInput("CustomTool"), invocation);
     expect(mcp2Allowed).toEqual({ permissionDecision: "allow" });
-    const denied = await config.hooks!.onPreToolUse!({ toolName: "NotAllowed" } as any, { sessionId: "test" });
+    const denied = await config.hooks!.onPreToolUse!(toolUseInput("NotAllowed"), invocation);
     expect(denied).toEqual({ permissionDecision: "deny" });
   });
 
@@ -232,6 +279,68 @@ describe("tool filtering", () => {
     });
     expect(config.availableTools).toBeUndefined();
   });
+
+  it("allows xcode-passthrough-* tools when passthrough is active", async () => {
+    const config = createSessionConfig({
+      model: "gpt-4",
+      logger,
+      config: makeConfig(),
+      supportsReasoningEffort: false,
+      mcpPassthroughServer: { command: "node", args: ["/path/to/mcp-passthrough.mjs"] },
+      port: 8080,
+    });
+    const result = await config.hooks!.onPreToolUse!(toolUseInput("xcode-passthrough-Read"), invocation);
+    expect(result).toEqual({ permissionDecision: "allow" });
+  });
+
+  it("allows CLI tools alongside passthrough when allowedCliTools is set", async () => {
+    const config = createSessionConfig({
+      model: "gpt-4",
+      logger,
+      config: makeConfig({ allowedCliTools: ["glob", "grep"] }),
+      supportsReasoningEffort: false,
+      mcpPassthroughServer: { command: "node", args: ["/path/to/mcp-passthrough.mjs"] },
+      port: 8080,
+    });
+    // Passthrough tools allowed
+    const passthrough = await config.hooks!.onPreToolUse!(toolUseInput("xcode-passthrough-Read"), invocation);
+    expect(passthrough).toEqual({ permissionDecision: "allow" });
+    // CLI tools also allowed (additive)
+    const cli = await config.hooks!.onPreToolUse!(toolUseInput("glob"), invocation);
+    expect(cli).toEqual({ permissionDecision: "allow" });
+    // Unknown tools still denied
+    const denied = await config.hooks!.onPreToolUse!(toolUseInput("NotAllowed"), invocation);
+    expect(denied).toEqual({ permissionDecision: "deny" });
+  });
+
+  it("does not activate passthrough when mcpPassthroughServer is null", async () => {
+    const config = createSessionConfig({
+      model: "gpt-4",
+      logger,
+      config: makeConfig({ allowedCliTools: [] }),
+      supportsReasoningEffort: false,
+      mcpPassthroughServer: null,
+      port: 8080,
+    });
+    // No passthrough server, so xcode-passthrough-* tools are denied
+    const result = await config.hooks!.onPreToolUse!(toolUseInput("xcode-passthrough-Read"), invocation);
+    expect(result).toEqual({ permissionDecision: "deny" });
+    // No xcode-passthrough MCP server entry
+    expect(config.mcpServers).toEqual({});
+  });
+
+  it("does not activate passthrough when mcpPassthroughServer is undefined", async () => {
+    const config = createSessionConfig({
+      model: "gpt-4",
+      logger,
+      config: makeConfig({ allowedCliTools: [] }),
+      supportsReasoningEffort: false,
+      port: 8080,
+    });
+    const result = await config.hooks!.onPreToolUse!(toolUseInput("xcode-passthrough-Read"), invocation);
+    expect(result).toEqual({ permissionDecision: "deny" });
+    expect(config.mcpServers).toEqual({});
+  });
 });
 
 describe("onUserInputRequest", () => {
@@ -243,8 +352,8 @@ describe("onUserInputRequest", () => {
       supportsReasoningEffort: false,
     });
     const result = await config.onUserInputRequest!(
-      { question: "Which file?" } as any,
-      { sessionId: "test" },
+      userInputRequest("Which file?"),
+      invocation,
     );
     expect(result.answer).toContain("not available");
     expect(result.wasFreeform).toBe(true);
@@ -282,4 +391,3 @@ describe("reasoningEffort", () => {
     expect(config.reasoningEffort).toBeUndefined();
   });
 });
-

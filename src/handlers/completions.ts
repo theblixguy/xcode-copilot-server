@@ -3,7 +3,7 @@ import type { CopilotSession } from "@github/copilot-sdk";
 import type { AppContext } from "../context.js";
 import { ChatCompletionRequestSchema, extractContentText } from "../schemas/openai.js";
 import { formatPrompt } from "../utils/prompt.js";
-import { createSessionConfig } from "./completions/session-config.js";
+import { createSessionConfig } from "./session-config.js";
 import { handleStreaming } from "./completions/streaming.js";
 
 function sendError(

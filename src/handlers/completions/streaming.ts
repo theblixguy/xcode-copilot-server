@@ -25,9 +25,9 @@ export async function handleStreaming(
     delta: Partial<ChatCompletionMessage>,
     finishReason: string | null,
   ): void {
-    const chunk: ChatCompletionChunk = {
+    const chunk = {
       id: completionId,
-      object: "chat.completion.chunk",
+      object: "chat.completion.chunk" as const,
       created: currentTimestamp(),
       model,
       choices: [
@@ -37,7 +37,7 @@ export async function handleStreaming(
           finish_reason: finishReason,
         },
       ],
-    };
+    } satisfies ChatCompletionChunk;
     reply.raw.write(`data: ${JSON.stringify(chunk)}\n\n`);
   }
 

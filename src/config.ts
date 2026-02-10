@@ -6,6 +6,7 @@ import type { Logger } from "./logger.js";
 import {
   ServerConfigSchema,
   type MCPServer,
+  type PassthroughMCPServer,
   type RawServerConfig,
 } from "./schemas/config.js";
 
@@ -15,19 +16,21 @@ export type {
   MCPServer,
   ApprovalRule,
   ReasoningEffort,
+  PassthroughMCPServer,
 } from "./schemas/config.js";
 
 export type ServerConfig = Omit<RawServerConfig, "bodyLimitMiB"> & {
   bodyLimit: number;
 };
 
-const DEFAULT_CONFIG: ServerConfig = {
+const DEFAULT_CONFIG = {
+  passthroughMcpServer: null,
   mcpServers: {},
   allowedCliTools: [],
   excludedFilePatterns: [],
   bodyLimit: 4 * 1024 * 1024, // 4 MiB
   autoApprovePermissions: ["read", "mcp"],
-};
+} satisfies ServerConfig;
 
 function resolveServerPaths(
   servers: Record<string, MCPServer>,
@@ -48,6 +51,21 @@ function resolveServerPaths(
         : server,
     ]),
   );
+}
+
+function resolvePassthroughPaths(
+  server: PassthroughMCPServer | undefined,
+  configDir: string,
+): PassthroughMCPServer {
+  if (!server) return null;
+  return {
+    ...server,
+    args: server.args.map((arg) =>
+      arg.startsWith("./") || arg.startsWith("../")
+        ? resolve(configDir, arg)
+        : arg,
+    ),
+  };
 }
 
 export async function loadConfig(
@@ -91,13 +109,18 @@ export async function loadConfig(
     );
   }
 
+  const configDir = dirname(absolutePath);
   const { bodyLimitMiB, ...rest } = parseResult.data;
   const config: ServerConfig = {
     ...rest,
     bodyLimit: bodyLimitMiB * 1024 * 1024,
+    passthroughMcpServer: resolvePassthroughPaths(
+      parseResult.data.passthroughMcpServer,
+      configDir,
+    ),
     mcpServers: resolveServerPaths(
       parseResult.data.mcpServers,
-      dirname(absolutePath),
+      configDir,
     ),
   };
 

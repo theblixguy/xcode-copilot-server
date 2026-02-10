@@ -6,4 +6,5 @@ export interface AppContext {
   service: CopilotService;
   logger: Logger;
   config: ServerConfig;
+  port: number;
 }

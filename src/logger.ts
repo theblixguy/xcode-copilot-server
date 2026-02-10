@@ -12,7 +12,11 @@ export type LogLevel = keyof typeof LEVEL_PRIORITY;
 export function formatCompaction(data: unknown): string {
   if (!data || typeof data !== "object") return "compaction data unavailable";
   const cd = data as Record<string, unknown>;
+<<<<<<< HEAD
   return `${String(cd["preCompactionTokens"])} to ${String(cd["postCompactionTokens"])} tokens`;
+=======
+  return `${String(cd["preCompactionTokens"])} \u2192 ${String(cd["postCompactionTokens"])} tokens`;
+>>>>>>> 892438e (Move session-config up a level, add new config options, clean up comments)
 }
 
 export class Logger {

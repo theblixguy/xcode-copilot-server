@@ -5,12 +5,14 @@ import { CopilotService } from "./copilot-service.js";
 import { loadConfig } from "./config.js";
 import { createServer } from "./server.js";
 import { Logger, LEVEL_PRIORITY, type LogLevel } from "./logger.js";
+import { providers } from "./providers/index.js";
 import type { AppContext } from "./context.js";
 
 const PACKAGE_ROOT = dirname(import.meta.dirname);
 const DEFAULT_CONFIG_PATH = join(PACKAGE_ROOT, "config.json5");
 
 const VALID_LOG_LEVELS = Object.keys(LEVEL_PRIORITY) as LogLevel[];
+const VALID_PROXIES = Object.keys(providers);
 
 function isLogLevel(value: string): value is LogLevel {
   return value in LEVEL_PRIORITY;
@@ -20,6 +22,7 @@ const USAGE = `Usage: xcode-copilot-server [options]
 
 Options:
   --port <number>      Port to listen on (default: 8080)
+  --proxy <provider>   API format to expose: ${VALID_PROXIES.join(", ")} (default: openai)
   --log-level <level>  Log verbosity: ${VALID_LOG_LEVELS.join(", ")} (default: info)
   --config <path>      Path to config file (default: bundled config.json5)
   --cwd <path>         Working directory for Copilot sessions (default: process cwd)
@@ -30,6 +33,7 @@ function parseCliArgs() {
     return parseArgs({
       options: {
         port: { type: "string", default: "8080" },
+        proxy: { type: "string", default: "openai" },
         "log-level": { type: "string", default: "info" },
         config: { type: "string", default: DEFAULT_CONFIG_PATH },
         cwd: { type: "string" },
@@ -56,6 +60,15 @@ async function main(): Promise<void> {
   const port = parseInt(values.port, 10);
   if (isNaN(port) || port < 1 || port > 65535) {
     console.error(`Invalid port "${values.port}". Must be 1-65535.`);
+    process.exit(1);
+  }
+
+  const proxy = values.proxy;
+  const provider = providers[proxy];
+  if (!provider) {
+    console.error(
+      `Invalid proxy "${proxy}". Valid: ${VALID_PROXIES.join(", ")}`,
+    );
     process.exit(1);
   }
 
@@ -92,12 +105,13 @@ async function main(): Promise<void> {
   }
   logger.info(`Authenticated as ${auth.login ?? "unknown"} (${auth.authType ?? "unknown"})`);
 
-  const ctx: AppContext = { service, logger, config };
-  const app = await createServer(ctx);
+  const ctx: AppContext = { service, logger, config, port };
+  const app = await createServer(ctx, provider);
   await app.listen({ port, host: "127.0.0.1" });
 
   logger.info(`Listening on http://localhost:${String(port)}`);
-  logger.info("Routes: GET /v1/models, POST /v1/chat/completions");
+  logger.info(`Provider: ${provider.name} (--proxy ${proxy})`);
+  logger.info(`Routes: ${provider.routes.join(", ")}`);
   logger.info(`Current working directory: ${service.cwd}`);
 
   const shutdown = async (signal: string) => {

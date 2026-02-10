@@ -4,17 +4,10 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/**
- * Strips fenced code blocks whose header contains any of the given patterns
- * (case-insensitive). Xcode formats search results as fenced blocks with a
- * header like ` ```swift:/path/to/File.swift `, so the patterns are matched
- * against the file path in that header.
- *
- * Xcode's search results can include full file contents for every match, so
- * some files can be thousands of lines and add nothing useful to the prompt.
- * For example, a mock data file might match the search query but its contents
- * aren't helpful for generating a useful response.
- */
+// Xcode's search results can include full file contents for every match, so
+// some files can be thousands of lines and add nothing useful to the prompt.
+// This strips fenced code blocks whose header matches any of the given patterns
+// (Xcode formats them as ```swift:/path/to/File.swift).
 export function filterExcludedFiles(s: string, patterns: string[]): string {
   if (patterns.length === 0) return s;
 
@@ -26,7 +19,8 @@ export function filterExcludedFiles(s: string, patterns: string[]): string {
   return s.replace(re, "");
 }
 
-/** System/developer messages are skipped, because they're passed via `SessionConfig.systemMessage`. */
+// System/developer messages are skipped because they're passed separately via
+// SessionConfig.systemMessage.
 export function formatPrompt(
   messages: ChatCompletionMessage[],
   excludedFilePatterns: string[],
@@ -39,7 +33,6 @@ export function formatPrompt(
     switch (msg.role) {
       case "system":
       case "developer":
-        // Handled via SessionConfig.systemMessage
         continue;
 
       case "user":
@@ -65,6 +58,7 @@ export function formatPrompt(
 
       case undefined:
         break;
+
       default:
         throw msg.role satisfies never;
     }
