@@ -1,5 +1,4 @@
-import { extractContentText } from "../schemas.js";
-import type { Message } from "../types.js";
+import { extractContentText, type ChatCompletionMessage } from "../schemas/openai.js";
 
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -29,7 +28,7 @@ export function filterExcludedFiles(s: string, patterns: string[]): string {
 
 /** System/developer messages are skipped, because they're passed via `SessionConfig.systemMessage`. */
 export function formatPrompt(
-  messages: Message[],
+  messages: ChatCompletionMessage[],
   excludedFilePatterns: string[],
 ): string {
   const parts: string[] = [];

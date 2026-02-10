@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { extractContentText } from "../../src/schemas.js";
-import type { Message } from "../../src/types.js";
+import { extractContentText, type ChatCompletionMessage } from "../../src/schemas/openai.js";
 import { formatPrompt, filterExcludedFiles } from "../../src/utils/prompt.js";
 
 describe("extractContentText", () => {
@@ -73,7 +72,7 @@ describe("extractContentText", () => {
 
 describe("formatPrompt", () => {
   it("basic user assistant interaction", () => {
-    const messages: Message[] = [
+    const messages: ChatCompletionMessage[] = [
       { role: "user", content: "Hello" },
       { role: "assistant", content: "Hi there" },
     ];
@@ -83,7 +82,7 @@ describe("formatPrompt", () => {
   });
 
   it("system message should be ignored in prompt", () => {
-    const messages: Message[] = [
+    const messages: ChatCompletionMessage[] = [
       { role: "system", content: "You are a helpful assistant" },
       { role: "user", content: "Hello" },
     ];
@@ -94,7 +93,7 @@ describe("formatPrompt", () => {
   });
 
   it("multiple system messages should be ignored", () => {
-    const messages: Message[] = [
+    const messages: ChatCompletionMessage[] = [
       { role: "system", content: "Sys 1" },
       { role: "user", content: "User 1" },
       { role: "system", content: "Sys 2" },
@@ -106,7 +105,7 @@ describe("formatPrompt", () => {
   });
 
   it("developer role messages are skipped like system", () => {
-    const messages: Message[] = [
+    const messages: ChatCompletionMessage[] = [
       { role: "developer", content: "Custom instructions" },
       { role: "user", content: "Hello" },
     ];
@@ -116,7 +115,7 @@ describe("formatPrompt", () => {
   });
 
   it("tool role messages include tool_call_id", () => {
-    const messages: Message[] = [
+    const messages: ChatCompletionMessage[] = [
       { role: "tool", content: "result data", tool_call_id: "call_abc123" },
     ];
     const result = formatPrompt(messages, []);
@@ -124,7 +123,7 @@ describe("formatPrompt", () => {
   });
 
   it("assistant with tool_calls renders call details", () => {
-    const messages: Message[] = [
+    const messages: ChatCompletionMessage[] = [
       {
         role: "assistant",
         content: "Let me search",
@@ -141,7 +140,7 @@ describe("formatPrompt", () => {
   });
 
   it("assistant with no content but tool_calls only renders calls", () => {
-    const messages: Message[] = [
+    const messages: ChatCompletionMessage[] = [
       {
         role: "assistant",
         content: "",
@@ -156,7 +155,7 @@ describe("formatPrompt", () => {
   });
 
   it("multi-turn conversation with tools", () => {
-    const messages: Message[] = [
+    const messages: ChatCompletionMessage[] = [
       { role: "user", content: "Find bugs" },
       {
         role: "assistant",
@@ -176,7 +175,7 @@ describe("formatPrompt", () => {
   });
 
   it("slice(0) on first turn produces full prompt", () => {
-    const messages: Message[] = [
+    const messages: ChatCompletionMessage[] = [
       { role: "user", content: "What is 2+2?" },
     ];
     const full = formatPrompt(messages, []);
@@ -185,10 +184,10 @@ describe("formatPrompt", () => {
   });
 
   it("slice(sentMessageCount) on second turn produces only new messages", () => {
-    const turn1: Message[] = [
+    const turn1: ChatCompletionMessage[] = [
       { role: "user", content: "What is 2+2?" },
     ];
-    const turn2: Message[] = [
+    const turn2: ChatCompletionMessage[] = [
       { role: "user", content: "What is 2+2?" },
       { role: "assistant", content: "4" },
       { role: "user", content: "What about 3+3?" },
@@ -203,7 +202,7 @@ describe("formatPrompt", () => {
   });
 
   it("slice produces only the latest turn in a 3-turn conversation", () => {
-    const allMessages: Message[] = [
+    const allMessages: ChatCompletionMessage[] = [
       { role: "user", content: "Turn 1" },
       { role: "assistant", content: "Reply 1" },
       { role: "user", content: "Turn 2" },
@@ -222,7 +221,7 @@ describe("formatPrompt", () => {
   });
 
   it("slice after tool cycle skips already-sent tool messages", () => {
-    const allMessages: Message[] = [
+    const allMessages: ChatCompletionMessage[] = [
       { role: "user", content: "Find bugs" },
       {
         role: "assistant",
@@ -247,7 +246,7 @@ describe("formatPrompt", () => {
   });
 
   it("slice(0) on error recovery resends full history", () => {
-    const messages: Message[] = [
+    const messages: ChatCompletionMessage[] = [
       { role: "user", content: "What is 2+2?" },
       { role: "assistant", content: "4" },
       { role: "user", content: "What about 3+3?" },
@@ -261,7 +260,7 @@ describe("formatPrompt", () => {
   });
 
   it("slice skips system/developer messages that were already sent", () => {
-    const allMessages: Message[] = [
+    const allMessages: ChatCompletionMessage[] = [
       { role: "system", content: "You are helpful" },
       { role: "user", content: "Turn 1" },
       { role: "assistant", content: "Reply 1" },

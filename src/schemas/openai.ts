@@ -1,5 +1,4 @@
 import { z } from "zod";
-import type { MessageContent } from "./types.js";
 
 const ContentPartSchema = z.looseObject({
   type: z.string(),
@@ -30,6 +29,8 @@ const MessageSchema = z.object({
   tool_call_id: z.string().optional(),
 });
 
+export type ChatCompletionMessage = z.infer<typeof MessageSchema>;
+
 export const ChatCompletionRequestSchema = z.object({
   model: z.string().min(1, "Model is required"),
   messages: z.array(MessageSchema).min(1, "Messages are required"),
@@ -56,13 +57,43 @@ export const ChatCompletionRequestSchema = z.object({
   user: z.string().optional(),
 });
 
+export type ChatCompletionRequest = z.infer<typeof ChatCompletionRequestSchema>;
+
+export interface Choice {
+  index: number;
+  message?: ChatCompletionMessage | undefined;
+  delta?: Partial<ChatCompletionMessage> | undefined;
+  finish_reason: string | null;
+}
+
+export interface ChatCompletionChunk {
+  id: string;
+  object: "chat.completion.chunk";
+  created: number;
+  model: string;
+  choices: Choice[];
+  system_fingerprint?: string | undefined;
+}
+
+export interface Model {
+  id: string;
+  object: "model";
+  created: number;
+  owned_by: string;
+}
+
+export interface ModelsResponse {
+  object: "list";
+  data: Model[];
+}
+
 export function currentTimestamp(): number {
   return Math.floor(Date.now() / 1000);
 }
 
 // Throws on malformed or unsupported content types so callers can surface
 // a 400 error back to the client.
-export function extractContentText(content: MessageContent | undefined): string {
+export function extractContentText(content: ChatCompletionMessage["content"]): string {
   if (content == null) {
     return "";
   }

@@ -1,8 +1,7 @@
 import type { FastifyReply } from "fastify";
 import type { CopilotSession } from "@github/copilot-sdk";
 import { formatCompaction, type Logger } from "../../logger.js";
-import { currentTimestamp } from "../../schemas.js";
-import type { ChatCompletionChunk, Message } from "../../types.js";
+import { currentTimestamp, type ChatCompletionMessage, type ChatCompletionChunk } from "../../schemas/openai.js";
 
 const REQUEST_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -23,7 +22,7 @@ export async function handleStreaming(
   const completionId = `chatcmpl-${String(Date.now())}`;
 
   function sendChunk(
-    delta: Partial<Message>,
+    delta: Partial<ChatCompletionMessage>,
     finishReason: string | null,
   ): void {
     const chunk: ChatCompletionChunk = {

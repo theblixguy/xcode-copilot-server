@@ -7,7 +7,7 @@ import {
   ServerConfigSchema,
   type MCPServer,
   type RawServerConfig,
-} from "./config-schema.js";
+} from "./schemas/config.js";
 
 export type {
   MCPLocalServer,
@@ -15,7 +15,7 @@ export type {
   MCPServer,
   ApprovalRule,
   ReasoningEffort,
-} from "./config-schema.js";
+} from "./schemas/config.js";
 
 export type ServerConfig = Omit<RawServerConfig, "bodyLimitMiB"> & {
   bodyLimit: number;
