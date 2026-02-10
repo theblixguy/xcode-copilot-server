@@ -39,7 +39,10 @@ export type ReasoningEffort = z.infer<typeof ReasoningEffortSchema>;
 
 export const ServerConfigSchema = z.object({
   mcpServers: z.record(z.string(), MCPServerSchema).default({}),
-  allowedCliTools: z.array(z.string()).default([]),
+  allowedCliTools: z.array(z.string()).refine(
+    (arr) => !arr.includes("*") || arr.length === 1,
+    'allowedCliTools: use ["*"] alone to allow all tools, don\'t mix with other entries',
+  ).default([]),
   excludedFilePatterns: z.array(z.string()).default([]),
   bodyLimitMiB: z
     .number()

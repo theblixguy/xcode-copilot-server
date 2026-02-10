@@ -101,8 +101,11 @@ export async function loadConfig(
     ),
   };
 
+  const cliToolsSummary = config.allowedCliTools.includes("*")
+    ? "all CLI tools allowed"
+    : `${String(config.allowedCliTools.length)} allowed CLI tool(s)`;
   logger.info(
-    `Loaded ${String(Object.keys(config.mcpServers).length)} MCP server(s) and ${String(config.allowedCliTools.length)} allowed CLI tool(s)`,
+    `Loaded ${String(Object.keys(config.mcpServers).length)} MCP server(s), ${cliToolsSummary}`,
   );
 
   return config;

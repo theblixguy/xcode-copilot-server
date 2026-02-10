@@ -158,6 +158,14 @@ describe("config validation", () => {
     await expect(loadConfig(path, logger)).rejects.toThrow(/array/i);
   });
 
+  it("rejects wildcard mixed with other entries in allowedCliTools", async () => {
+    const path = writeConfig(
+      "bad.json5",
+      `{ allowedCliTools: ["*", "update_todo"] }`,
+    );
+    await expect(loadConfig(path, logger)).rejects.toThrow(/alone/i);
+  });
+
   it("rejects invalid autoApprovePermissions array", async () => {
     const path = writeConfig(
       "bad.json5",

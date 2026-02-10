@@ -8,6 +8,8 @@ import { handleStreaming } from "./completions/streaming.js";
 
 /** POST /v1/chat/completions */
 export function createCompletionsHandler({ service, logger, config }: AppContext) {
+  let sentMessageCount = 0;
+
   return async function handleCompletions(
     request: FastifyRequest,
     reply: FastifyReply,
@@ -45,7 +47,7 @@ export function createCompletionsHandler({ service, logger, config }: AppContext
 
     let prompt: string;
     try {
-      prompt = formatPrompt(messages, config.excludedFilePatterns);
+      prompt = formatPrompt(messages.slice(sentMessageCount), config.excludedFilePatterns);
     } catch (err) {
       reply.status(400).send({
         error: {
@@ -102,6 +104,7 @@ export function createCompletionsHandler({ service, logger, config }: AppContext
     try {
       logger.info("Streaming response");
       await handleStreaming(reply, session, prompt, req.model, logger);
+      sentMessageCount = req.messages.length;
     } catch (err) {
       logger.error("Request failed:", err);
       if (!reply.sent) {
