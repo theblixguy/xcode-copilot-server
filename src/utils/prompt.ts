@@ -27,7 +27,7 @@ export function filterExcludedFiles(s: string, patterns: string[]): string {
   return s.replace(re, "");
 }
 
-/** System/developer messages are skipped — they're passed via `SessionConfig.systemMessage`. */
+/** System/developer messages are skipped, because they're passed via `SessionConfig.systemMessage`. */
 export function formatPrompt(
   messages: Message[],
   excludedFilePatterns: string[],
