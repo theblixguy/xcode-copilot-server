@@ -3,7 +3,6 @@ import type { AppContext } from "../context.js";
 import { currentTimestamp } from "../schemas.js";
 import type { ModelsResponse } from "../types.js";
 
-/** GET /v1/models */
 export function createModelsHandler({ service, logger }: AppContext) {
   return async function handleModels(
     _request: FastifyRequest,

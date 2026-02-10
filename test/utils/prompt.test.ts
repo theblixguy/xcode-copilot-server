@@ -3,10 +3,6 @@ import { extractContentText } from "../../src/schemas.js";
 import type { Message } from "../../src/types.js";
 import { formatPrompt, filterExcludedFiles } from "../../src/utils/prompt.js";
 
-// ---------------------------------------------------------------------------
-// extractContentText
-// ---------------------------------------------------------------------------
-
 describe("extractContentText", () => {
   it("returns string content as-is", () => {
     expect(extractContentText("Hello, world!")).toBe("Hello, world!");
@@ -74,10 +70,6 @@ describe("extractContentText", () => {
     );
   });
 });
-
-// ---------------------------------------------------------------------------
-// formatPrompt
-// ---------------------------------------------------------------------------
 
 describe("formatPrompt", () => {
   it("basic user assistant interaction", () => {
@@ -285,10 +277,6 @@ describe("formatPrompt", () => {
     expect(result).toContain("[User]: Turn 2");
   });
 });
-
-// ---------------------------------------------------------------------------
-// filterExcludedFiles
-// ---------------------------------------------------------------------------
 
 describe("filterExcludedFiles", () => {
   const fence = "```";

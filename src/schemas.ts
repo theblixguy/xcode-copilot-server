@@ -60,7 +60,8 @@ export function currentTimestamp(): number {
   return Math.floor(Date.now() / 1000);
 }
 
-/** @throws {Error} on malformed or unsupported content types. */
+// Throws on malformed or unsupported content types so callers can surface
+// a 400 error back to the client.
 export function extractContentText(content: MessageContent | undefined): string {
   if (content == null) {
     return "";
