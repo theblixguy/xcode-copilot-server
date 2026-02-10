@@ -26,7 +26,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc -p tsconfig.check.json",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
@@ -38,11 +38,11 @@
   },
   "devDependencies": {
     "@eslint/js": "9.39.2",
-    "@types/node": "25.2.1",
+    "@types/node": "25.2.2",
     "eslint": "9.39.2",
     "tsx": "4.21.0",
     "typescript": "5.9.3",
-    "typescript-eslint": "8.54.0",
+    "typescript-eslint": "8.55.0",
     "vitest": "4.0.18"
   }
 }
