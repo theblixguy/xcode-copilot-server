@@ -110,6 +110,17 @@ export class ToolBridgeState {
 
   markSessionInactive(): void {
     this._sessionActive = false;
+
+    // Some tool calls never go through the MCP bridge (e.g. denied by the
+    // permission hook or handled internally by the CLI). Their stale entries
+    // would cause the next request to be treated as a continuation, hanging
+    // forever since no one resolves them.
+    this.expectedByName.clear();
+    for (const [, pending] of this.pendingByCallId) {
+      clearTimeout(pending.timeout);
+      pending.reject(new Error("Session ended"));
+    }
+    this.pendingByCallId.clear();
   }
 
   notifyStreamingDone(): void {
