@@ -6,7 +6,15 @@ import { formatPrompt } from "../utils/prompt.js";
 import { createSessionConfig } from "./completions/session-config.js";
 import { handleStreaming } from "./completions/streaming.js";
 
-/** POST /v1/chat/completions */
+function sendError(
+  reply: FastifyReply,
+  status: number,
+  type: "invalid_request_error" | "api_error",
+  message: string,
+): void {
+  reply.status(status).send({ error: { message, type } });
+}
+
 export function createCompletionsHandler({ service, logger, config }: AppContext) {
   let sentMessageCount = 0;
 
@@ -17,12 +25,7 @@ export function createCompletionsHandler({ service, logger, config }: AppContext
     const parseResult = ChatCompletionRequestSchema.safeParse(request.body);
     if (!parseResult.success) {
       const firstIssue = parseResult.error.issues[0];
-      reply.status(400).send({
-        error: {
-          message: firstIssue?.message ?? "Invalid request body",
-          type: "invalid_request_error",
-        },
-      });
+      sendError(reply, 400, "invalid_request_error", firstIssue?.message ?? "Invalid request body");
       return;
     }
     const req = parseResult.data;
@@ -34,12 +37,7 @@ export function createCompletionsHandler({ service, logger, config }: AppContext
         try {
           systemParts.push(extractContentText(msg.content));
         } catch (err) {
-          reply.status(400).send({
-            error: {
-              message: err instanceof Error ? err.message : String(err),
-              type: "invalid_request_error",
-            },
-          });
+          sendError(reply, 400, "invalid_request_error", err instanceof Error ? err.message : String(err));
           return;
         }
       }
@@ -49,12 +47,7 @@ export function createCompletionsHandler({ service, logger, config }: AppContext
     try {
       prompt = formatPrompt(messages.slice(sentMessageCount), config.excludedFilePatterns);
     } catch (err) {
-      reply.status(400).send({
-        error: {
-          message: err instanceof Error ? err.message : String(err),
-          type: "invalid_request_error",
-        },
-      });
+      sendError(reply, 400, "invalid_request_error", err instanceof Error ? err.message : String(err));
       return;
     }
 
@@ -92,12 +85,7 @@ export function createCompletionsHandler({ service, logger, config }: AppContext
       session = await service.getSession(sessionConfig);
     } catch (err) {
       logger.error("Getting session failed:", err);
-      reply.status(500).send({
-        error: {
-          message: "Failed to create session",
-          type: "api_error",
-        },
-      });
+      sendError(reply, 500, "api_error", "Failed to create session");
       return;
     }
 
@@ -108,12 +96,7 @@ export function createCompletionsHandler({ service, logger, config }: AppContext
     } catch (err) {
       logger.error("Request failed:", err);
       if (!reply.sent) {
-        reply.status(500).send({
-          error: {
-            message: err instanceof Error ? err.message : "Internal error",
-            type: "api_error",
-          },
-        });
+        sendError(reply, 500, "api_error", err instanceof Error ? err.message : "Internal error");
       }
     }
   };
