@@ -182,6 +182,108 @@ describe("formatPrompt", () => {
     expect(result).toContain("[Tool result for call_1]: Found 3 bugs");
     expect(result).toContain("[Assistant]: I found 3 bugs in your code.");
   });
+
+  it("slice(0) on first turn produces full prompt", () => {
+    const messages: Message[] = [
+      { role: "user", content: "What is 2+2?" },
+    ];
+    const full = formatPrompt(messages, []);
+    const sliced = formatPrompt(messages.slice(0), []);
+    expect(sliced).toBe(full);
+  });
+
+  it("slice(sentMessageCount) on second turn produces only new messages", () => {
+    const turn1: Message[] = [
+      { role: "user", content: "What is 2+2?" },
+    ];
+    const turn2: Message[] = [
+      { role: "user", content: "What is 2+2?" },
+      { role: "assistant", content: "4" },
+      { role: "user", content: "What about 3+3?" },
+    ];
+
+    const sentMessageCount = turn1.length;
+    const result = formatPrompt(turn2.slice(sentMessageCount), []);
+
+    expect(result).not.toContain("What is 2+2?");
+    expect(result).toContain("[Assistant]: 4");
+    expect(result).toContain("[User]: What about 3+3?");
+  });
+
+  it("slice produces only the latest turn in a 3-turn conversation", () => {
+    const allMessages: Message[] = [
+      { role: "user", content: "Turn 1" },
+      { role: "assistant", content: "Reply 1" },
+      { role: "user", content: "Turn 2" },
+      { role: "assistant", content: "Reply 2" },
+      { role: "user", content: "Turn 3" },
+    ];
+
+    const sentMessageCount = 3;
+    const result = formatPrompt(allMessages.slice(sentMessageCount), []);
+
+    expect(result).not.toContain("Turn 1");
+    expect(result).not.toContain("Reply 1");
+    expect(result).not.toContain("Turn 2");
+    expect(result).toContain("[Assistant]: Reply 2");
+    expect(result).toContain("[User]: Turn 3");
+  });
+
+  it("slice after tool cycle skips already-sent tool messages", () => {
+    const allMessages: Message[] = [
+      { role: "user", content: "Find bugs" },
+      {
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          { function: { name: "search", arguments: '{"q":"bug"}' } },
+        ],
+      },
+      { role: "tool", content: "Found 3 bugs", tool_call_id: "call_1" },
+      { role: "assistant", content: "I found 3 bugs." },
+      { role: "user", content: "Fix them" },
+    ];
+
+    const sentMessageCount = 3;
+    const result = formatPrompt(allMessages.slice(sentMessageCount), []);
+
+    expect(result).not.toContain("Find bugs");
+    expect(result).not.toContain("search");
+    expect(result).not.toContain("call_1");
+    expect(result).toContain("[Assistant]: I found 3 bugs.");
+    expect(result).toContain("[User]: Fix them");
+  });
+
+  it("slice(0) on error recovery resends full history", () => {
+    const messages: Message[] = [
+      { role: "user", content: "What is 2+2?" },
+      { role: "assistant", content: "4" },
+      { role: "user", content: "What about 3+3?" },
+    ];
+
+    const result = formatPrompt(messages.slice(0), []);
+
+    expect(result).toContain("[User]: What is 2+2?");
+    expect(result).toContain("[Assistant]: 4");
+    expect(result).toContain("[User]: What about 3+3?");
+  });
+
+  it("slice skips system/developer messages that were already sent", () => {
+    const allMessages: Message[] = [
+      { role: "system", content: "You are helpful" },
+      { role: "user", content: "Turn 1" },
+      { role: "assistant", content: "Reply 1" },
+      { role: "user", content: "Turn 2" },
+    ];
+
+    const sentMessageCount = 2;
+    const result = formatPrompt(allMessages.slice(sentMessageCount), []);
+
+    expect(result).not.toContain("You are helpful");
+    expect(result).not.toContain("Turn 1");
+    expect(result).toContain("[Assistant]: Reply 1");
+    expect(result).toContain("[User]: Turn 2");
+  });
 });
 
 // ---------------------------------------------------------------------------
