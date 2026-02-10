@@ -31,13 +31,20 @@ const VALID_REASONING_EFFORTS = ["low", "medium", "high", "xhigh"] as const;
 
 const ReasoningEffortSchema = z.enum(VALID_REASONING_EFFORTS);
 
+const PassthroughMCPServerSchema = z.object({
+  command: z.string().min(1, "Passthrough MCP server command cannot be empty"),
+  args: z.array(z.string()),
+}).nullable();
+
 export type MCPLocalServer = z.infer<typeof MCPLocalServerSchema>;
 export type MCPRemoteServer = z.infer<typeof MCPRemoteServerSchema>;
 export type MCPServer = z.infer<typeof MCPServerSchema>;
 export type ApprovalRule = z.infer<typeof ApprovalRuleSchema>;
 export type ReasoningEffort = z.infer<typeof ReasoningEffortSchema>;
+export type PassthroughMCPServer = z.infer<typeof PassthroughMCPServerSchema>;
 
 export const ServerConfigSchema = z.object({
+  passthroughMcpServer: PassthroughMCPServerSchema.optional().default(null),
   mcpServers: z.record(z.string(), MCPServerSchema).default({}),
   allowedCliTools: z.array(z.string()).refine(
     (arr) => !arr.includes("*") || arr.length === 1,
