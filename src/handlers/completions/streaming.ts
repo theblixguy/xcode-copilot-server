@@ -1,7 +1,6 @@
 import type { FastifyReply } from "fastify";
 import type { CopilotSession } from "@github/copilot-sdk";
-import type { Logger } from "../../logger.js";
-import { truncate } from "../../logger.js";
+import { formatCompaction, type Logger } from "../../logger.js";
 import { currentTimestamp } from "../../schemas.js";
 import type { ChatCompletionChunk, Message } from "../../types.js";
 
@@ -91,7 +90,7 @@ export async function handleStreaming(
       const d = event.data;
       toolNames.set(d.toolCallId, d.toolName);
       logger.debug(
-        `Running ${d.toolName} (${truncate(d.arguments)})`,
+        `Running ${d.toolName} (${JSON.stringify(d.arguments)})`,
       );
       return;
     }
@@ -100,7 +99,7 @@ export async function handleStreaming(
       const name = toolNames.get(d.toolCallId) ?? d.toolCallId;
       toolNames.delete(d.toolCallId);
       const detail = d.success
-        ? truncate(d.result?.content)
+        ? JSON.stringify(d.result?.content)
         : d.error?.message ?? "failed";
       logger.debug(`${name} done (${detail})`);
       return;
@@ -140,13 +139,9 @@ export async function handleStreaming(
         logger.info("Compacting context...");
         break;
 
-      case "session.compaction_complete": {
-        const cd = event.data as Record<string, unknown>;
-        logger.info(
-          `Context compacted: ${String(cd.preCompactionTokens)} → ${String(cd.postCompactionTokens)} tokens`,
-        );
+      case "session.compaction_complete":
+        logger.info(`Context compacted: ${formatCompaction(event.data)}`);
         break;
-      }
 
       case "session.error":
         logger.error(`Session error: ${event.data.message}`);

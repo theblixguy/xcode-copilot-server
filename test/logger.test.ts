@@ -1,38 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { truncate, Logger } from "../src/logger.js";
-
-describe("truncate", () => {
-  it("returns short strings unchanged", () => {
-    expect(truncate("hello")).toBe("hello");
-  });
-
-  it("truncates strings longer than maxLen", () => {
-    const long = "a".repeat(300);
-    const result = truncate(long);
-    expect(result).toHaveLength(201);
-    expect(result.endsWith("…")).toBe(true);
-  });
-
-  it("respects custom maxLen", () => {
-    const result = truncate("abcdefghij", 5);
-    expect(result).toBe("abcde…");
-  });
-
-  it("serializes non-string values via JSON.stringify", () => {
-    expect(truncate({ a: 1 })).toBe('{"a":1}');
-  });
-
-  it("truncates long serialized objects", () => {
-    const obj = { data: "x".repeat(300) };
-    const result = truncate(obj, 10);
-    expect(result).toHaveLength(11);
-  });
-
-  it("handles exactly maxLen length", () => {
-    const exact = "a".repeat(200);
-    expect(truncate(exact)).toBe(exact);
-  });
-});
+import { Logger } from "../src/logger.js";
 
 describe("Logger", () => {
   beforeEach(() => {

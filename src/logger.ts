@@ -5,14 +5,14 @@ export const LEVEL_PRIORITY = {
   info: 3,
   debug: 4,
   all: 5,
-} as const;
+} as const satisfies Record<string, number>;
 
 export type LogLevel = keyof typeof LEVEL_PRIORITY;
 
-export function truncate(value: unknown, maxLen = 200): string {
-  const s = typeof value === "string" ? value : JSON.stringify(value);
-  if (s.length <= maxLen) return s;
-  return s.slice(0, maxLen) + "…";
+export function formatCompaction(data: unknown): string {
+  if (!data || typeof data !== "object") return "compaction data unavailable";
+  const cd = data as Record<string, unknown>;
+  return `${String(cd["preCompactionTokens"])} → ${String(cd["postCompactionTokens"])} tokens`;
 }
 
 export class Logger {
