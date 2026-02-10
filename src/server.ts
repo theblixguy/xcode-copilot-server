@@ -2,20 +2,20 @@ import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import type { AppContext } from "./context.js";
 import type { LogLevel } from "./logger.js";
-import { createModelsHandler } from "./handlers/models.js";
-import { createCompletionsHandler } from "./handlers/completions.js";
+import type { Provider } from "./providers/types.js";
 
-const PINO_LEVEL: Record<LogLevel, string> = {
+const PINO_LEVEL = {
   none: "silent",
   error: "error",
   warning: "warn",
   info: "info",
   debug: "debug",
   all: "trace",
-};
+} satisfies Record<LogLevel, string>;
 
 export async function createServer(
   ctx: AppContext,
+  provider: Provider,
 ): Promise<FastifyInstance> {
   const app = Fastify({
     bodyLimit: ctx.config.bodyLimit,
@@ -30,27 +30,16 @@ export async function createServer(
   await app.register(cors, {
     origin: "*",
     methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "anthropic-beta",
+      "anthropic-version",
+      "x-api-key",
+    ],
   });
 
-  app.addHook("onRequest", (request, reply, done) => {
-    const ua = request.headers["user-agent"] ?? "";
-    if (!ua.startsWith("Xcode/")) {
-      ctx.logger.warn(
-        `Rejected request from unexpected user-agent: ${ua}`,
-      );
-      void reply
-        .code(403)
-        .type("application/json")
-        .send('{"error":"Forbidden"}\n');
-      return;
-    }
-
-    done();
-  });
-
-  app.get("/v1/models", createModelsHandler(ctx));
-  app.post("/v1/chat/completions", createCompletionsHandler(ctx));
+  provider.register(app, ctx);
 
   return app;
 }
