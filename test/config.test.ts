@@ -227,7 +227,7 @@ describe("config validation", () => {
       "bad.json5",
       `{ allowedCliTools: ["*", "update_todo"] }`,
     );
-    await expect(loadConfig(path, logger)).rejects.toThrow(/alone/i);
+    await expect(loadConfig(path, logger, "openai")).rejects.toThrow(/alone/i);
   });
 
   it("rejects invalid autoApprovePermissions array", async () => {
