@@ -59,11 +59,11 @@ export function createSessionConfig({
           args: [
             ...toolBridgeServer.args,
             `--port=${String(port ?? 8080)}`,
-            ...(conversationId ? [`--conv-id=${conversationId}`] : []),
+            `--conv-id=${conversationId ?? ""}`,
           ],
           env: {
             MCP_SERVER_PORT: String(port ?? 8080),
-            ...(conversationId && { MCP_CONVERSATION_ID: conversationId }),
+            MCP_CONVERSATION_ID: conversationId ?? "",
           },
           tools: ["*"],
         },

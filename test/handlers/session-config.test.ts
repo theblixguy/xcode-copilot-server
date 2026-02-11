@@ -360,22 +360,6 @@ describe("tool filtering", () => {
     ]);
   });
 
-  it("omits --conv-id when conversationId is not provided", () => {
-    const config = createSessionConfig({
-      model: "gpt-4",
-      logger,
-      config: makeConfig(),
-      supportsReasoningEffort: false,
-      toolBridgeServer: { command: "node", args: ["/path/to/bridge.mjs"] },
-      port: 8080,
-    });
-    const bridge = config.mcpServers?.["xcode-bridge"] as { args: string[] };
-    expect(bridge.args).toEqual([
-      "/path/to/bridge.mjs",
-      "--port=8080",
-    ]);
-  });
-
   it("defaults port to 8080 in CLI args when port is not provided", () => {
     const config = createSessionConfig({
       model: "gpt-4",
