@@ -225,6 +225,49 @@ describe("ToolBridgeState", () => {
     });
   });
 
+  describe("resolveToolName", () => {
+    function makeTool(name: string) {
+      return { name, description: "", input_schema: { type: "object" as const, properties: {} } };
+    }
+
+    it("returns exact match unchanged", () => {
+      const state = new ToolBridgeState();
+      state.cacheTools([makeTool("mcp__xcode-tools__XcodeRead")]);
+      expect(state.resolveToolName("mcp__xcode-tools__XcodeRead")).toBe("mcp__xcode-tools__XcodeRead");
+    });
+
+    it("resolves a hallucinated short name via suffix match", () => {
+      const state = new ToolBridgeState();
+      state.cacheTools([makeTool("mcp__xcode-tools__XcodeRead")]);
+      expect(state.resolveToolName("XcodeRead")).toBe("mcp__xcode-tools__XcodeRead");
+    });
+
+    it("returns name as-is when no cached tools match", () => {
+      const state = new ToolBridgeState();
+      state.cacheTools([makeTool("mcp__xcode-tools__XcodeRead")]);
+      expect(state.resolveToolName("Unknown")).toBe("Unknown");
+    });
+
+    it("returns name as-is when suffix is ambiguous", () => {
+      const state = new ToolBridgeState();
+      state.cacheTools([
+        makeTool("mcp__server-a__Read"),
+        makeTool("mcp__server-b__Read"),
+      ]);
+      expect(state.resolveToolName("Read")).toBe("Read");
+    });
+
+    it("returns name as-is with no cached tools", () => {
+      expect(new ToolBridgeState().resolveToolName("XcodeRead")).toBe("XcodeRead");
+    });
+
+    it("does not match partial suffixes without __ boundary", () => {
+      const state = new ToolBridgeState();
+      state.cacheTools([makeTool("mcp__xcode-tools__SomeXcodeRead")]);
+      expect(state.resolveToolName("XcodeRead")).toBe("XcodeRead");
+    });
+  });
+
   describe("streaming lifecycle", () => {
     it("waitForStreamingDone resolves when notifyStreamingDone is called", async () => {
       const state = new ToolBridgeState();

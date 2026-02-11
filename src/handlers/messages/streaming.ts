@@ -208,10 +208,11 @@ export async function handleAnthropicStreaming(
             logger.debug(`Skipped ${String(skipped)} non-bridge tool request(s) (handled internally by CLI)`);
           }
 
-          // Strip MCP prefix so names match what the MCP shim sends and what Xcode expects
+          // Strip MCP prefix and resolve hallucinated names so the tool_use
+          // blocks sent to Xcode match the names it originally provided.
           const stripped = bridgeRequests.map((tr) => ({
             ...tr,
-            name: stripMCPPrefix(tr.name),
+            name: state.resolveToolName(stripMCPPrefix(tr.name)),
           }));
 
           if (stripped.length > 0) {

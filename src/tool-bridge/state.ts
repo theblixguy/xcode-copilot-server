@@ -46,6 +46,21 @@ export class ToolBridgeState {
     return this.cachedTools;
   }
 
+  /**
+   * The model sometimes hallucinates a shortened tool name (e.g. "XcodeRead"
+   * instead of "mcp__xcode-tools__XcodeRead"). Resolve against the cached
+   * tool list so Xcode receives the name it originally sent.
+   */
+  resolveToolName(name: string): string {
+    if (this.cachedTools.some((t) => t.name === name)) return name;
+
+    const suffix = `__${name}`;
+    const matches = this.cachedTools.filter((t) => t.name.endsWith(suffix));
+    if (matches.length === 1) return matches[0]!.name;
+
+    return name;
+  }
+
   onSessionEnd(callback: () => void): void {
     this._onSessionEnd = callback;
   }

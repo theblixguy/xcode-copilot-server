@@ -48,10 +48,15 @@ export function registerRoutes(
         return reply.status(404).send({ error: "Conversation not found" });
       }
 
-      logger.info(`/internal/${request.params.convId}/tool-call: name="${name}", args=${JSON.stringify(args)}`);
+      const resolved = state.resolveToolName(name);
+      if (resolved !== name) {
+        logger.info(`/internal/${request.params.convId}/tool-call: name="${name}" resolved to "${resolved}", args=${JSON.stringify(args)}`);
+      } else {
+        logger.info(`/internal/${request.params.convId}/tool-call: name="${name}", args=${JSON.stringify(args)}`);
+      }
 
       const result = await new Promise<string>((resolve, reject) => {
-        state.registerMCPRequest(name, resolve, reject);
+        state.registerMCPRequest(resolved, resolve, reject);
       });
 
       logger.debug(`/internal/${request.params.convId}/tool-call resolved: name="${name}"`);
