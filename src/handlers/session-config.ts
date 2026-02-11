@@ -11,6 +11,7 @@ export interface SessionConfigOptions {
   cwd?: string | undefined;
   toolBridgeServer?: ToolBridgeServer | null | undefined;
   port?: number | undefined;
+  conversationId?: string | undefined;
 }
 
 function isApproved(rule: ApprovalRule, kind: string): boolean {
@@ -27,6 +28,7 @@ export function createSessionConfig({
   cwd,
   toolBridgeServer,
   port,
+  conversationId,
 }: SessionConfigOptions): SessionConfig {
   const hasBridge = !!toolBridgeServer;
 
@@ -54,8 +56,15 @@ export function createSessionConfig({
         "xcode-bridge": {
           type: "local" as const,
           command: toolBridgeServer.command,
-          args: toolBridgeServer.args,
-          env: { MCP_SERVER_PORT: String(port ?? 8080) },
+          args: [
+            ...toolBridgeServer.args,
+            `--port=${String(port ?? 8080)}`,
+            ...(conversationId ? [`--conv-id=${conversationId}`] : []),
+          ],
+          env: {
+            MCP_SERVER_PORT: String(port ?? 8080),
+            ...(conversationId && { MCP_CONVERSATION_ID: conversationId }),
+          },
           tools: ["*"],
         },
       }),

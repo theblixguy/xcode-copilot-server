@@ -82,7 +82,7 @@ export function createCompletionsHandler({ service, logger, config }: AppContext
 
     let session: CopilotSession;
     try {
-      session = await service.getSession(sessionConfig);
+      session = await service.createSession(sessionConfig);
     } catch (err) {
       logger.error("Getting session failed:", err);
       sendError(reply, 500, "api_error", "Failed to create session");

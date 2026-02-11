@@ -23,8 +23,8 @@ export const anthropicProvider = {
       done();
     });
 
-    const state = registerToolBridge(app, ctx.logger);
-    app.post("/v1/messages", createMessagesHandler(ctx, state));
+    const manager = registerToolBridge(app, ctx.logger);
+    app.post("/v1/messages", createMessagesHandler(ctx, manager));
     app.post("/v1/messages/count_tokens", createCountTokensHandler(ctx));
   },
 } satisfies Provider;

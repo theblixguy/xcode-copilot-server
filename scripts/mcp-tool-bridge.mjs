@@ -12,14 +12,24 @@
 
 import { createInterface } from "node:readline";
 
-const PORT = process.env.MCP_SERVER_PORT ?? "8080";
-const BASE = `http://127.0.0.1:${PORT}`;
+// Parse CLI args (--port=XXXX, --conv-id=XXXX) with env var fallbacks.
+// The Copilot SDK may not pass `env` from the MCP server config to the
+// child process, so we rely on CLI args as the primary mechanism.
+function parseArg(flag) {
+  const prefix = `--${flag}=`;
+  const arg = process.argv.find((a) => a.startsWith(prefix));
+  return arg ? arg.slice(prefix.length) : undefined;
+}
+
+const PORT = parseArg("port") ?? process.env.MCP_SERVER_PORT ?? "8080";
+const CONV_ID = parseArg("conv-id") ?? process.env.MCP_CONVERSATION_ID ?? "";
+const BASE = `http://127.0.0.1:${PORT}/internal/${CONV_ID}`;
 
 function log(msg) {
   process.stderr.write(`[mcp-tool-bridge] ${msg}\n`);
 }
 
-log(`Starting, port=${PORT}`);
+log(`Starting, port=${PORT}, conversationId=${CONV_ID || "(none)"}`);
 
 function send(msg) {
   process.stdout.write(JSON.stringify(msg) + "\n");
@@ -45,7 +55,7 @@ async function handleInitialize(id) {
 async function handleToolsList(id) {
   log("tools/list requested");
   try {
-    const res = await fetch(`${BASE}/internal/tools`);
+    const res = await fetch(`${BASE}/tools`);
     if (!res.ok) {
       log(`tools/list failed: ${res.status}`);
       respondError(id, -32603, `Failed to fetch tools: ${res.status}`);
@@ -64,7 +74,7 @@ async function handleToolsCall(id, params) {
   const argsPreview = JSON.stringify(params.arguments ?? {}).slice(0, 200);
   log(`tools/call: name="${params.name}", args=${argsPreview}`);
   try {
-    const res = await fetch(`${BASE}/internal/tool-call`, {
+    const res = await fetch(`${BASE}/tool-call`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

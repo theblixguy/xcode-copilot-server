@@ -22,6 +22,7 @@ export class ToolBridgeState {
 
   private reply: FastifyReply | null = null;
   private streamingDone: (() => void) | null = null;
+  private _onSessionEnd: (() => void) | null = null;
 
   private _sessionActive = false;
 
@@ -43,6 +44,23 @@ export class ToolBridgeState {
 
   getCachedTools(): AnthropicToolDefinition[] {
     return this.cachedTools;
+  }
+
+  onSessionEnd(callback: () => void): void {
+    this._onSessionEnd = callback;
+  }
+
+  hasPendingToolCall(toolCallId: string): boolean {
+    if (this.pendingByCallId.has(toolCallId)) return true;
+    for (const [, queue] of this.expectedByName) {
+      if (queue.includes(toolCallId)) return true;
+    }
+    return false;
+  }
+
+  hasExpectedTool(name: string): boolean {
+    const queue = this.expectedByName.get(name);
+    return !!queue && queue.length > 0;
   }
 
   registerExpected(toolCallId: string, toolName: string): void {
@@ -121,6 +139,11 @@ export class ToolBridgeState {
       pending.reject(new Error("Session ended"));
     }
     this.pendingByCallId.clear();
+
+    if (this._onSessionEnd) {
+      this._onSessionEnd();
+      this._onSessionEnd = null;
+    }
   }
 
   notifyStreamingDone(): void {
@@ -145,5 +168,10 @@ export class ToolBridgeState {
     }
     this.pendingByCallId.clear();
     this.expectedByName.clear();
+
+    if (this._onSessionEnd) {
+      this._onSessionEnd();
+      this._onSessionEnd = null;
+    }
   }
 }

@@ -16,8 +16,6 @@ export interface CopilotServiceOptions {
 export class CopilotService {
   readonly cwd: string;
   private client: CopilotClient;
-  private session: CopilotSession | null = null;
-  private sessionPromise: Promise<CopilotSession> | null = null;
   private logger: Logger | undefined;
 
   constructor(options: CopilotServiceOptions = {}) {
@@ -37,11 +35,6 @@ export class CopilotService {
   }
 
   async stop(): Promise<void> {
-    if (this.session) {
-      await this.session.destroy();
-      this.session = null;
-    }
-    this.sessionPromise = null;
     await this.client.stop();
   }
 
@@ -53,24 +46,8 @@ export class CopilotService {
     return this.client.listModels();
   }
 
-  async getSession(config: SessionConfig): Promise<CopilotSession> {
-    if (this.session) {
-      return this.session;
-    }
-    if (!this.sessionPromise) {
-      this.sessionPromise = this.client.createSession(config).then(
-        (s) => {
-          this.session = s;
-          this.sessionPromise = null;
-          this.logger?.info("Session created");
-          return s;
-        },
-        (err: unknown) => {
-          this.sessionPromise = null;
-          throw err;
-        },
-      );
-    }
-    return this.sessionPromise;
+  async createSession(config: SessionConfig): Promise<CopilotSession> {
+    this.logger?.info("Creating session");
+    return this.client.createSession(config);
   }
 }
