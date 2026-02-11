@@ -1,6 +1,7 @@
 import type { Provider } from "./types.js";
 import { createModelsHandler } from "../handlers/models.js";
 import { createCompletionsHandler } from "../handlers/completions.js";
+import { ConversationManager } from "../conversation-manager.js";
 
 export const openaiProvider = {
   name: "OpenAI",
@@ -23,7 +24,8 @@ export const openaiProvider = {
       done();
     });
 
+    const manager = new ConversationManager(ctx.logger);
     app.get("/v1/models", createModelsHandler(ctx));
-    app.post("/v1/chat/completions", createCompletionsHandler(ctx));
+    app.post("/v1/chat/completions", createCompletionsHandler(ctx, manager));
   },
 } satisfies Provider;

@@ -1,6 +1,6 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
-import type { CopilotSession } from "@github/copilot-sdk";
 import type { AppContext } from "../context.js";
+import type { ConversationManager } from "../conversation-manager.js";
 import { ChatCompletionRequestSchema, extractContentText } from "../schemas/openai.js";
 import { formatPrompt } from "../utils/prompt.js";
 import { createSessionConfig } from "./session-config.js";
@@ -15,10 +15,7 @@ function sendError(
   reply.status(status).send({ error: { message, type } });
 }
 
-export function createCompletionsHandler({ service, logger, config }: AppContext) {
-  let sentMessageCount = 0;
-  let cachedSession: CopilotSession | null = null;
-
+export function createCompletionsHandler({ service, logger, config }: AppContext, manager: ConversationManager) {
   return async function handleCompletions(
     request: FastifyRequest,
     reply: FastifyReply,
@@ -32,6 +29,16 @@ export function createCompletionsHandler({ service, logger, config }: AppContext
     const req = parseResult.data;
     const messages = req.messages;
 
+    const { conversation, isReuse } = manager.findForNewRequest();
+    const state = conversation.state;
+    state.markSessionActive();
+
+    logger.info(
+      isReuse
+        ? `Reusing primary conversation ${conversation.id}`
+        : `New conversation ${conversation.id}`,
+    );
+
     const systemParts: string[] = [];
     for (const msg of messages) {
       if (msg.role === "system" || msg.role === "developer") {
@@ -39,6 +46,11 @@ export function createCompletionsHandler({ service, logger, config }: AppContext
           systemParts.push(extractContentText(msg.content));
         } catch (err) {
           sendError(reply, 400, "invalid_request_error", err instanceof Error ? err.message : String(err));
+          if (isReuse) {
+            state.markSessionInactive();
+          } else {
+            manager.remove(conversation.id);
+          }
           return;
         }
       }
@@ -46,18 +58,18 @@ export function createCompletionsHandler({ service, logger, config }: AppContext
 
     let prompt: string;
     try {
-      prompt = formatPrompt(messages.slice(sentMessageCount), config.excludedFilePatterns);
+      prompt = formatPrompt(messages.slice(conversation.sentMessageCount), config.excludedFilePatterns);
     } catch (err) {
       sendError(reply, 400, "invalid_request_error", err instanceof Error ? err.message : String(err));
+      if (isReuse) {
+        state.markSessionInactive();
+      } else {
+        manager.remove(conversation.id);
+      }
       return;
     }
 
-    let session: CopilotSession;
-
-    if (cachedSession) {
-      logger.info("Reusing cached session");
-      session = cachedSession;
-    } else {
+    if (!isReuse) {
       const systemMessage =
         systemParts.length > 0 ? systemParts.join("\n\n") : undefined;
 
@@ -88,28 +100,37 @@ export function createCompletionsHandler({ service, logger, config }: AppContext
       });
 
       try {
-        session = await service.createSession(sessionConfig);
-        cachedSession = session;
+        conversation.session = await service.createSession(sessionConfig);
       } catch (err) {
-        logger.error("Getting session failed:", err);
+        logger.error("Creating session failed:", err);
         sendError(reply, 500, "api_error", "Failed to create session");
+        manager.remove(conversation.id);
         return;
       }
     }
 
+    if (!conversation.session) {
+      logger.error("Primary conversation has no session, clearing");
+      manager.clearPrimary();
+      sendError(reply, 500, "api_error", "Session lost, please retry");
+      return;
+    }
+
     try {
       logger.info("Streaming response");
-      const healthy = await handleStreaming(reply, session, prompt, req.model, logger);
+      const healthy = await handleStreaming(reply, conversation.session, prompt, req.model, logger);
+      state.markSessionInactive();
       if (healthy) {
-        sentMessageCount = req.messages.length;
-      } else {
-        cachedSession = null;
-        sentMessageCount = 0;
+        conversation.sentMessageCount = req.messages.length;
+      } else if (conversation.isPrimary) {
+        manager.clearPrimary();
       }
     } catch (err) {
       logger.error("Request failed:", err);
-      cachedSession = null;
-      sentMessageCount = 0;
+      state.markSessionInactive();
+      if (conversation.isPrimary) {
+        manager.clearPrimary();
+      }
       if (!reply.sent) {
         sendError(reply, 500, "api_error", err instanceof Error ? err.message : "Internal error");
       }
