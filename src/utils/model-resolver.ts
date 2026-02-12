@@ -7,6 +7,9 @@ function normalize(id: string): string {
 
 // We need to group models by family for fallback matching, so we grab the
 // prefix before the first digit (e.g. "claude-sonnet-4-5" → "claude-sonnet-").
+// This works for Claude naming but would lump all GPT models into "gpt-"
+// so it'll need reworking once we support non-Claude model families here
+// e.g. if we add Codex support.
 function extractFamily(id: string): string {
   const match = id.match(/^(.*?-)\d/);
   return match?.[1] ?? id;
