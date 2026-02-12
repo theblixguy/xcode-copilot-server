@@ -67,6 +67,13 @@ export function createMessagesHandler(
         : `New conversation ${conversation.id}`,
     );
 
+    // SDK doesn't support switching models mid-session (github/copilot-sdk#409)
+    if (isReuse && conversation.model && conversation.model !== req.model) {
+      logger.warn(
+        `Model mismatch: session uses "${conversation.model}" but request sent "${req.model}" (SDK does not support mid-session model switching)`,
+      );
+    }
+
     const tools = req.tools;
     const hasTools = !!tools?.length;
     const hasBridge = hasTools && config.toolBridge;
@@ -134,6 +141,8 @@ export function createMessagesHandler(
       } catch (err) {
         logger.warn("Failed to list models, passing model through as-is:", err);
       }
+
+      conversation.model = copilotModel;
 
       if (hasBridge) {
         logger.info("Tool bridge active (in-process MCP)");

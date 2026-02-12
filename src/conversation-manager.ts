@@ -10,6 +10,7 @@ export interface Conversation {
   session: CopilotSession | null;
   sentMessageCount: number;
   isPrimary: boolean;
+  model: string | null;
 }
 
 export class ConversationManager {
@@ -31,6 +32,7 @@ export class ConversationManager {
       session: null,
       sentMessageCount: 0,
       isPrimary,
+      model: null,
     };
     this.conversations.set(id, conversation);
 
