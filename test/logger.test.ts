@@ -66,7 +66,10 @@ describe("Logger", () => {
     expect(logSpy).toHaveBeenCalledTimes(2);
   });
 
-  it("formats messages with level prefix", () => {
+  it("formats messages with timestamp and level prefix", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-02-11T12:30:45.123Z"));
+
     const logger = new Logger("debug");
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -74,7 +77,9 @@ describe("Logger", () => {
     logger.error("something broke");
     logger.info("all good");
 
-    expect(errorSpy).toHaveBeenCalledWith("[ERROR] something broke");
-    expect(logSpy).toHaveBeenCalledWith("[INFO] all good");
+    expect(errorSpy).toHaveBeenCalledWith("[2026-02-11T12:30:45.123Z] [ERROR] something broke");
+    expect(logSpy).toHaveBeenCalledWith("[2026-02-11T12:30:45.123Z] [INFO] all good");
+
+    vi.useRealTimers();
   });
 });

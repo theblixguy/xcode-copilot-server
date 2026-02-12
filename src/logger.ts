@@ -20,25 +20,25 @@ export class Logger {
 
   error(msg: string, ...args: unknown[]): void {
     if (this.threshold >= LEVEL_PRIORITY.error) {
-      console.error(`[ERROR] ${msg}`, ...args);
+      console.error(`[${new Date().toISOString()}] [ERROR] ${msg}`, ...args);
     }
   }
 
   warn(msg: string, ...args: unknown[]): void {
     if (this.threshold >= LEVEL_PRIORITY.warning) {
-      console.warn(`[WARN] ${msg}`, ...args);
+      console.warn(`[${new Date().toISOString()}] [WARN] ${msg}`, ...args);
     }
   }
 
   info(msg: string, ...args: unknown[]): void {
     if (this.threshold >= LEVEL_PRIORITY.info) {
-      console.log(`[INFO] ${msg}`, ...args);
+      console.log(`[${new Date().toISOString()}] [INFO] ${msg}`, ...args);
     }
   }
 
   debug(msg: string, ...args: unknown[]): void {
     if (this.threshold >= LEVEL_PRIORITY.debug) {
-      console.log(`[DEBUG] ${msg}`, ...args);
+      console.log(`[${new Date().toISOString()}] [DEBUG] ${msg}`, ...args);
     }
   }
 }
