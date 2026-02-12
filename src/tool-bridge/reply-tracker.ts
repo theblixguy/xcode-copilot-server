@@ -24,6 +24,9 @@ export class ReplyTracker {
   }
 
   waitForStreamingDone(): Promise<void> {
+    if (this.streamingDone) {
+      throw new Error("Already waiting for streaming to complete");
+    }
     return new Promise<void>((resolve) => {
       this.streamingDone = resolve;
     });
