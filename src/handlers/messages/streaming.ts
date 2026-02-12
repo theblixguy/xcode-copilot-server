@@ -56,6 +56,10 @@ export async function handleAnthropicStreaming(
 
   const toolNames = new Map<string, string>();
 
+  // This listener outlives the initial HTTP response because during a
+  // tool_use flow the reply gets ended, then Xcode sends a continuation
+  // request that sets a new reply on state. So, we read state.currentReply
+  // each time instead of closing over the original reply variable.
   function getReply(): FastifyReply | null {
     return state.currentReply;
   }
