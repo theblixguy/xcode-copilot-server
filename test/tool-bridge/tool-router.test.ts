@@ -95,6 +95,54 @@ describe("ToolRouter", () => {
       expect(new ToolRouter().resolveToolCall("nope", "x")).toBe(false);
     });
 
+    it("cleans up stale expected entries not yet promoted to pending", () => {
+      const router = new ToolRouter();
+      // Simulate: model calls tool with hallucinated name, CLI fails it without
+      // calling our MCP endpoint. The expected entry becomes stale.
+      router.registerExpected("stale-tc", "Read");
+      expect(router.hasExpectedTool("Read")).toBe(true);
+
+      // resolveToolCall should find and remove the stale expected entry
+      const found = router.resolveToolCall("stale-tc", "error result");
+      expect(found).toBe(true);
+      expect(router.hasExpectedTool("Read")).toBe(false);
+      expect(router.hasPending).toBe(false);
+    });
+
+    it("stale cleanup does not affect other entries for the same tool", () => {
+      const router = new ToolRouter();
+      router.registerExpected("stale-tc", "Read");
+      router.registerExpected("good-tc", "Read");
+
+      // Clean up only the stale one
+      router.resolveToolCall("stale-tc", "error");
+
+      // The good entry should still be there
+      expect(router.hasExpectedTool("Read")).toBe(true);
+      expect(router.hasPendingToolCall("good-tc")).toBe(true);
+    });
+
+    it("stale cleanup prevents wrong toolCallId binding on next registerMCPRequest", () => {
+      const router = new ToolRouter();
+      // Step 1: register expected with a stale toolCallId
+      router.registerExpected("stale-tc", "Read");
+
+      // Step 2: simulate CLI failing the tool without calling MCP
+      router.resolveToolCall("stale-tc", "Tool does not exist");
+
+      // Step 3: model retries with correct name, register new expected
+      router.registerExpected("good-tc", "Read");
+
+      // Step 4: MCP endpoint receives request, should bind to good-tc
+      const resolve = vi.fn();
+      router.registerMCPRequest("Read", resolve, () => {});
+
+      // Step 5: resolve with good-tc should work
+      const found = router.resolveToolCall("good-tc", "file contents");
+      expect(found).toBe(true);
+      expect(resolve).toHaveBeenCalledWith("file contents");
+    });
+
     it("removes the tool call from pending after resolution", () => {
       const router = new ToolRouter();
       router.registerExpected("tc-1", "Read");

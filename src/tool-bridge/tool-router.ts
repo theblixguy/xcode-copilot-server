@@ -51,12 +51,27 @@ export class ToolRouter {
 
   resolveToolCall(toolCallId: string, result: string): boolean {
     const pending = this.pendingByCallId.get(toolCallId);
-    if (!pending) return false;
+    if (pending) {
+      clearTimeout(pending.timeout);
+      this.pendingByCallId.delete(toolCallId);
+      pending.resolve(result);
+      return true;
+    }
 
-    clearTimeout(pending.timeout);
-    this.pendingByCallId.delete(toolCallId);
-    pending.resolve(result);
-    return true;
+    // The CLI may resolve a tool without going through the MCP endpoint (e.g. if
+    // the tool name wasn't in our tools/list response and the CLI failed it
+    // immediately). Clean up the stale expected entry so it doesn't poison
+    // future registerMCPRequest calls for the same tool name.
+    for (const [name, queue] of this.expectedByName) {
+      const idx = queue.indexOf(toolCallId);
+      if (idx !== -1) {
+        queue.splice(idx, 1);
+        if (queue.length === 0) this.expectedByName.delete(name);
+        return true;
+      }
+    }
+
+    return false;
   }
 
   get hasPending(): boolean {
