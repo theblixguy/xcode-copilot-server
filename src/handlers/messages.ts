@@ -42,6 +42,9 @@ export function createMessagesHandler(
       state.setReply(reply);
       startReply(reply, req.model);
 
+      // TODO: the continuation doesn't own the session so we can't abort it
+      // here. The original streaming handler will let it run to idle harmlessly
+      // because it guards against null replies, but ideally we'd abort it too.
       reply.raw.on("close", () => {
         if (state.currentReply === reply) {
           logger.info("Client disconnected during continuation");
