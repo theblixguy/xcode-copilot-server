@@ -31,7 +31,7 @@ const VALID_REASONING_EFFORTS = ["low", "medium", "high", "xhigh"] as const;
 
 const ReasoningEffortSchema = z.enum(VALID_REASONING_EFFORTS);
 
-const ToolBridgeServerSchema = z.boolean().nullable();
+const ToolBridgeServerSchema = z.boolean();
 
 export type MCPLocalServer = z.infer<typeof MCPLocalServerSchema>;
 export type MCPRemoteServer = z.infer<typeof MCPRemoteServerSchema>;
@@ -41,15 +41,15 @@ export type ReasoningEffort = z.infer<typeof ReasoningEffortSchema>;
 export type ToolBridgeServer = z.infer<typeof ToolBridgeServerSchema>;
 
 const ProviderConfigSchema = z.object({
-  toolBridge: ToolBridgeServerSchema.optional().default(null),
+  toolBridge: ToolBridgeServerSchema.optional().default(false),
   mcpServers: z.record(z.string(), MCPServerSchema).default({}),
 });
 
 export type ProviderConfig = z.infer<typeof ProviderConfigSchema>;
 
 export const ServerConfigSchema = z.object({
-  openai: ProviderConfigSchema.default({ toolBridge: null, mcpServers: {} }),
-  anthropic: ProviderConfigSchema.default({ toolBridge: null, mcpServers: {} }),
+  openai: ProviderConfigSchema.default({ toolBridge: false, mcpServers: {} }),
+  anthropic: ProviderConfigSchema.default({ toolBridge: false, mcpServers: {} }),
   allowedCliTools: z.array(z.string()).refine(
     (arr) => !arr.includes("*") || arr.length === 1,
     'allowedCliTools: use ["*"] alone to allow all tools, don\'t mix with other entries',

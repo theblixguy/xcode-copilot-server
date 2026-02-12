@@ -18,13 +18,13 @@ export type {
 } from "./schemas/config.js";
 
 export type ServerConfig = Omit<RawServerConfig, "bodyLimitMiB" | "openai" | "anthropic"> & {
-  toolBridge: boolean | null;
+  toolBridge: boolean;
   mcpServers: Record<string, MCPServer>;
   bodyLimit: number;
 };
 
 const DEFAULT_CONFIG = {
-  toolBridge: null,
+  toolBridge: false,
   mcpServers: {},
   allowedCliTools: [],
   excludedFilePatterns: [],
@@ -106,7 +106,7 @@ export async function loadConfig(
     autoApprovePermissions: parsed.autoApprovePermissions,
     reasoningEffort: parsed.reasoningEffort,
     bodyLimit: parsed.bodyLimitMiB * 1024 * 1024,
-    toolBridge: provider.toolBridge ?? null,
+    toolBridge: provider.toolBridge,
     mcpServers: resolveServerPaths(provider.mcpServers, configDir),
   };
 

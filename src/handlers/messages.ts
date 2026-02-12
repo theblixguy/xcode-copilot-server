@@ -69,7 +69,7 @@ export function createMessagesHandler(
 
     const tools = req.tools;
     const hasTools = !!tools?.length;
-    const hasBridge = hasTools && !!config.toolBridge;
+    const hasBridge = hasTools && config.toolBridge;
 
     if (tools?.length) {
       state.cacheTools(tools);

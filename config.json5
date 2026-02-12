@@ -9,9 +9,9 @@
   // section is used at runtime.
 
   openai: {
-    // No tool bridge needed for OpenAI, because Xcode drives tool execution 
-    // directly.
-    toolBridge: null,
+    // No tool bridge needed for OpenAI because Xcode drives tool execution
+    // directly. TODO: will need this for Codex Agent support.
+    toolBridge: false,
 
     mcpServers: {
       // Proxies Apple's xcrun mcpbridge (Xcode 26.3+). The script exits
@@ -26,18 +26,17 @@
   },
 
   anthropic: {
-    // Normally the Copilot SDK executes tool calls (file reads, edits, etc.)
+    // Normally the Copilot CLI executes tool calls (file reads, edits, etc.)
     // on its own. This shim intercepts those calls and forwards them to Xcode
     // so Claude Agent can drive tool execution through the IDE instead.
-    // MCP_SERVER_PORT is injected automatically at runtime.
-    // Set to null or remove to disable the tool bridge.
+    // Set to false or remove to disable the tool bridge.
     toolBridge: true,
 
     // No MCP servers needed, because Claude Agent handles tools natively.
     mcpServers: {},
   },
 
-  // Built-in CLI tools allowlist (glob, grep, bash, etc). Use ["*"] to allow
+  // Built-in Copilot CLI tools allowlist (glob, grep, bash, etc). Use ["*"] to allow
   // all, [] to deny all, or list specific tools like ["glob", "grep"].
   //
   // This is empty by default because Xcode should be the one handling
@@ -65,5 +64,5 @@
   // Auto-approve permission requests. Set to true to approve all, false to deny
   // all, or pass an array of specific kinds to approve, e.g.
   // ["read", "write", "shell", "mcp", "url"].
-  autoApprovePermissions: true,
+  autoApprovePermissions: ["read", "mcp"],
 }

@@ -26,7 +26,7 @@ function writeConfig(filename: string, content: string): string {
 describe("loadConfig", () => {
   it("returns defaults when config file does not exist", async () => {
     const config = await loadConfig("/nonexistent/config.json5", logger, "openai");
-    expect(config.toolBridge).toBeNull();
+    expect(config.toolBridge).toBe(false);
     expect(config.mcpServers).toEqual({});
     expect(config.allowedCliTools).toEqual([]);
     expect(config.excludedFilePatterns).toEqual([]);
@@ -148,19 +148,10 @@ describe("loadConfig", () => {
     expect(config.toolBridge).toBe(true);
   });
 
-  it("defaults toolBridge to null when absent", async () => {
+  it("defaults toolBridge to false when absent", async () => {
     const path = writeConfig("minimal.json5", `{}`);
     const config = await loadConfig(path, logger, "openai");
-    expect(config.toolBridge).toBeNull();
-  });
-
-  it("allows explicit null for toolBridge", async () => {
-    const path = writeConfig(
-      "null-bridge.json5",
-      `{ openai: { toolBridge: null } }`,
-    );
-    const config = await loadConfig(path, logger, "openai");
-    expect(config.toolBridge).toBeNull();
+    expect(config.toolBridge).toBe(false);
   });
 
   it("uses the correct provider section based on proxy", async () => {
@@ -168,7 +159,7 @@ describe("loadConfig", () => {
       "both.json5",
       `{
         openai: {
-          toolBridge: null,
+          toolBridge: false,
           mcpServers: {
             xcode: { type: "local", command: "node", args: ["/xcode.js"], allowedTools: ["*"] },
           },
@@ -180,7 +171,7 @@ describe("loadConfig", () => {
       }`,
     );
     const openai = await loadConfig(path, logger, "openai");
-    expect(openai.toolBridge).toBeNull();
+    expect(openai.toolBridge).toBe(false);
     expect(Object.keys(openai.mcpServers)).toEqual(["xcode"]);
 
     const anthropic = await loadConfig(path, logger, "anthropic");
@@ -265,7 +256,7 @@ describe("config validation", () => {
   it("uses defaults for missing optional fields", async () => {
     const path = writeConfig("minimal.json5", `{}`);
     const config = await loadConfig(path, logger, "openai");
-    expect(config.toolBridge).toBeNull();
+    expect(config.toolBridge).toBe(false);
     expect(config.mcpServers).toEqual({});
     expect(config.allowedCliTools).toEqual([]);
     expect(config.bodyLimit).toBe(4 * 1024 * 1024);

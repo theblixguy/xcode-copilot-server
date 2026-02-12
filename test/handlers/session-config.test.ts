@@ -5,7 +5,7 @@ import type { ServerConfig, MCPLocalServer } from "../../src/config.js";
 import type { PermissionRequest } from "@github/copilot-sdk";
 
 const baseConfig: ServerConfig = {
-  toolBridge: null,
+  toolBridge: false,
   mcpServers: {},
   allowedCliTools: [],
   excludedFilePatterns: [],
