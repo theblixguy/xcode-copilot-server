@@ -44,7 +44,7 @@
   // Xcode what to change and Xcode applies those changes through its own UI,
   // keeping everything in sync. If CLI tools are enabled, the Copilot session
   // may perform those operations itself (e.g. writing files via bash),
-  // bypassing Xcode and potentiall leaving its UI out of sync with what actually
+  // bypassing Xcode and potentially leaving its UI out of sync with what actually
   // happened on disk.
   allowedCliTools: [],
 
