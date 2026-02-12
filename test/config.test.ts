@@ -265,14 +265,31 @@ describe("config validation", () => {
 });
 
 describe("resolveConfigPath", () => {
-  it("returns cwd config when config.json5 exists there", () => {
+  it("prefers project cwd over process cwd", () => {
+    const projectDir = mkdtempSync(join(tmpdir(), "project-"));
+    writeFileSync(join(projectDir, "config.json5"), "{}");
     writeFileSync(join(tempDir, "config.json5"), "{}");
-    const result = resolveConfigPath(tempDir, "/fallback/config.json5");
+    const result = resolveConfigPath(projectDir, tempDir, "/fallback/config.json5");
+    expect(result).toBe(join(projectDir, "config.json5"));
+    rmSync(projectDir, { recursive: true, force: true });
+  });
+
+  it("falls back to process cwd when project cwd has no config", () => {
+    const projectDir = mkdtempSync(join(tmpdir(), "project-"));
+    writeFileSync(join(tempDir, "config.json5"), "{}");
+    const result = resolveConfigPath(projectDir, tempDir, "/fallback/config.json5");
+    expect(result).toBe(join(tempDir, "config.json5"));
+    rmSync(projectDir, { recursive: true, force: true });
+  });
+
+  it("falls back to process cwd when project cwd is undefined", () => {
+    writeFileSync(join(tempDir, "config.json5"), "{}");
+    const result = resolveConfigPath(undefined, tempDir, "/fallback/config.json5");
     expect(result).toBe(join(tempDir, "config.json5"));
   });
 
-  it("returns default path when cwd has no config.json5", () => {
-    const result = resolveConfigPath(tempDir, "/fallback/config.json5");
+  it("returns default path when neither cwd has config.json5", () => {
+    const result = resolveConfigPath(undefined, tempDir, "/fallback/config.json5");
     expect(result).toBe("/fallback/config.json5");
   });
 });

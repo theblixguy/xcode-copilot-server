@@ -28,7 +28,7 @@ Options:
   --port <number>      Port to listen on (default: 8080)
   --proxy <provider>   API format to expose: ${VALID_PROXIES.join(", ")} (default: openai)
   --log-level <level>  Log verbosity: ${VALID_LOG_LEVELS.join(", ")} (default: info)
-  --config <path>      Path to config file (default: ./config.json5 if present, else bundled)
+  --config <path>      Path to config file (auto-detected from --cwd, then process cwd, else bundled)
   --cwd <path>         Working directory for Copilot sessions (default: process cwd)
   --help               Show this help message`;
 
@@ -86,7 +86,7 @@ async function main(): Promise<void> {
   const logLevel = rawLevel;
   const logger = new Logger(logLevel);
 
-  const configPath = values.config ?? resolveConfigPath(process.cwd(), DEFAULT_CONFIG_PATH);
+  const configPath = values.config ?? resolveConfigPath(values.cwd, process.cwd(), DEFAULT_CONFIG_PATH);
   const config = await loadConfig(configPath, logger, proxy);
   const cwd = values.cwd;
 
