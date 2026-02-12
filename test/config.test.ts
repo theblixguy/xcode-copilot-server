@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { loadConfig } from "../src/config.js";
+import { loadConfig, resolveConfigPath } from "../src/config.js";
 import { Logger } from "../src/logger.js";
 
 const logger = new Logger("none");
@@ -261,5 +261,35 @@ describe("config validation", () => {
     expect(config.allowedCliTools).toEqual([]);
     expect(config.bodyLimit).toBe(10 * 1024 * 1024);
     expect(config.autoApprovePermissions).toEqual(["read", "mcp"]);
+  });
+});
+
+describe("resolveConfigPath", () => {
+  it("prefers project cwd over process cwd", () => {
+    const projectDir = mkdtempSync(join(tmpdir(), "project-"));
+    writeFileSync(join(projectDir, "config.json5"), "{}");
+    writeFileSync(join(tempDir, "config.json5"), "{}");
+    const result = resolveConfigPath(projectDir, tempDir, "/fallback/config.json5");
+    expect(result).toBe(join(projectDir, "config.json5"));
+    rmSync(projectDir, { recursive: true, force: true });
+  });
+
+  it("falls back to process cwd when project cwd has no config", () => {
+    const projectDir = mkdtempSync(join(tmpdir(), "project-"));
+    writeFileSync(join(tempDir, "config.json5"), "{}");
+    const result = resolveConfigPath(projectDir, tempDir, "/fallback/config.json5");
+    expect(result).toBe(join(tempDir, "config.json5"));
+    rmSync(projectDir, { recursive: true, force: true });
+  });
+
+  it("falls back to process cwd when project cwd is undefined", () => {
+    writeFileSync(join(tempDir, "config.json5"), "{}");
+    const result = resolveConfigPath(undefined, tempDir, "/fallback/config.json5");
+    expect(result).toBe(join(tempDir, "config.json5"));
+  });
+
+  it("returns default path when neither cwd has config.json5", () => {
+    const result = resolveConfigPath(undefined, tempDir, "/fallback/config.json5");
+    expect(result).toBe("/fallback/config.json5");
   });
 });

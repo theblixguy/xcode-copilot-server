@@ -2,7 +2,7 @@
 import { join, dirname } from "node:path";
 import { parseArgs } from "node:util";
 import { CopilotService } from "./copilot-service.js";
-import { loadConfig } from "./config.js";
+import { loadConfig, resolveConfigPath } from "./config.js";
 import { createServer } from "./server.js";
 import { Logger, LEVEL_PRIORITY, type LogLevel } from "./logger.js";
 import { providers, type ProxyName } from "./providers/index.js";
@@ -28,7 +28,7 @@ Options:
   --port <number>      Port to listen on (default: 8080)
   --proxy <provider>   API format to expose: ${VALID_PROXIES.join(", ")} (default: openai)
   --log-level <level>  Log verbosity: ${VALID_LOG_LEVELS.join(", ")} (default: info)
-  --config <path>      Path to config file (default: bundled config.json5)
+  --config <path>      Path to config file (auto-detected from --cwd, then process cwd, else bundled)
   --cwd <path>         Working directory for Copilot sessions (default: process cwd)
   --help               Show this help message`;
 
@@ -39,7 +39,7 @@ function parseCliArgs() {
         port: { type: "string", default: "8080" },
         proxy: { type: "string", default: "openai" },
         "log-level": { type: "string", default: "info" },
-        config: { type: "string", default: DEFAULT_CONFIG_PATH },
+        config: { type: "string" },
         cwd: { type: "string" },
         help: { type: "boolean", default: false },
       },
@@ -86,7 +86,8 @@ async function main(): Promise<void> {
   const logLevel = rawLevel;
   const logger = new Logger(logLevel);
 
-  const config = await loadConfig(values.config, logger, proxy);
+  const configPath = values.config ?? resolveConfigPath(values.cwd, process.cwd(), DEFAULT_CONFIG_PATH);
+  const config = await loadConfig(configPath, logger, proxy);
   const cwd = values.cwd;
 
   const service = new CopilotService({

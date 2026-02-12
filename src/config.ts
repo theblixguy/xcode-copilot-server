@@ -56,6 +56,20 @@ function resolveServerPaths(
 import type { ProxyName } from "./providers/index.js";
 export type { ProxyName };
 
+export function resolveConfigPath(
+  projectCwd: string | undefined,
+  processCwd: string,
+  defaultPath: string,
+): string {
+  if (projectCwd) {
+    const projectConfig = resolve(projectCwd, "config.json5");
+    if (existsSync(projectConfig)) return projectConfig;
+  }
+  const localConfig = resolve(processCwd, "config.json5");
+  if (existsSync(localConfig)) return localConfig;
+  return defaultPath;
+}
+
 export async function loadConfig(
   configPath: string,
   logger: Logger,
