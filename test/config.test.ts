@@ -30,7 +30,7 @@ describe("loadConfig", () => {
     expect(config.mcpServers).toEqual({});
     expect(config.allowedCliTools).toEqual([]);
     expect(config.excludedFilePatterns).toEqual([]);
-    expect(config.bodyLimit).toBe(4 * 1024 * 1024);
+    expect(config.bodyLimit).toBe(10 * 1024 * 1024);
     expect(config.reasoningEffort).toBeUndefined();
     expect(config.autoApprovePermissions).toEqual(["read", "mcp"]);
   });
@@ -259,7 +259,7 @@ describe("config validation", () => {
     expect(config.toolBridge).toBe(false);
     expect(config.mcpServers).toEqual({});
     expect(config.allowedCliTools).toEqual([]);
-    expect(config.bodyLimit).toBe(4 * 1024 * 1024);
+    expect(config.bodyLimit).toBe(10 * 1024 * 1024);
     expect(config.autoApprovePermissions).toEqual(["read", "mcp"]);
   });
 });

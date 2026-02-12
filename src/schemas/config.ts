@@ -59,7 +59,7 @@ export const ServerConfigSchema = z.object({
     .number()
     .positive()
     .max(100, "bodyLimitMiB cannot exceed 100")
-    .default(4),
+    .default(10),
   reasoningEffort: ReasoningEffortSchema.optional(),
   autoApprovePermissions: ApprovalRuleSchema.default(["read", "mcp"]),
 });

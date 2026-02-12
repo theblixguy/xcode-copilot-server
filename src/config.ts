@@ -28,7 +28,7 @@ const DEFAULT_CONFIG = {
   mcpServers: {},
   allowedCliTools: [],
   excludedFilePatterns: [],
-  bodyLimit: 4 * 1024 * 1024, // 4 MiB
+  bodyLimit: 10 * 1024 * 1024, // 10 MiB
   autoApprovePermissions: ["read", "mcp"],
 } satisfies ServerConfig;
 

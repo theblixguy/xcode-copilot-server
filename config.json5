@@ -49,7 +49,7 @@
   allowedCliTools: [],
 
   // Maximum request body size in MiB.
-  bodyLimitMiB: 4,
+  bodyLimitMiB: 10,
 
   // Filename patterns to filter out from search results in the prompt. Xcode's
   // search results can include full file contents for every match, which can
