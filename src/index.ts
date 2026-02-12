@@ -7,6 +7,7 @@ import { createServer } from "./server.js";
 import { Logger, LEVEL_PRIORITY, type LogLevel } from "./logger.js";
 import { providers, type ProxyName } from "./providers/index.js";
 import type { AppContext } from "./context.js";
+import { patchSettings, restoreSettings } from "./settings-patcher.js";
 
 const PACKAGE_ROOT = dirname(import.meta.dirname);
 const DEFAULT_CONFIG_PATH = join(PACKAGE_ROOT, "config.json5");
@@ -25,12 +26,15 @@ function isProxy(value: string): value is ProxyName {
 const USAGE = `Usage: xcode-copilot-server [options]
 
 Options:
-  --port <number>      Port to listen on (default: 8080)
-  --proxy <provider>   API format to expose: ${VALID_PROXIES.join(", ")} (default: openai)
-  --log-level <level>  Log verbosity: ${VALID_LOG_LEVELS.join(", ")} (default: info)
-  --config <path>      Path to config file (auto-detected from --cwd, then process cwd, else bundled)
-  --cwd <path>         Working directory for Copilot sessions (default: process cwd)
-  --help               Show this help message`;
+  --port <number>        Port to listen on (default: 8080)
+  --proxy <provider>     API format to expose: ${VALID_PROXIES.join(", ")} (default: openai)
+  --log-level <level>    Log verbosity: ${VALID_LOG_LEVELS.join(", ")} (default: info)
+  --config <path>        Path to config file (auto-detected from --cwd, then process cwd, else bundled)
+  --cwd <path>           Working directory for Copilot sessions (default: process cwd)
+  --auto-patch           Auto-patch settings.json on start, restore on exit (anthropic mode)
+  --patch-settings       Patch settings.json to point to this server, then exit
+  --restore-settings     Restore settings.json from backup, then exit
+  --help                 Show this help message`;
 
 function parseCliArgs() {
   try {
@@ -41,6 +45,9 @@ function parseCliArgs() {
         "log-level": { type: "string", default: "info" },
         config: { type: "string" },
         cwd: { type: "string" },
+        "auto-patch": { type: "boolean", default: false },
+        "patch-settings": { type: "boolean", default: false },
+        "restore-settings": { type: "boolean", default: false },
         help: { type: "boolean", default: false },
       },
       strict: true,
@@ -61,10 +68,30 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
+  const rawLevel = values["log-level"];
+  if (!isLogLevel(rawLevel)) {
+    console.error(
+      `Invalid log level "${rawLevel}". Valid: ${VALID_LOG_LEVELS.join(", ")}`,
+    );
+    process.exit(1);
+  }
+  const logLevel = rawLevel;
+  const logger = new Logger(logLevel);
+
   const port = parseInt(values.port, 10);
   if (isNaN(port) || port < 1 || port > 65535) {
     console.error(`Invalid port "${values.port}". Must be 1-65535.`);
     process.exit(1);
+  }
+
+  if (values["patch-settings"]) {
+    await patchSettings({ port, logger });
+    process.exit(0);
+  }
+
+  if (values["restore-settings"]) {
+    await restoreSettings({ logger });
+    process.exit(0);
   }
 
   const proxy = values.proxy;
@@ -75,16 +102,6 @@ async function main(): Promise<void> {
     process.exit(1);
   }
   const provider = providers[proxy];
-
-  const rawLevel = values["log-level"];
-  if (!isLogLevel(rawLevel)) {
-    console.error(
-      `Invalid log level "${rawLevel}". Valid: ${VALID_LOG_LEVELS.join(", ")}`,
-    );
-    process.exit(1);
-  }
-  const logLevel = rawLevel;
-  const logger = new Logger(logLevel);
 
   const configPath = values.config ?? resolveConfigPath(values.cwd, process.cwd(), DEFAULT_CONFIG_PATH);
   const config = await loadConfig(configPath, logger, proxy);
@@ -110,6 +127,11 @@ async function main(): Promise<void> {
   }
   logger.info(`Authenticated as ${auth.login ?? "unknown"} (${auth.authType ?? "unknown"})`);
 
+  const autoPatch = values["auto-patch"];
+  if (autoPatch) {
+    await patchSettings({ port, logger });
+  }
+
   const ctx: AppContext = { service, logger, config, port };
   const app = await createServer(ctx, provider);
   await app.listen({ port, host: "127.0.0.1" });
@@ -121,6 +143,15 @@ async function main(): Promise<void> {
 
   const shutdown = async (signal: string) => {
     logger.info(`Got ${signal}, shutting down...`);
+
+    if (autoPatch) {
+      try {
+        await restoreSettings({ logger });
+      } catch (err) {
+        logger.error(`Failed to restore settings.json: ${String(err)}`);
+      }
+    }
+
     await app.close();
 
     const stopPromise = service.stop().then(() => {

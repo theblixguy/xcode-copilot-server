@@ -39,12 +39,15 @@ npx xcode-copilot-server
 xcode-copilot-server [options]
 
 Options:
-  --port <number>      Port to listen on (default: 8080)
-  --proxy <provider>   API format to expose: openai, anthropic (default: openai)
-  --log-level <level>  Log verbosity: none, error, warning, info, debug, all (default: info)
-  --config <path>      Path to config file (default: bundled config.json5)
-  --cwd <path>         Working directory for Copilot sessions (default: process cwd)
-  --help               Show help
+  --port <number>        Port to listen on (default: 8080)
+  --proxy <provider>     API format to expose: openai, anthropic (default: openai)
+  --log-level <level>    Log verbosity: none, error, warning, info, debug, all (default: info)
+  --config <path>        Path to config file (auto-detected from --cwd, then process cwd, else bundled)
+  --cwd <path>           Working directory for Copilot sessions (default: process cwd)
+  --auto-patch           Auto-patch settings.json on start, restore on exit (anthropic mode)
+  --patch-settings       Patch settings.json to point to this server, then exit
+  --restore-settings     Restore settings.json from backup, then exit
+  --help                 Show help
 ```
 
 The `--proxy` flag determines which API the server exposes:
@@ -70,7 +73,15 @@ To enable tool calling, select the provider and enable "Allow tools" under "Adva
 
 1. Open Xcode and go to Settings > Intelligence > Anthropic > Claude Agent
 2. Enable Claude Agent and sign in with an API key (the key can be any random text, since the calls are proxied through the server)
-3. Create a `settings.json` file at `~/Library/Developer/Xcode/CodingAssistant/ClaudeAgentConfig/`:
+3. Start the server with `--auto-patch` to automatically configure `settings.json`:
+
+   ```bash
+   xcode-copilot-server --proxy anthropic --auto-patch
+   ```
+
+   This creates (or updates) `settings.json` at `~/Library/Developer/Xcode/CodingAssistant/ClaudeAgentConfig/` to point to the server, and restores the original file when the server shuts down. If `settings.json` already exists, a backup is saved as `settings.json.backup` and restored on exit.
+
+   Alternatively, you can manage `settings.json` yourself. Create it manually at the path above:
 
    ```json
    {
@@ -81,9 +92,13 @@ To enable tool calling, select the provider and enable "Allow tools" under "Adva
    }
    ```
 
-   Set the port to match your `--port` flag (default 8080). The auth token can be any non-empty string.
+   Set the port to match your `--port` flag (default 8080). The auth token can be any non-empty string. Then start the server without `--auto-patch`:
 
-4. Start the server: `xcode-copilot-server --proxy anthropic`
+   ```bash
+   xcode-copilot-server --proxy anthropic
+   ```
+
+   You can also use `--patch-settings` and `--restore-settings` as one-shot commands to patch or restore `settings.json` without starting the server.
 
 The tool bridge is enabled by default in Anthropic mode (`toolBridge: true` in the config). It intercepts tool calls from the Copilot session and forwards them to Xcode, so Claude Agent can read files, search code, and make edits through the IDE.
 
