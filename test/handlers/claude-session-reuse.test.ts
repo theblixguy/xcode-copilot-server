@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { createServer } from "../../src/server.js";
-import { anthropicProvider } from "../../src/providers/anthropic.js";
+import { claudeProvider } from "../../src/providers/claude/provider.js";
 import { Logger } from "../../src/logger.js";
 import type { AppContext } from "../../src/context.js";
 import type { ServerConfig } from "../../src/config.js";
@@ -70,7 +70,7 @@ describe("Concurrent request handling", () => {
       port: 8080,
     };
 
-    app = await createServer(ctx, anthropicProvider);
+    app = await createServer(ctx, claudeProvider);
   });
 
   afterAll(async () => {

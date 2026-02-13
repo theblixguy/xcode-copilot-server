@@ -39,7 +39,7 @@ export function parseProxy(value: string): ProxyName {
 }
 
 export function validateAutoPatch(proxy: ProxyName, autoPatch: boolean): void {
-  if (autoPatch && proxy !== "anthropic") {
-    throw new Error("--auto-patch can only be used with --proxy anthropic");
+  if (autoPatch && proxy !== "claude" && proxy !== "codex") {
+    throw new Error("--auto-patch can only be used with --proxy claude or --proxy codex");
   }
 }

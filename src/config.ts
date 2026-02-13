@@ -19,7 +19,7 @@ export type {
 } from "./schemas/config.js";
 export type { ProxyName };
 
-export type ServerConfig = Omit<RawServerConfig, "bodyLimitMiB" | "openai" | "anthropic"> & {
+export type ServerConfig = Omit<RawServerConfig, "bodyLimitMiB" | "openai" | "claude" | "codex"> & {
   toolBridge: boolean;
   mcpServers: Record<string, MCPServer>;
   bodyLimit: number;
@@ -30,7 +30,7 @@ const DEFAULT_CONFIG = {
   mcpServers: {},
   allowedCliTools: [],
   excludedFilePatterns: [],
-  bodyLimit: 10 * 1024 * 1024, // 10 MiB
+  bodyLimit: 10 * 1024 * 1024,
   autoApprovePermissions: ["read", "mcp"],
 } satisfies ServerConfig;
 

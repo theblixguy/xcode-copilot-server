@@ -1,5 +1,5 @@
 import type { ModelInfo } from "@github/copilot-sdk";
-import type { Logger } from "../logger.js";
+import type { Logger } from "../../logger.js";
 
 function normalize(id: string): string {
   return id.replace(/-\d{8}$/, "").replace(/\./g, "-");

@@ -33,7 +33,7 @@ export class SessionLifecycle {
   markSessionInactive(): void {
     this._sessionActive = false;
 
-    // stale entries from tool calls that never went through the bridge
+    // Stale entries from tool calls that never went through the bridge
     // (denied or handled internally) would hang the next continuation
     this.toolRouter.rejectAll("Session ended");
 

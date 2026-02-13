@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { CopilotSession } from "@github/copilot-sdk";
 import { ToolBridgeState } from "./tool-bridge/state.js";
-import type { AnthropicMessage } from "./schemas/anthropic.js";
+import type { AnthropicMessage } from "./providers/claude/schemas.js";
 import type { Logger } from "./logger.js";
 
 export interface Conversation {
@@ -105,8 +105,30 @@ export class ConversationManager {
       }
     }
 
-    // the model sometimes retries a tool after an internal failure so the
+    // The model sometimes retries a tool after an internal failure so the
     // tool_use_id won't match anything, but we can still route by session
+    for (const [, conv] of this.conversations) {
+      if (conv.state.sessionActive) {
+        this.logger.debug(`Continuation matched conversation ${conv.id} via sessionActive fallback`);
+        return conv;
+      }
+    }
+
+    return undefined;
+  }
+
+  findByContinuationIds(callIds: string[]): Conversation | undefined {
+    if (callIds.length === 0) return undefined;
+
+    for (const [, conv] of this.conversations) {
+      for (const callId of callIds) {
+        if (conv.state.hasPendingToolCall(callId)) {
+          this.logger.debug(`Continuation matched conversation ${conv.id} via call_id ${callId}`);
+          return conv;
+        }
+      }
+    }
+
     for (const [, conv] of this.conversations) {
       if (conv.state.sessionActive) {
         this.logger.debug(`Continuation matched conversation ${conv.id} via sessionActive fallback`);

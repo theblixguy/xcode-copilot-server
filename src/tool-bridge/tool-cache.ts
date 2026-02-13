@@ -1,4 +1,4 @@
-import type { AnthropicToolDefinition } from "../schemas/anthropic.js";
+import type { AnthropicToolDefinition } from "../providers/claude/schemas.js";
 
 // The Copilot model likes to rename CLI-style flags to camelCase, so we
 // need a lookup for the ones that can't be derived automatically.

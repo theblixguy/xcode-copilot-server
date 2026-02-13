@@ -1,4 +1,4 @@
-import type { AnthropicMessage } from "../../schemas/anthropic.js";
+import type { AnthropicMessage } from "./schemas.js";
 import type { ToolBridgeState } from "../../tool-bridge/state.js";
 import type { Logger } from "../../logger.js";
 

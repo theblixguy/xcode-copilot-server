@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { ModelInfo } from "@github/copilot-sdk";
-import { resolveModel } from "../../src/utils/model-resolver.js";
+import { resolveModel } from "../../src/providers/shared/model-resolver.js";
 
 function model(id: string): ModelInfo {
   return {

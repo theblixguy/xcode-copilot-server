@@ -4,8 +4,8 @@ import type { AppContext } from "../../context.js";
 import {
   AnthropicMessagesRequestSchema,
   type AnthropicMessagesRequest,
-} from "../../schemas/anthropic.js";
-import { sendAnthropicError } from "../errors.js";
+} from "./schemas.js";
+import { sendAnthropicError } from "../shared/errors.js";
 
 // The token estimator needs a single string, so we pull all text out of
 // the structured request.

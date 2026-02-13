@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import type { ConversationManager } from "../conversation-manager.js";
 import type { Logger } from "../logger.js";
+import { BRIDGE_SERVER_NAME } from "./constants.js";
 
 const JsonRpcRequestSchema = z.object({
   jsonrpc: z.literal("2.0"),
@@ -86,7 +87,7 @@ export function registerRoutes(
             jsonRpcResult(id, {
               protocolVersion: PROTOCOL_VERSION,
               capabilities: { tools: {} },
-              serverInfo: { name: "xcode-bridge", version: "1.0.0" },
+              serverInfo: { name: BRIDGE_SERVER_NAME, version: "1.0.0" },
             }),
           );
 

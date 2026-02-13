@@ -1,6 +1,22 @@
 import type { SessionConfig } from "@github/copilot-sdk";
-import type { ServerConfig, ApprovalRule } from "../config.js";
-import type { Logger } from "../logger.js";
+import type { ServerConfig, ApprovalRule } from "../../config.js";
+import type { Logger } from "../../logger.js";
+import { BRIDGE_SERVER_NAME, BRIDGE_TOOL_PREFIX } from "../../tool-bridge/index.js";
+
+const SDK_BUILT_IN_TOOLS: string[] = [
+  // shell
+  "bash", "write_bash", "read_bash", "stop_bash", "list_bash",
+  // file ops
+  "view", "apply_patch",
+  // search
+  "rg", "glob",
+  // agents / task management
+  "task", "update_todo", "report_intent",
+  // interaction
+  "ask_user",
+  // misc
+  "skill", "web_fetch", "fetch_copilot_cli_documentation",
+];
 
 export interface SessionConfigOptions {
   model: string;
@@ -53,7 +69,7 @@ export function createSessionConfig({
         ]),
       ),
       ...(hasBridge && {
-        "xcode-bridge": {
+        [BRIDGE_SERVER_NAME]: {
           type: "http" as const,
           url: `http://127.0.0.1:${String(port ?? 8080)}/mcp/${conversationId ?? ""}`,
           tools: ["*"],
@@ -61,9 +77,15 @@ export function createSessionConfig({
       }),
     },
 
-    // When the tool bridge is active, don't restrict availableTools so the CLI
-    // can expose the bridged tools to the model. The onPreToolUse hook handles
-    // permissions instead.
+    // When the tool bridge is active, exclude SDK built-in tools so the
+    // model uses bridge tools instead (forwarded to Xcode). Tools the user
+    // explicitly allows via allowedCliTools are kept. MCP server tools
+    // (e.g. github-mcp-server-*) are unaffected by this list.
+    ...(hasBridge && {
+      excludedTools: SDK_BUILT_IN_TOOLS.filter(
+        (t) => !config.allowedCliTools.includes("*") && !config.allowedCliTools.includes(t),
+      ),
+    }),
     ...(!hasBridge && config.allowedCliTools.length > 0 && {
       availableTools: config.allowedCliTools,
     }),
@@ -96,7 +118,7 @@ export function createSessionConfig({
       onPreToolUse: (input) => {
         const toolName = input.toolName;
 
-        if (hasBridge && toolName.startsWith("xcode-bridge-")) {
+        if (hasBridge && toolName.startsWith(BRIDGE_TOOL_PREFIX)) {
           logger.debug(`Tool "${toolName}": allowed (bridge)`);
           return Promise.resolve({ permissionDecision: "allow" as const });
         }

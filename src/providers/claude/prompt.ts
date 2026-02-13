@@ -1,5 +1,5 @@
-import type { AnthropicMessage, ContentBlock } from "../schemas/anthropic.js";
-import { filterExcludedFiles } from "./prompt.js";
+import type { AnthropicMessage, ContentBlock } from "./schemas.js";
+import { filterExcludedFiles } from "../shared/prompt-utils.js";
 
 function extractToolResultText(
   content: string | { type: "text"; text: string }[] | undefined,

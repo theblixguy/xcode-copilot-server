@@ -1,28 +1,32 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
-import type { AppContext } from "../context.js";
+import type { AppContext } from "../../context.js";
+import { ResponsesRequestSchema, filterFunctionTools } from "./schemas.js";
+import { genId } from "./schemas.js";
 import {
-  AnthropicMessagesRequestSchema,
-  extractAnthropicSystem,
-} from "../schemas/anthropic.js";
-import { formatAnthropicPrompt } from "../utils/anthropic-prompt.js";
-import { resolveModel } from "../utils/model-resolver.js";
-import { createSessionConfig } from "./session-config.js";
-import type { ConversationManager } from "../conversation-manager.js";
-import { resolveToolResults } from "./messages/tool-result-handler.js";
-import { handleAnthropicStreaming, startReply } from "./messages/streaming.js";
-import { sendAnthropicError as sendError } from "./errors.js";
+  formatResponsesPrompt,
+  extractInstructions,
+  extractFunctionCallOutputs,
+} from "./prompt.js";
+import { resolveModel } from "../shared/model-resolver.js";
+import { createSessionConfig } from "../shared/session-config.js";
+import type { ConversationManager } from "../../conversation-manager.js";
+import { resolveResponsesToolResults } from "./tool-results.js";
+import { handleResponsesStreaming, startResponseStream } from "./streaming.js";
+import { sendOpenAIError as sendError } from "../shared/errors.js";
 
-export function createMessagesHandler(
+export function createResponsesHandler(
   { service, logger, config, port }: AppContext,
   manager: ConversationManager,
 ) {
-  return async function handleMessages(
+  return async function handleResponses(
     request: FastifyRequest,
     reply: FastifyReply,
   ): Promise<void> {
-    const parseResult = AnthropicMessagesRequestSchema.safeParse(request.body);
+    const parseResult = ResponsesRequestSchema.safeParse(request.body);
     if (!parseResult.success) {
       const firstIssue = parseResult.error.issues[0];
+      logger.debug(`Request validation failed: ${JSON.stringify(parseResult.error.issues)}`);
+      logger.debug(`Raw body keys: ${JSON.stringify(Object.keys((request.body ?? {}) as Record<string, unknown>))}`);
       sendError(
         reply,
         400,
@@ -33,29 +37,33 @@ export function createMessagesHandler(
     }
     const req = parseResult.data;
 
-    const existingConv = manager.findByContinuation(req.messages);
+    const callOutputs = extractFunctionCallOutputs(req.input);
+    logger.debug(`function_call_output items: ${String(callOutputs.length)}${callOutputs.length > 0 ? ` (call_ids: ${callOutputs.map((o) => o.call_id).join(", ")})` : ""}`);
 
-    if (existingConv) {
-      const state = existingConv.state;
-      logger.info(`Continuation for conversation ${existingConv.id} (hasPending=${String(state.hasPending)}, sessionActive=${String(state.sessionActive)})`);
-      state.setReply(reply);
-      startReply(reply, req.model);
+    if (callOutputs.length > 0) {
+      const existingConv = manager.findByContinuationIds(
+        callOutputs.map((o) => o.call_id),
+      );
 
-      // TODO: the continuation doesn't own the session so we can't abort it
-      // here. The original streaming handler will let it run to idle harmlessly
-      // because it guards against null replies, but ideally we'd abort it too.
-      reply.raw.on("close", () => {
-        if (state.currentReply === reply) {
-          logger.info("Client disconnected during continuation");
-          state.cleanup();
-          state.notifyStreamingDone();
-        }
-      });
+      if (existingConv) {
+        const state = existingConv.state;
+        logger.info(`Continuation for conversation ${existingConv.id} (hasPending=${String(state.hasPending)}, sessionActive=${String(state.sessionActive)})`);
+        state.setReply(reply);
+        startResponseStream(reply, genId("resp"), req.model);
 
-      resolveToolResults(req.messages, state, logger);
-      await state.waitForStreamingDone();
-      existingConv.sentMessageCount = req.messages.length;
-      return;
+        reply.raw.on("close", () => {
+          if (state.currentReply === reply) {
+            logger.info("Client disconnected during continuation");
+            state.cleanup();
+            state.notifyStreamingDone();
+          }
+        });
+
+        resolveResponsesToolResults(callOutputs, state, logger);
+        await state.waitForStreamingDone();
+        existingConv.sentMessageCount = Array.isArray(req.input) ? req.input.length : 1;
+        return;
+      }
     }
 
     const { conversation, isReuse } = manager.findForNewRequest();
@@ -68,24 +76,34 @@ export function createMessagesHandler(
         : `New conversation ${conversation.id}`,
     );
 
-    // SDK doesn't support switching models mid-session (github/copilot-sdk#409)
     if (isReuse && conversation.model && conversation.model !== req.model) {
       logger.warn(
         `Model mismatch: session uses "${conversation.model}" but request sent "${req.model}" (SDK does not support mid-session model switching)`,
       );
     }
 
-    const tools = req.tools;
+    const tools = req.tools ? filterFunctionTools(req.tools) : undefined;
     const hasTools = !!tools?.length;
     const hasBridge = hasTools && config.toolBridge;
 
+    // Responses API tools use `parameters`, bridge uses `input_schema`
     if (tools?.length) {
-      state.cacheTools(tools);
+      const bridgeTools = tools.map((t) => ({
+        name: t.name,
+        description: t.description,
+        input_schema: t.parameters ?? {},
+      }));
+      state.cacheTools(bridgeTools);
     }
+
+    const inputLength = Array.isArray(req.input) ? req.input.length : 1;
+    const slicedInput = isReuse && Array.isArray(req.input)
+      ? req.input.slice(conversation.sentMessageCount)
+      : req.input;
 
     let prompt: string;
     try {
-      prompt = formatAnthropicPrompt(req.messages.slice(conversation.sentMessageCount), config.excludedFilePatterns);
+      prompt = formatResponsesPrompt(slicedInput, config.excludedFilePatterns);
     } catch (err) {
       sendError(
         reply,
@@ -104,7 +122,7 @@ export function createMessagesHandler(
     logger.debug(`Prompt (${isReuse ? "incremental" : "full"}): ${String(prompt.length)} chars`);
 
     if (!isReuse) {
-      const systemMessage = extractAnthropicSystem(req.system);
+      const systemMessage = req.instructions ?? extractInstructions(req.input);
 
       logger.debug(`System message length: ${String(systemMessage?.length ?? 0)} chars`);
       logger.debug(`Tools in request: ${tools ? String(tools.length) : "0"}`);
@@ -180,10 +198,12 @@ export function createMessagesHandler(
 
     state.setReply(reply);
 
+    const responseId = genId("resp");
+
     try {
       logger.info(`Streaming response for conversation ${conversation.id}`);
-      await handleAnthropicStreaming(state, conversation.session, prompt, req.model, logger, hasBridge);
-      conversation.sentMessageCount = req.messages.length;
+      await handleResponsesStreaming(state, conversation.session, prompt, req.model, logger, hasBridge, responseId);
+      conversation.sentMessageCount = inputLength;
 
       if (conversation.isPrimary && state.hadError) {
         manager.clearPrimary();

@@ -19,8 +19,7 @@ export async function createServer(
 ): Promise<FastifyInstance> {
   const app = Fastify({
     bodyLimit: ctx.config.bodyLimit,
-    // Destroy active connections immediately on close() so shutdown doesn't
-    // hang waiting for SSE streams or pending tool bridge requests to drain.
+    // Without this, shutdown hangs waiting for SSE streams to drain
     forceCloseConnections: true,
     logger: {
       level: PINO_LEVEL[ctx.logger.level],

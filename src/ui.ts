@@ -74,11 +74,19 @@ export interface BannerInfo {
   routes: string[];
   cwd: string;
   autoPatch: boolean;
+  agentBinary?: { found: true; path: string } | { found: false; expected: string };
 }
 
 export function printBanner(info: BannerInfo): void {
   console.log();
   console.log(`  ${dim("Provider")}   ${info.providerName} ${dim(`(--proxy ${info.proxy})`)}`);
+  if (info.agentBinary) {
+    if (info.agentBinary.found) {
+      console.log(`  ${dim("Agent")}      ${info.agentBinary.path}`);
+    } else {
+      console.log(`  ${dim("Agent")}      ${yellow("not found")} ${dim(`(expected at ${info.agentBinary.expected})`)}`);
+    }
+  }
   console.log(`  ${dim("Routes")}     ${info.routes.join(dim(", "))}`);
   console.log(`  ${dim("Directory")}  ${info.cwd}`);
   if (info.autoPatch) {

@@ -2,36 +2,14 @@ import { existsSync } from "node:fs";
 import { readFile, writeFile, rename, unlink, mkdir, copyFile } from "node:fs/promises";
 import { join } from "node:path";
 import { homedir } from "node:os";
-import type { Logger } from "./logger.js";
-
-export interface SettingsPaths {
-  dir: string;
-  file: string;
-  backup: string;
-}
-
-export interface Settings {
-  env?: Record<string, string>;
-  [key: string]: unknown;
-}
-
-export interface PatchResult {
-  patched: boolean;
-  port?: number;
-}
-
-interface BaseOptions {
-  logger: Logger;
-  paths?: SettingsPaths;
-}
-
-export interface PatchOptions extends BaseOptions {
-  port: number;
-  authToken?: string;
-}
-
-export type RestoreOptions = BaseOptions;
-export type DetectOptions = BaseOptions;
+import type {
+  SettingsPaths,
+  Settings,
+  PatchResult,
+  PatchOptions,
+  RestoreOptions,
+  DetectOptions,
+} from "./types.js";
 
 export function defaultSettingsPaths(): SettingsPaths {
   const dir = join(
@@ -80,16 +58,15 @@ export async function detectPatchState(options: DetectOptions): Promise<PatchRes
   return { patched: true };
 }
 
-export async function patchSettings(options: PatchOptions): Promise<void> {
+export async function patchClaudeSettings(options: PatchOptions): Promise<void> {
   const { logger } = options;
   const p = options.paths ?? defaultSettingsPaths();
 
   await mkdir(p.dir, { recursive: true });
 
-  // Only back up once so crash recovery doesn't overwrite the original.
+  // Only back up once so a crash doesn't clobber the real original
   if (existsSync(p.file) && !existsSync(p.backup)) {
     await copyFile(p.file, p.backup);
-    logger.info("Backed up settings.json");
   }
 
   let settings: Settings = {};
@@ -106,11 +83,9 @@ export async function patchSettings(options: PatchOptions): Promise<void> {
   };
 
   await writeFile(p.file, JSON.stringify(settings, null, 2) + "\n", "utf-8");
-  logger.info(`Patched settings.json to point to http://localhost:${String(options.port)}`);
 }
 
-export async function restoreSettings(options: RestoreOptions): Promise<void> {
-  const { logger } = options;
+export async function restoreClaudeSettings(options: RestoreOptions): Promise<void> {
   const p = options.paths ?? defaultSettingsPaths();
 
   if (existsSync(p.file)) {
@@ -119,6 +94,5 @@ export async function restoreSettings(options: RestoreOptions): Promise<void> {
 
   if (existsSync(p.backup)) {
     await rename(p.backup, p.file);
-    logger.info("Restored settings.json from backup");
   }
 }

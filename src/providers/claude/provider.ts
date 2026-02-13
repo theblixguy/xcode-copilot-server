@@ -1,16 +1,16 @@
-import type { Provider } from "./types.js";
-import { registerToolBridge } from "../tool-bridge/index.js";
-import { createMessagesHandler } from "../handlers/messages.js";
-import { createCountTokensHandler } from "../handlers/messages/count-tokens.js";
+import type { Provider } from "../types.js";
+import { registerToolBridge } from "../../tool-bridge/index.js";
+import { createMessagesHandler } from "./handler.js";
+import { createCountTokensHandler } from "./count-tokens.js";
 
-export const anthropicProvider = {
-  name: "Anthropic",
+export const claudeProvider = {
+  name: "Claude",
   routes: ["POST /v1/messages", "POST /v1/messages/count_tokens"],
 
   register(app, ctx) {
     app.addHook("onRequest", (request, reply, done) => {
-      // MCP routes come from the SDK's own HTTP client, not from Xcode,
-      // so they won't have the claude-cli/ user-agent
+      // MCP routes come from the SDK, not Xcode, so they
+      // won't have the claude-cli/ user-agent
       if (request.url.startsWith("/mcp/")) {
         done();
         return;

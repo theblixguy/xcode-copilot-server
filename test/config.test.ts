@@ -106,7 +106,7 @@ describe("loadConfig", () => {
     const path = writeConfig(
       "abs.json5",
       `{
-        anthropic: {
+        claude: {
           mcpServers: {
             local: {
               type: "local",
@@ -117,7 +117,7 @@ describe("loadConfig", () => {
         },
       }`,
     );
-    const config = await loadConfig(path, logger, "anthropic");
+    const config = await loadConfig(path, logger, "claude");
     const args = (config.mcpServers.local as any).args;
     expect(args[0]).toBe("/usr/bin/server.js");
   });
@@ -150,12 +150,12 @@ describe("loadConfig", () => {
     const path = writeConfig(
       "bridge.json5",
       `{
-        anthropic: {
+        claude: {
           toolBridge: true,
         },
       }`,
     );
-    const config = await loadConfig(path, logger, "anthropic");
+    const config = await loadConfig(path, logger, "claude");
     expect(config.toolBridge).toBe(true);
   });
 
@@ -175,7 +175,7 @@ describe("loadConfig", () => {
             xcode: { type: "local", command: "node", args: ["/xcode.js"], allowedTools: ["*"] },
           },
         },
-        anthropic: {
+        claude: {
           toolBridge: true,
           mcpServers: {},
         },
@@ -185,9 +185,30 @@ describe("loadConfig", () => {
     expect(openai.toolBridge).toBe(false);
     expect(Object.keys(openai.mcpServers)).toEqual(["xcode"]);
 
-    const anthropic = await loadConfig(path, logger, "anthropic");
-    expect(anthropic.toolBridge).toBe(true);
-    expect(anthropic.mcpServers).toEqual({});
+    const claude = await loadConfig(path, logger, "claude");
+    expect(claude.toolBridge).toBe(true);
+    expect(claude.mcpServers).toEqual({});
+  });
+
+  it("loads codex provider section", async () => {
+    const path = writeConfig(
+      "codex.json5",
+      `{
+        codex: {
+          toolBridge: true,
+          mcpServers: {},
+        },
+      }`,
+    );
+    const config = await loadConfig(path, logger, "codex");
+    expect(config.toolBridge).toBe(true);
+    expect(config.mcpServers).toEqual({});
+  });
+
+  it("defaults codex toolBridge to false when absent", async () => {
+    const path = writeConfig("minimal.json5", `{}`);
+    const config = await loadConfig(path, logger, "codex");
+    expect(config.toolBridge).toBe(false);
   });
 });
 
@@ -259,9 +280,9 @@ describe("config validation", () => {
   it("rejects invalid toolBridge (non-boolean)", async () => {
     const path = writeConfig(
       "bad.json5",
-      `{ anthropic: { toolBridge: "yes" } }`,
+      `{ claude: { toolBridge: "yes" } }`,
     );
-    await expect(loadConfig(path, logger, "anthropic")).rejects.toThrow(/Invalid/i);
+    await expect(loadConfig(path, logger, "claude")).rejects.toThrow(/Invalid/i);
   });
 
   it("uses defaults for missing optional fields", async () => {

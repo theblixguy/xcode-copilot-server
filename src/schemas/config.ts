@@ -49,7 +49,8 @@ export type ProviderConfig = z.infer<typeof ProviderConfigSchema>;
 
 export const ServerConfigSchema = z.object({
   openai: ProviderConfigSchema.default({ toolBridge: false, mcpServers: {} }),
-  anthropic: ProviderConfigSchema.default({ toolBridge: false, mcpServers: {} }),
+  claude: ProviderConfigSchema.default({ toolBridge: false, mcpServers: {} }),
+  codex: ProviderConfigSchema.default({ toolBridge: false, mcpServers: {} }),
   allowedCliTools: z.array(z.string()).refine(
     (arr) => !arr.includes("*") || arr.length === 1,
     'allowedCliTools: use ["*"] alone to allow all tools, don\'t mix with other entries',

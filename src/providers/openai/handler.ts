@@ -1,11 +1,11 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
-import type { AppContext } from "../context.js";
-import type { ConversationManager } from "../conversation-manager.js";
-import { ChatCompletionRequestSchema, extractContentText } from "../schemas/openai.js";
-import { formatPrompt } from "../utils/prompt.js";
-import { createSessionConfig } from "./session-config.js";
-import { handleStreaming } from "./completions/streaming.js";
-import { sendOpenAIError as sendError } from "./errors.js";
+import type { AppContext } from "../../context.js";
+import type { ConversationManager } from "../../conversation-manager.js";
+import { ChatCompletionRequestSchema, extractContentText } from "./schemas.js";
+import { formatPrompt } from "./prompt.js";
+import { createSessionConfig } from "../shared/session-config.js";
+import { handleStreaming } from "./streaming.js";
+import { sendOpenAIError as sendError } from "../shared/errors.js";
 
 export function createCompletionsHandler({ service, logger, config }: AppContext, manager: ConversationManager) {
   return async function handleCompletions(

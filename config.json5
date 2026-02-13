@@ -5,12 +5,11 @@
 // exists in both CLI and MCP tools then they can't have different permissions.
 
 {
-  // Provider-specific settings. The active --proxy flag determines which
-  // section is used at runtime.
+  // Which section gets used depends on the --proxy flag.
 
   openai: {
     // No tool bridge needed for OpenAI because Xcode drives tool execution
-    // directly. TODO: will need this for Codex Agent support.
+    // directly.
     toolBridge: false,
 
     mcpServers: {
@@ -25,14 +24,20 @@
     },
   },
 
-  anthropic: {
-    // Normally the Copilot CLI executes tool calls (file reads, edits, etc.)
-    // on its own. This shim intercepts those calls and forwards them to Xcode
-    // so Claude Agent can drive tool execution through the IDE instead.
-    // Set to false or remove to disable the tool bridge.
+  claude: {
+    // Intercepts tool calls and forwards them to Xcode so Claude Agent
+    // drives tool execution through the IDE instead of the Copilot CLI.
     toolBridge: true,
 
     // No MCP servers needed, because Claude Agent handles tools natively.
+    mcpServers: {},
+  },
+
+  codex: {
+    // Same as Claude: intercepts tool calls and forwards them to Xcode
+    // so Codex drives tool execution through the IDE.
+    toolBridge: true,
+
     mcpServers: {},
   },
 

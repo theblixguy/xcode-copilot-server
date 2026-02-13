@@ -1,8 +1,8 @@
 import type { FastifyReply } from "fastify";
 import type { CopilotSession } from "@github/copilot-sdk";
 import type { Logger } from "../../logger.js";
-import { formatCompaction, SSE_HEADERS } from "../streaming-utils.js";
-import { currentTimestamp, type ChatCompletionMessage, type ChatCompletionChunk } from "../../schemas/openai.js";
+import { formatCompaction, SSE_HEADERS } from "../shared/streaming-utils.js";
+import { currentTimestamp, type ChatCompletionMessage, type ChatCompletionChunk } from "./schemas.js";
 
 const REQUEST_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -66,7 +66,7 @@ export async function handleStreaming(
     resolve(false);
   }, REQUEST_TIMEOUT_MS);
 
-  // buffer deltas so we can drop intermediate narration before tool calls
+  // Buffer deltas so we can drop intermediate narration before tool calls
   let pendingDeltas: string[] = [];
   const toolNames = new Map<string, string>();
 
