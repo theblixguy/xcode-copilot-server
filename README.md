@@ -2,6 +2,8 @@
 
 A proxy API server that lets you use GitHub Copilot in Xcode, either as a custom model provider or as the backend for Claude Agent and Codex Agent.
 
+![Screenshot](assets/screenshot.png)
+
 ## Why
 
 Xcode 26 added support for third-party LLM providers, but it only supports ChatGPT and Claude out of the box. If you have a GitHub Copilot subscription, there's no built-in way to use it.
