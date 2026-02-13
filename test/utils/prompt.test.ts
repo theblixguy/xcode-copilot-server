@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { extractContentText, type ChatCompletionMessage } from "../../src/schemas/openai.js";
-import { formatPrompt, filterExcludedFiles } from "../../src/utils/prompt.js";
+import { extractContentText, type ChatCompletionMessage } from "../../src/providers/openai/schemas.js";
+import { formatPrompt, filterExcludedFiles } from "../../src/providers/openai/prompt.js";
 
 describe("extractContentText", () => {
   it("returns string content as-is", () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createServer } from "../../src/server.js";
-import { openaiProvider } from "../../src/providers/openai.js";
+import { openaiProvider } from "../../src/providers/openai/provider.js";
 import { Logger } from "../../src/logger.js";
 import type { AppContext } from "../../src/context.js";
 import type { ServerConfig } from "../../src/config.js";

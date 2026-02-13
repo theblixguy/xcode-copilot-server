@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { formatAnthropicPrompt } from "../../src/utils/anthropic-prompt.js";
-import type { AnthropicMessage } from "../../src/schemas/anthropic.js";
+import { formatAnthropicPrompt } from "../../src/providers/claude/prompt.js";
+import type { AnthropicMessage } from "../../src/providers/claude/schemas.js";
 
 describe("formatAnthropicPrompt", () => {
   it("basic user/assistant text (string shorthand)", () => {

@@ -66,8 +66,12 @@ describe("parseProxy", () => {
     expect(parseProxy("openai")).toBe("openai");
   });
 
-  it("accepts anthropic", () => {
-    expect(parseProxy("anthropic")).toBe("anthropic");
+  it("accepts claude", () => {
+    expect(parseProxy("claude")).toBe("claude");
+  });
+
+  it("accepts codex", () => {
+    expect(parseProxy("codex")).toBe("codex");
   });
 
   it("throws on invalid proxy", () => {
@@ -80,13 +84,17 @@ describe("parseProxy", () => {
 });
 
 describe("validateAutoPatch", () => {
-  it("allows auto-patch with anthropic", () => {
-    expect(() => { validateAutoPatch("anthropic", true); }).not.toThrow();
+  it("allows auto-patch with claude", () => {
+    expect(() => { validateAutoPatch("claude", true); }).not.toThrow();
+  });
+
+  it("allows auto-patch with codex", () => {
+    expect(() => { validateAutoPatch("codex", true); }).not.toThrow();
   });
 
   it("throws when auto-patch is used with openai", () => {
     expect(() => { validateAutoPatch("openai", true); }).toThrow(
-      "--auto-patch can only be used with --proxy anthropic",
+      "--auto-patch can only be used with --proxy claude or --proxy codex",
     );
   });
 
@@ -94,7 +102,11 @@ describe("validateAutoPatch", () => {
     expect(() => { validateAutoPatch("openai", false); }).not.toThrow();
   });
 
-  it("allows no auto-patch with anthropic", () => {
-    expect(() => { validateAutoPatch("anthropic", false); }).not.toThrow();
+  it("allows no auto-patch with claude", () => {
+    expect(() => { validateAutoPatch("claude", false); }).not.toThrow();
+  });
+
+  it("allows no auto-patch with codex", () => {
+    expect(() => { validateAutoPatch("codex", false); }).not.toThrow();
   });
 });

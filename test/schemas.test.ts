@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ChatCompletionRequestSchema, currentTimestamp } from "../src/schemas/openai.js";
+import { ChatCompletionRequestSchema, currentTimestamp } from "../src/providers/openai/schemas.js";
 
 describe("ChatCompletionRequestSchema", () => {
   const validRequest = {
