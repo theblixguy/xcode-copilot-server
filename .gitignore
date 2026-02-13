@@ -6,3 +6,4 @@ dist/
 .vscode/
 coverage/
 *.tsbuildinfo
+.build/
