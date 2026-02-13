@@ -39,15 +39,18 @@ npx xcode-copilot-server
 xcode-copilot-server [options]
 
 Options:
-  --port <number>        Port to listen on (default: 8080)
-  --proxy <provider>     API format to expose: openai, anthropic (default: openai)
-  --log-level <level>    Log verbosity: none, error, warning, info, debug, all (default: info)
-  --config <path>        Path to config file (auto-detected from --cwd, then process cwd, else bundled)
-  --cwd <path>           Working directory for Copilot sessions (default: process cwd)
-  --auto-patch           Auto-patch settings.json on start, restore on exit (anthropic mode)
-  --patch-settings       Patch settings.json to point to this server, then exit
-  --restore-settings     Restore settings.json from backup, then exit
-  --help                 Show help
+  -p, --port <number>      Port to listen on (default: 8080)
+  --proxy <provider>       API format: openai, anthropic (default: openai)
+  -l, --log-level <level>  Log verbosity (default: info)
+  -c, --config <path>      Path to config file
+  --cwd <path>             Working directory for Copilot sessions
+  --auto-patch             Auto-patch settings.json on start, restore on exit
+  -v, --version            Output the version number
+  -h, --help               Show help
+
+Commands:
+  patch-settings           Patch Claude Agent's settings.json and exit (Anthropic mode)
+  restore-settings         Restore Claude Agent's settings.json from backup and exit
 ```
 
 The `--proxy` flag determines which API the server exposes:
@@ -98,7 +101,12 @@ To enable tool calling, select the provider and enable "Allow tools" under "Adva
    xcode-copilot-server --proxy anthropic
    ```
 
-   You can also use `--patch-settings` and `--restore-settings` as one-shot commands to patch or restore `settings.json` without starting the server.
+   You can also use the `patch-settings` and `restore-settings` subcommands to patch or restore `settings.json` without starting the server:
+
+   ```bash
+   xcode-copilot-server patch-settings --port 8080
+   xcode-copilot-server restore-settings
+   ```
 
 The tool bridge is enabled by default in Anthropic mode (`toolBridge: true` in the config). It intercepts tool calls from the Copilot session and forwards them to Xcode, so Claude Agent can read files, search code, and make edits through the IDE.
 
