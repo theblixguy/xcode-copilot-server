@@ -137,8 +137,9 @@ export async function startServer(options: StartOptions): Promise<void> {
     if (fd === undefined) {
       throw new Error("launch_activate_socket returned no file descriptors");
     }
-    // Fastify supports listen({ fd }) at runtime but the types don't include it yet
-    await app.listen({ fd } as unknown as { port: number });
+    // TODO: Remove cast when Fastify types add fd support
+    // @ts-expect-error Fastify supports listen({ fd }) at runtime but the types don't include it yet
+    await app.listen({ fd });
     logger.info(`Listening via launchd socket activation (fd ${String(fd)}, port ${String(port)})`);
   } else {
     await app.listen({ port, host: "127.0.0.1" });
@@ -206,7 +207,10 @@ export async function startServer(options: StartOptions): Promise<void> {
     process.exit(0);
   };
 
+  let shuttingDown = false;
   const onSignal = (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     shutdown(signal).catch((err: unknown) => {
       console.error("Shutdown error:", err);
       process.exit(1);
@@ -223,13 +227,14 @@ export async function startServer(options: StartOptions): Promise<void> {
       lastActivity = Date.now();
     });
 
+    const checkInterval = Math.min(idleMs, 60_000);
     const timer = setInterval(() => {
       if (Date.now() - lastActivity >= idleMs) {
         clearInterval(timer);
         logger.info(`Idle for ${String(idleTimeoutMinutes)} minute(s), shutting down`);
         onSignal("idle-timeout");
       }
-    }, 60_000);
+    }, checkInterval);
 
     // Don't let the timer alone keep the process alive
     timer.unref();

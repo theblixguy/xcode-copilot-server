@@ -285,6 +285,8 @@ This server acts as a local proxy between Xcode and GitHub Copilot. It's designe
 
 - MCP servers defined in the config are spawned as child processes. The bundled config uses `xcrun mcpbridge`, which is an Apple-signed binary. If you add your own MCP servers, make sure you trust the commands you're configuring.
 
+- When you use `install-agent`, the generated plist file includes your `GITHUB_TOKEN` and `PATH` in cleartext so the agent can authenticate and find Node.js. The file is written to `~/Library/LaunchAgents/` which is only readable by your user account by default. If you have concerns about this, use `gh auth login` or `copilot login` instead of a `GITHUB_TOKEN` environment variable, and the token won't be embedded in the plist.
+
 ## License
 
 MIT License

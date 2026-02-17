@@ -77,6 +77,8 @@ export function generatePlist(options: PlistOptions): string {
   if (!envVars["PATH"] && process.env["PATH"]) {
     envVars["PATH"] = process.env["PATH"];
   }
+  // GITHUB_TOKEN is written in cleartext into the plist so the agent can authenticate.
+  // The file lives in ~/Library/LaunchAgents/ which is user-readable only by default.
   if (!envVars["GITHUB_TOKEN"] && process.env["GITHUB_TOKEN"]) {
     envVars["GITHUB_TOKEN"] = process.env["GITHUB_TOKEN"];
   }
@@ -108,20 +110,25 @@ export interface ParsedPlistArgs {
 }
 
 export function parsePlistArgs(plistContent: string): ParsedPlistArgs {
-  let parsed: Record<string, unknown>;
+  let raw: unknown;
   try {
-    parsed = plist.parse(plistContent) as Record<string, unknown>;
+    raw = plist.parse(plistContent);
   } catch {
     return { proxy: null, autoPatch: false };
   }
 
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    return { proxy: null, autoPatch: false };
+  }
+
+  const parsed = raw as Record<string, unknown>;
   const args = parsed["ProgramArguments"];
   if (!Array.isArray(args)) {
     return { proxy: null, autoPatch: false };
   }
 
   // First two entries are the node binary and entry point, everything after is flags
-  const flagArgs = (args as string[]).slice(2);
+  const flagArgs = args.slice(2).filter((a): a is string => typeof a === "string");
 
   const cmd = new Command()
     .exitOverride()
@@ -225,9 +232,16 @@ export async function uninstallAgent(options: UninstallAgentOptions): Promise<vo
     throw new Error(`No launchd agent found at ${plistPath}`);
   }
 
-  // Need to read config before deleting so we know whether to restore settings
-  const plistContent = await readFile(plistPath, "utf-8");
-  const parsed = parsePlistArgs(plistContent);
+  // Read config before deleting so we know whether to restore settings.
+  // If the file is unreadable (e.g. permissions), default so uninstall can still proceed.
+  let parsed: ParsedPlistArgs;
+  try {
+    const plistContent = await readFile(plistPath, "utf-8");
+    parsed = parsePlistArgs(plistContent);
+  } catch (err) {
+    logger.warn(`Could not read plist, skipping settings restore: ${String(err)}`);
+    parsed = { proxy: null, autoPatch: false };
+  }
 
   try {
     await exec("launchctl", ["unload", plistPath]);

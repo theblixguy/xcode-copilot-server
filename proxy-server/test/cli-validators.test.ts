@@ -101,6 +101,14 @@ describe("parseIdleTimeout", () => {
   it("throws on non-numeric value", () => {
     expect(() => parseIdleTimeout("abc")).toThrow('Invalid idle timeout "abc"');
   });
+
+  it("throws on empty string", () => {
+    expect(() => parseIdleTimeout("")).toThrow('Invalid idle timeout ""');
+  });
+
+  it("truncates floating point to integer", () => {
+    expect(parseIdleTimeout("3.5")).toBe(3);
+  });
 });
 
 describe("validateAutoPatch", () => {
