@@ -127,6 +127,15 @@ export async function startServer(options: StartOptions): Promise<void> {
 
   const ctx: AppContext = { service, logger, config, port };
   const app = await createServer(ctx, provider);
+
+  // Register hooks before listen as Fastify forbids addHook after listen.
+  let lastActivity = Date.now();
+  if (idleTimeoutMinutes > 0) {
+    app.addHook("onResponse", () => {
+      lastActivity = Date.now();
+    });
+  }
+
   const listenSpinner = quiet ? null : createSpinner(`Starting server on port ${String(port)}...`);
   const prevPinoLevel = app.log.level;
   app.log.level = "silent";
@@ -221,11 +230,6 @@ export async function startServer(options: StartOptions): Promise<void> {
 
   if (idleTimeoutMinutes > 0) {
     const idleMs = idleTimeoutMinutes * 60_000;
-    let lastActivity = Date.now();
-
-    app.addHook("onResponse", () => {
-      lastActivity = Date.now();
-    });
 
     const checkInterval = Math.min(idleMs, 60_000);
     const timer = setInterval(() => {
