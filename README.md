@@ -42,18 +42,21 @@ npx xcode-copilot-server
 xcode-copilot-server [options]
 
 Options:
-  -p, --port <number>      Port to listen on (default: 8080)
-  --proxy <provider>       API format: openai, claude, codex (default: openai)
-  -l, --log-level <level>  Log verbosity (default: info)
-  -c, --config <path>      Path to config file
-  --cwd <path>             Working directory for Copilot sessions
-  --auto-patch             Auto-patch settings on start, restore on exit
-  -v, --version            Output the version number
-  -h, --help               Show help
+  -p, --port <number>            Port to listen on (default: 8080)
+  --proxy <provider>             API format: openai, claude, codex (default: openai)
+  -l, --log-level <level>        Log verbosity (default: info)
+  -c, --config <path>            Path to config file
+  --cwd <path>                   Working directory for Copilot sessions
+  --auto-patch                   Auto-patch settings on start, restore on exit
+  --idle-timeout <minutes>       Shut down after N minutes of inactivity (default: 0, disabled)
+  -v, --version                  Output the version number
+  -h, --help                     Show help
 
 Commands:
-  patch-settings           Patch provider settings and exit (--proxy claude or codex)
-  restore-settings         Restore provider settings from backup and exit
+  patch-settings                 Patch provider settings and exit (--proxy claude or codex)
+  restore-settings               Restore provider settings from backup and exit
+  install-agent                  Install a launchd agent with socket activation
+  uninstall-agent                Uninstall the launchd agent and restore settings
 ```
 
 The `--proxy` flag determines which API the server exposes:
@@ -165,6 +168,42 @@ The tool bridge works the same way as Claude, as it intercepts tool calls and ro
 | Claude  | `.claude/skills/`                          | `~/.claude/skills/`    |
 | Codex   | `.codex/skills/`                           | `~/.codex/skills/`     |
 
+## Launchd agent
+
+Instead of starting the server manually every time, you can install it as a launchd agent. This uses macOS socket activation, so the server starts automatically when something connects to the port (e.g. when Xcode sends its first request) and you don't need to keep a terminal open.
+
+### Installing
+
+```bash
+xcode-copilot-server install-agent --proxy claude --auto-patch
+```
+
+This writes a plist to `~/Library/LaunchAgents/` and loads it with `launchctl`. The agent is set up with socket activation on the specified port, so launchd owns the socket and starts the server on demand. If `--auto-patch` is passed, settings are patched at install time.
+
+The `install-agent` subcommand accepts the same options as the main command (`--port`, `--proxy`, `--log-level`, `--config`, `--cwd`, `--auto-patch`), plus `--idle-timeout` which defaults to 60 minutes for the agent. After 60 minutes with no requests, the server shuts itself down. The next incoming connection will start it again automatically.
+
+Server logs go to `~/Library/Logs/xcode-copilot-server.out.log` and `~/Library/Logs/xcode-copilot-server.err.log`.
+
+### Uninstalling
+
+```bash
+xcode-copilot-server uninstall-agent
+```
+
+This unloads the agent, deletes the plist, and restores any patched settings if the agent was installed with `--auto-patch`.
+
+### How it works
+
+Launchd creates a socket on the configured port and waits. When a connection comes in (e.g. Xcode sends a request), launchd starts the server process and hands over the socket. The server handles requests as normal.
+
+If the server crashes, launchd doesn't restart it immediately, but the next incoming connection will start a fresh process. If `--idle-timeout` is set (defaults to 60 minutes for the agent), the server exits after that many minutes of inactivity, and launchd will start it again on the next connection.
+
+To check if the agent is loaded:
+
+```bash
+launchctl list | grep xcode-copilot-server
+```
+
 ## Configuration
 
 The server reads its configuration from a `config.json5` file. By default, it uses the bundled one, but you can point to your own with `--config`:
@@ -245,6 +284,8 @@ This server acts as a local proxy between Xcode and GitHub Copilot. It's designe
 - The bundled config sets `autoApprovePermissions` to `["read", "mcp"]`, which lets the Copilot session read files and call MCP tools without prompting. Writes, shell commands, and URL fetches are denied by default. You can set it to `true` to approve everything, `false` to deny everything, or pick specific kinds from `"read"`, `"write"`, `"shell"`, `"mcp"`, and `"url"`.
 
 - MCP servers defined in the config are spawned as child processes. The bundled config uses `xcrun mcpbridge`, which is an Apple-signed binary. If you add your own MCP servers, make sure you trust the commands you're configuring.
+
+- When you use `install-agent`, the generated plist file includes your `GITHUB_TOKEN` and `PATH` in cleartext so the agent can authenticate and find Node.js. The file is written to `~/Library/LaunchAgents/` which is only readable by your user account by default. If you have concerns about this, use `gh auth login` or `copilot login` instead of a `GITHUB_TOKEN` environment variable, and the token won't be embedded in the plist.
 
 ## License
 
