@@ -12,9 +12,11 @@ import {
   parsePort,
   parseLogLevel,
   parseProxy,
+  parseIdleTimeout,
   validateAutoPatch,
 } from "./cli-validators.js";
 import { bold, dim, createSpinner, printBanner } from "./ui.js";
+import { activateSocket } from "./launchd/index.js";
 
 const AGENTS_DIR = join(
   homedir(),
@@ -55,6 +57,8 @@ export interface StartOptions {
   config?: string;
   cwd?: string;
   autoPatch?: true;
+  launchd?: true;
+  idleTimeout?: string;
 }
 
 export async function startServer(options: StartOptions): Promise<void> {
@@ -63,8 +67,12 @@ export async function startServer(options: StartOptions): Promise<void> {
   const port = parsePort(options.port);
   const proxy = parseProxy(options.proxy);
 
-  const autoPatch = options.autoPatch === true;
-  validateAutoPatch(proxy, autoPatch);
+  const idleTimeoutMinutes = options.idleTimeout ? parseIdleTimeout(options.idleTimeout) : 0;
+  const launchdMode = options.launchd === true;
+  const autoPatch = options.autoPatch === true && !launchdMode;
+  if (!launchdMode) {
+    validateAutoPatch(proxy, options.autoPatch === true);
+  }
 
   const provider = providers[proxy];
 
@@ -78,7 +86,7 @@ export async function startServer(options: StartOptions): Promise<void> {
     cwd,
   });
 
-  const quiet = logLevel === "none";
+  const quiet = logLevel === "none" || launchdMode;
 
   if (!quiet) {
     console.log();
@@ -122,7 +130,20 @@ export async function startServer(options: StartOptions): Promise<void> {
   const listenSpinner = quiet ? null : createSpinner(`Starting server on port ${String(port)}...`);
   const prevPinoLevel = app.log.level;
   app.log.level = "silent";
-  await app.listen({ port, host: "127.0.0.1" });
+
+  if (launchdMode) {
+    const fds = activateSocket("Listeners");
+    const fd = fds[0];
+    if (fd === undefined) {
+      throw new Error("launch_activate_socket returned no file descriptors");
+    }
+    // Fastify supports listen({ fd }) at runtime but the types don't include it yet
+    await app.listen({ fd } as unknown as { port: number });
+    logger.info(`Listening via launchd socket activation (fd ${String(fd)}, port ${String(port)})`);
+  } else {
+    await app.listen({ port, host: "127.0.0.1" });
+  }
+
   app.log.level = prevPinoLevel;
   listenSpinner?.succeed(`Listening on ${bold(`http://localhost:${String(port)}`)}`);
 
@@ -193,4 +214,24 @@ export async function startServer(options: StartOptions): Promise<void> {
   };
   process.on("SIGINT", () => { onSignal("SIGINT"); });
   process.on("SIGTERM", () => { onSignal("SIGTERM"); });
+
+  if (idleTimeoutMinutes > 0) {
+    const idleMs = idleTimeoutMinutes * 60_000;
+    let lastActivity = Date.now();
+
+    app.addHook("onResponse", () => {
+      lastActivity = Date.now();
+    });
+
+    const timer = setInterval(() => {
+      if (Date.now() - lastActivity >= idleMs) {
+        clearInterval(timer);
+        logger.info(`Idle for ${String(idleTimeoutMinutes)} minute(s), shutting down`);
+        onSignal("idle-timeout");
+      }
+    }, 60_000);
+
+    // Don't let the timer alone keep the process alive
+    timer.unref();
+  }
 }
