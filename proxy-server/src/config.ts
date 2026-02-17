@@ -95,6 +95,7 @@ export async function loadConfig(
   } catch (err) {
     throw new Error(
       `Failed to parse config file: ${err instanceof Error ? err.message : String(err)}`,
+      { cause: err },
     );
   }
 
