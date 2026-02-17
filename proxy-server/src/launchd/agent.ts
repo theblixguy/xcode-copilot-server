@@ -120,7 +120,7 @@ export function parsePlistArgs(plistContent: string): ParsedPlistArgs {
     return { proxy: null, autoPatch: false };
   }
 
-  // ProgramArguments is [nodePath, entryPoint, ...flags]; skip the first two
+  // First two entries are the node binary and entry point, everything after is flags
   const flagArgs = (args as string[]).slice(2);
 
   const cmd = new Command()
@@ -175,8 +175,8 @@ export async function installAgent(options: InstallAgentOptions): Promise<void> 
   if (existsSync(plistPath)) {
     try {
       await exec("launchctl", ["unload", plistPath]);
-    } catch {
-      // Might not be loaded yet on first install
+    } catch (err) {
+      logger.debug(`launchctl unload skipped: ${String(err)}`);
     }
   }
 
