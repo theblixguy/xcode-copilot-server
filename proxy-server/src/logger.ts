@@ -22,6 +22,10 @@ export class Logger {
   readonly level: LogLevel;
   private threshold: number;
 
+  // Status line needs to clear/redraw around log output
+  onBeforeLog?: (() => void) | undefined;
+  onAfterLog?: (() => void) | undefined;
+
   constructor(level: LogLevel = "info") {
     this.level = level;
     this.threshold = LEVEL_PRIORITY[level];
@@ -30,28 +34,36 @@ export class Logger {
   error(msg: string, ...args: unknown[]): void {
     if (this.threshold >= LEVEL_PRIORITY.error) {
       const { label, symbol } = LEVEL_STYLE.error;
+      this.onBeforeLog?.();
       console.error(`${dim(new Date().toISOString())} ${symbol} ${label} ${msg}`, ...args);
+      this.onAfterLog?.();
     }
   }
 
   warn(msg: string, ...args: unknown[]): void {
     if (this.threshold >= LEVEL_PRIORITY.warning) {
       const { label, symbol } = LEVEL_STYLE.warn;
+      this.onBeforeLog?.();
       console.warn(`${dim(new Date().toISOString())} ${symbol} ${label} ${msg}`, ...args);
+      this.onAfterLog?.();
     }
   }
 
   info(msg: string, ...args: unknown[]): void {
     if (this.threshold >= LEVEL_PRIORITY.info) {
       const { label, symbol } = LEVEL_STYLE.info;
+      this.onBeforeLog?.();
       console.log(`${dim(new Date().toISOString())} ${symbol} ${label} ${msg}`, ...args);
+      this.onAfterLog?.();
     }
   }
 
   debug(msg: string, ...args: unknown[]): void {
     if (this.threshold >= LEVEL_PRIORITY.debug) {
       const { label, symbol } = LEVEL_STYLE.debug;
+      this.onBeforeLog?.();
       console.log(`${dim(new Date().toISOString())} ${symbol} ${label} ${dim(msg)}`, ...args);
+      this.onAfterLog?.();
     }
   }
 }

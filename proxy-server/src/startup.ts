@@ -15,8 +15,10 @@ import {
   parseIdleTimeout,
   validateAutoPatch,
 } from "./cli-validators.js";
-import { bold, dim, createSpinner, printBanner } from "./ui.js";
+import { bold, dim, createSpinner, printBanner, printUsageSummary } from "./ui.js";
 import { activateSocket } from "./launchd/index.js";
+import { Stats } from "./stats.js";
+import { StatusLine } from "./status-line.js";
 
 const AGENTS_DIR = join(
   homedir(),
@@ -125,16 +127,21 @@ export async function startServer(options: StartOptions): Promise<void> {
     }
   }
 
-  const ctx: AppContext = { service, logger, config, port };
+  const stats = new Stats();
+  const ctx: AppContext = { service, logger, config, port, stats };
   const app = await createServer(ctx, provider);
 
-  // Register hooks before listen as Fastify forbids addHook after listen.
+  // Must register hooks before listen() because Fastify freezes the instance after that
   let lastActivity = Date.now();
-  if (idleTimeoutMinutes > 0) {
-    app.addHook("onResponse", () => {
-      lastActivity = Date.now();
-    });
+  let statusLine: StatusLine | null = null;
+  if (!quiet && process.stdout.isTTY) {
+    const sl = new StatusLine();
+    statusLine = sl;
   }
+  app.addHook("onResponse", () => {
+    lastActivity = Date.now();
+    statusLine?.update(stats.snapshot());
+  });
 
   const listenSpinner = quiet ? null : createSpinner(`Starting server on port ${String(port)}...`);
   const prevPinoLevel = app.log.level;
@@ -179,6 +186,11 @@ export async function startServer(options: StartOptions): Promise<void> {
     }
   }
 
+  if (statusLine) {
+    logger.onBeforeLog = () => { statusLine.clearLine(); };
+    logger.onAfterLog = () => { statusLine.redraw(); };
+  }
+
   logger.debug(`Config loaded from ${configPath}`);
   const mcpCount = Object.keys(config.mcpServers).length;
   const cliToolsSummary = config.allowedCliTools.includes("*")
@@ -187,6 +199,13 @@ export async function startServer(options: StartOptions): Promise<void> {
   logger.debug(`${String(mcpCount)} MCP server(s), ${cliToolsSummary}`);
 
   const shutdown = async (signal: string) => {
+    // Tear down the status line before printing shutdown logs
+    if (statusLine) {
+      statusLine.clear();
+      logger.onBeforeLog = undefined;
+      logger.onAfterLog = undefined;
+    }
+
     logger.info(`Got ${signal}, shutting down...`);
 
     if (autoPatch) {
@@ -213,6 +232,11 @@ export async function startServer(options: StartOptions): Promise<void> {
     );
 
     await Promise.race([stopPromise, timeoutPromise]);
+
+    if (!quiet) {
+      printUsageSummary(stats.snapshot());
+    }
+
     process.exit(0);
   };
 
