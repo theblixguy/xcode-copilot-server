@@ -1,6 +1,7 @@
 import type { FastifyReply } from "fastify";
 import type { CopilotSession } from "@github/copilot-sdk";
 import type { Logger } from "../../logger.js";
+import type { Stats } from "../../stats.js";
 import type { ToolBridgeState } from "../../tool-bridge/state.js";
 import type {
   ResponseObject,
@@ -216,11 +217,12 @@ export async function handleResponsesStreaming(
   logger: Logger,
   hasBridge: boolean,
   responseId: string,
+  stats?: Stats,
 ): Promise<void> {
   const reply = state.currentReply;
   if (!reply) throw new Error("No reply set on bridge state");
   const seq = startResponseStream(reply, responseId, model);
 
   const protocol = createResponsesProtocol(responseId, model, seq, () => state.currentReply);
-  return runSessionStreaming(state, session, prompt, logger, hasBridge, protocol, reply);
+  return runSessionStreaming(state, session, prompt, logger, hasBridge, protocol, reply, stats);
 }

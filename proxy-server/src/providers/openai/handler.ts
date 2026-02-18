@@ -7,11 +7,13 @@ import { createSessionConfig } from "../shared/session-config.js";
 import { handleStreaming } from "./streaming.js";
 import { sendOpenAIError as sendError } from "../shared/errors.js";
 
-export function createCompletionsHandler({ service, logger, config }: AppContext, manager: ConversationManager) {
+export function createCompletionsHandler({ service, logger, config, stats }: AppContext, manager: ConversationManager) {
   return async function handleCompletions(
     request: FastifyRequest,
     reply: FastifyReply,
   ): Promise<void> {
+    stats.recordRequest();
+
     const parseResult = ChatCompletionRequestSchema.safeParse(request.body);
     if (!parseResult.success) {
       const firstIssue = parseResult.error.issues[0];
@@ -95,8 +97,10 @@ export function createCompletionsHandler({ service, logger, config }: AppContext
 
       try {
         conversation.session = await service.createSession(sessionConfig);
+        stats.recordSession();
       } catch (err) {
         logger.error("Creating session failed:", err);
+        stats.recordError();
         sendError(reply, 500, "api_error", "Failed to create session");
         manager.remove(conversation.id);
         return;
@@ -106,13 +110,14 @@ export function createCompletionsHandler({ service, logger, config }: AppContext
     if (!conversation.session) {
       logger.error("Primary conversation has no session, clearing");
       manager.clearPrimary();
+      stats.recordError();
       sendError(reply, 500, "api_error", "Session lost, please retry");
       return;
     }
 
     try {
       logger.info("Streaming response");
-      const healthy = await handleStreaming(reply, conversation.session, prompt, req.model, logger);
+      const healthy = await handleStreaming(reply, conversation.session, prompt, req.model, logger, stats);
       state.markSessionInactive();
       if (healthy) {
         conversation.sentMessageCount = req.messages.length;
@@ -121,6 +126,7 @@ export function createCompletionsHandler({ service, logger, config }: AppContext
       }
     } catch (err) {
       logger.error("Request failed:", err);
+      stats.recordError();
       state.markSessionInactive();
       if (conversation.isPrimary) {
         manager.clearPrimary();

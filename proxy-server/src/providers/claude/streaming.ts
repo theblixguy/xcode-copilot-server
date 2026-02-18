@@ -1,6 +1,7 @@
 import type { FastifyReply } from "fastify";
 import type { CopilotSession } from "@github/copilot-sdk";
 import type { Logger } from "../../logger.js";
+import type { Stats } from "../../stats.js";
 import { SSE_HEADERS, sendSSEEvent as sendEvent } from "../shared/streaming-utils.js";
 import type {
   MessageStartEvent,
@@ -144,11 +145,12 @@ export async function handleAnthropicStreaming(
   model: string,
   logger: Logger,
   hasBridge = false,
+  stats?: Stats,
 ): Promise<void> {
   const reply = state.currentReply;
   if (!reply) throw new Error("No reply set on bridge state");
   startReply(reply, model);
 
   const protocol = createAnthropicProtocol();
-  return runSessionStreaming(state, session, prompt, logger, hasBridge, protocol, reply);
+  return runSessionStreaming(state, session, prompt, logger, hasBridge, protocol, reply, stats);
 }

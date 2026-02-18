@@ -1,6 +1,7 @@
 import type { FastifyReply } from "fastify";
 import type { CopilotSession } from "@github/copilot-sdk";
 import type { Logger } from "../../logger.js";
+import type { Stats } from "../../stats.js";
 import type { ToolBridgeState } from "../../tool-bridge/state.js";
 import { BRIDGE_TOOL_PREFIX } from "../../tool-bridge/index.js";
 import { formatCompaction } from "./streaming-utils.js";
@@ -35,6 +36,7 @@ export async function runSessionStreaming(
   hasBridge: boolean,
   protocol: StreamProtocol,
   initialReply: FastifyReply,
+  stats?: Stats,
 ): Promise<void> {
   state.markSessionActive();
 
@@ -182,7 +184,12 @@ export async function runSessionStreaming(
       }
 
       default:
-        logger.debug(`Unhandled event: ${event.type}, data=${JSON.stringify(event.data)}`);
+        if (event.type === "assistant.usage" && stats) {
+          stats.recordUsage(event.data);
+          logger.debug(`Usage: ${String(event.data.inputTokens ?? 0)} in, ${String(event.data.outputTokens ?? 0)} out, cost=${String(event.data.cost ?? 0)}`);
+        } else {
+          logger.debug(`Unhandled event: ${event.type}, data=${JSON.stringify(event.data)}`);
+        }
         break;
     }
   });

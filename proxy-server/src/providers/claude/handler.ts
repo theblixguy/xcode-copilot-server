@@ -13,13 +13,15 @@ import { handleAnthropicStreaming, startReply } from "./streaming.js";
 import { sendAnthropicError as sendError } from "../shared/errors.js";
 
 export function createMessagesHandler(
-  { service, logger, config, port }: AppContext,
+  { service, logger, config, port, stats }: AppContext,
   manager: ConversationManager,
 ) {
   return async function handleMessages(
     request: FastifyRequest,
     reply: FastifyReply,
   ): Promise<void> {
+    stats.recordRequest();
+
     const parseResult = AnthropicMessagesRequestSchema.safeParse(request.body);
     if (!parseResult.success) {
       const firstIssue = parseResult.error.issues[0];
@@ -163,8 +165,10 @@ export function createMessagesHandler(
 
       try {
         conversation.session = await service.createSession(sessionConfig);
+        stats.recordSession();
       } catch (err) {
         logger.error("Creating session failed:", err);
+        stats.recordError();
         sendError(reply, 500, "api_error", "Failed to create session");
         manager.remove(conversation.id);
         return;
@@ -174,6 +178,7 @@ export function createMessagesHandler(
     if (!conversation.session) {
       logger.error("Primary conversation has no session, clearing");
       manager.clearPrimary();
+      stats.recordError();
       sendError(reply, 500, "api_error", "Session lost, please retry");
       return;
     }
@@ -182,7 +187,7 @@ export function createMessagesHandler(
 
     try {
       logger.info(`Streaming response for conversation ${conversation.id}`);
-      await handleAnthropicStreaming(state, conversation.session, prompt, req.model, logger, hasBridge);
+      await handleAnthropicStreaming(state, conversation.session, prompt, req.model, logger, hasBridge, stats);
       conversation.sentMessageCount = req.messages.length;
 
       if (conversation.isPrimary && state.hadError) {
@@ -190,6 +195,7 @@ export function createMessagesHandler(
       }
     } catch (err) {
       logger.error("Request failed:", err);
+      stats.recordError();
       if (conversation.isPrimary) {
         manager.clearPrimary();
       }
