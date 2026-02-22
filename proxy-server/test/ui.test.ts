@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from "vitest";
-import { createSpinner, printBanner, symbols, type BannerInfo } from "../src/ui.js";
+import { createSpinner, printBanner, printUsageSummary, symbols, type BannerInfo } from "../src/ui.js";
+import type { StatsSnapshot } from "../src/stats.js";
 
 // eslint-disable-next-line no-control-regex
 const ANSI_RE = /\x1b\[[0-9;]*m/g;
@@ -152,5 +153,164 @@ describe("printBanner", () => {
     const output = logSpy.mock.calls.map((c: unknown[]) => strip(String(c[0]))).join("\n");
     expect(output).toContain("Auto-patch");
     expect(output).toContain("enabled");
+  });
+});
+
+describe("printUsageSummary", () => {
+  let logSpy: MockInstance;
+
+  beforeEach(() => {
+    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const baseSnap: StatsSnapshot = {
+    requests: 0,
+    sessions: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+    totalCost: 0,
+    apiDurationMs: 0,
+    errors: 0,
+    uptimeMs: 5000,
+    modelMetrics: {},
+  };
+
+  const allOutput = () =>
+    logSpy.mock.calls.map((c: unknown[]) => strip(String(c[0]))).join("\n");
+
+  it("prints header, requests, sessions, and uptime", () => {
+    printUsageSummary({ ...baseSnap, requests: 42, sessions: 3 });
+    const output = allOutput();
+    expect(output).toContain("Usage Summary");
+    expect(output).toContain("42");
+    expect(output).toContain("3");
+    expect(output).toContain("5s");
+  });
+
+  it("prints token breakdown when tokens are present", () => {
+    printUsageSummary({
+      ...baseSnap,
+      inputTokens: 1500,
+      outputTokens: 500,
+    });
+    const output = allOutput();
+    expect(output).toContain("1.5k input");
+    expect(output).toContain("500 output");
+  });
+
+  it("prints cache tokens when present", () => {
+    printUsageSummary({
+      ...baseSnap,
+      inputTokens: 100,
+      outputTokens: 50,
+      cacheReadTokens: 2000,
+      cacheWriteTokens: 300,
+    });
+    const output = allOutput();
+    expect(output).toContain("2.0k cache read");
+    expect(output).toContain("300 cache write");
+  });
+
+  it("omits token line when all token counts are zero", () => {
+    printUsageSummary(baseSnap);
+    const output = allOutput();
+    expect(output).not.toContain("Tokens");
+  });
+
+  it("prints cost when present", () => {
+    printUsageSummary({ ...baseSnap, totalCost: 1.50 });
+    const output = allOutput();
+    expect(output).toContain("$1.50");
+  });
+
+  it("formats small costs with extra precision", () => {
+    printUsageSummary({ ...baseSnap, totalCost: 0.005 });
+    const output = allOutput();
+    expect(output).toContain("$0.0050");
+  });
+
+  it("omits cost line when cost is zero", () => {
+    printUsageSummary(baseSnap);
+    const output = allOutput();
+    expect(output).not.toContain("Cost");
+  });
+
+  it("prints errors when present", () => {
+    printUsageSummary({ ...baseSnap, errors: 5 });
+    const output = allOutput();
+    expect(output).toContain("5");
+    expect(output).toContain("Errors");
+  });
+
+  it("omits errors line when count is zero", () => {
+    printUsageSummary(baseSnap);
+    const output = allOutput();
+    expect(output).not.toContain("Errors");
+  });
+
+  it("prints API time when present", () => {
+    printUsageSummary({ ...baseSnap, apiDurationMs: 125_000 });
+    const output = allOutput();
+    expect(output).toContain("2m 5s");
+  });
+
+  it("omits API time when zero", () => {
+    printUsageSummary(baseSnap);
+    const output = allOutput();
+    expect(output).not.toContain("API time");
+  });
+
+  it("prints per-model breakdown", () => {
+    printUsageSummary({
+      ...baseSnap,
+      modelMetrics: {
+        "gpt-4": {
+          requests: 10,
+          cost: 0.50,
+          inputTokens: 5000,
+          outputTokens: 2000,
+          cacheReadTokens: 0,
+          cacheWriteTokens: 0,
+        },
+        "claude-3": {
+          requests: 1,
+          cost: 0.002,
+          inputTokens: 300,
+          outputTokens: 100,
+          cacheReadTokens: 1000,
+          cacheWriteTokens: 0,
+        },
+      },
+    });
+    const output = allOutput();
+    expect(output).toContain("By model:");
+    expect(output).toContain("gpt-4");
+    expect(output).toContain("10 calls");
+    expect(output).toContain("$0.50");
+    expect(output).toContain("claude-3");
+    expect(output).toContain("1 call");
+    expect(output).toContain("1.0k cached");
+  });
+
+  it("formats uptime with hours when applicable", () => {
+    printUsageSummary({ ...baseSnap, uptimeMs: 3_661_000 });
+    const output = allOutput();
+    expect(output).toContain("1h 1m 1s");
+  });
+
+  it("formats large token counts with M suffix", () => {
+    printUsageSummary({
+      ...baseSnap,
+      inputTokens: 1_500_000,
+      outputTokens: 100,
+    });
+    const output = allOutput();
+    expect(output).toContain("1.5M input");
   });
 });

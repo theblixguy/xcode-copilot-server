@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { createServer } from "../../src/server.js";
 import { openaiProvider } from "../../src/providers/openai/provider.js";
 import { Logger } from "../../src/logger.js";
+import { Stats } from "../../src/stats.js";
 import type { AppContext } from "../../src/context.js";
 import type { ServerConfig } from "../../src/config.js";
 import type { FastifyInstance } from "fastify";
@@ -58,6 +59,7 @@ describe("OpenAI completions session reuse", () => {
       logger,
       config,
       port: 8080,
+      stats: new Stats(),
     };
 
     app = await createServer(ctx, openaiProvider);

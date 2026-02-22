@@ -15,8 +15,9 @@ import {
   parseIdleTimeout,
   validateAutoPatch,
 } from "./cli-validators.js";
-import { bold, dim, createSpinner, printBanner } from "./ui.js";
+import { bold, dim, createSpinner, printBanner, printUsageSummary } from "./ui.js";
 import { activateSocket } from "./launchd/index.js";
+import { Stats } from "./stats.js";
 
 const AGENTS_DIR = join(
   homedir(),
@@ -125,16 +126,15 @@ export async function startServer(options: StartOptions): Promise<void> {
     }
   }
 
-  const ctx: AppContext = { service, logger, config, port };
+  const stats = new Stats();
+  const ctx: AppContext = { service, logger, config, port, stats };
   const app = await createServer(ctx, provider);
 
-  // Register hooks before listen as Fastify forbids addHook after listen.
+  // Must register hooks before listen() because Fastify freezes the instance after that
   let lastActivity = Date.now();
-  if (idleTimeoutMinutes > 0) {
-    app.addHook("onResponse", () => {
-      lastActivity = Date.now();
-    });
-  }
+  app.addHook("onResponse", () => {
+    lastActivity = Date.now();
+  });
 
   const listenSpinner = quiet ? null : createSpinner(`Starting server on port ${String(port)}...`);
   const prevPinoLevel = app.log.level;
@@ -187,6 +187,11 @@ export async function startServer(options: StartOptions): Promise<void> {
   logger.debug(`${String(mcpCount)} MCP server(s), ${cliToolsSummary}`);
 
   const shutdown = async (signal: string) => {
+    // Suppress errors from writes to already-closed pipes during teardown
+    process.on("uncaughtException", (err: NodeJS.ErrnoException) => {
+      logger.debug(`Ignoring error during shutdown: ${err.message}`);
+    });
+
     logger.info(`Got ${signal}, shutting down...`);
 
     if (autoPatch) {
@@ -213,6 +218,11 @@ export async function startServer(options: StartOptions): Promise<void> {
     );
 
     await Promise.race([stopPromise, timeoutPromise]);
+
+    if (!quiet) {
+      printUsageSummary(stats.snapshot());
+    }
+
     process.exit(0);
   };
 
