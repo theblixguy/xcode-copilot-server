@@ -16,149 +16,144 @@ This server bridges the gap by wrapping the [GitHub Copilot SDK](https://github.
 
 In OpenAI mode, the server also connects to Xcode's built-in MCP tools (via `xcrun mcpbridge`), giving Copilot access to your project's build logs, indexes and other context. This requires Xcode 26.3 or later. Claude and Codex handle MCP internally through their own agents.
 
-## Installation
+## Quick start
 
-You need [Node.js](https://nodejs.org) 25.6.0 or later and a GitHub Copilot subscription. Before starting the server, authenticate using one of the following methods (the Copilot CLI is bundled with the SDK, so you only need one of these for initial sign-in):
+You need [Node.js](https://nodejs.org) 25.6.0 or later and a GitHub Copilot subscription.
 
-- [Install the Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/install-copilot-cli) and run `copilot login`
-- [Install the GitHub CLI](https://cli.github.com/) and run `gh auth login`
-- Set a `GITHUB_TOKEN` environment variable with a valid fine-grained Copilot access token
+**1. Authenticate** with one of these (you only need one):
 
-Then install the server via:
+```bash
+copilot login # Copilot CLI
+gh auth login # GitHub CLI
+```
+
+Or set a `GITHUB_TOKEN` environment variable with a valid fine-grained Copilot access token.
+
+**2. Install:**
 
 ```bash
 npm install -g xcode-copilot-server
 ```
 
-Or run it without installing globally:
+**3. Pick your provider and start the server:**
 
-```bash
-npx xcode-copilot-server
-```
+<details>
+<summary>OpenAI (custom model provider)</summary>
 
-## Usage
+1. In Xcode, go to Settings > Intelligence > Add a provider
+2. Select "Locally hosted" and set the port to 8080 (or whatever port you chose)
+3. Give it a description e.g. "Copilot" and save
+4. Start the server:
 
-```bash
-xcode-copilot-server [options]
-
-Options:
-  -p, --port <number>            Port to listen on (default: 8080)
-  --proxy <provider>             API format: openai, claude, codex (default: openai)
-  -l, --log-level <level>        Log verbosity (default: info)
-  -c, --config <path>            Path to config file
-  --cwd <path>                   Working directory for Copilot sessions
-  --auto-patch                   Auto-patch settings on start, restore on exit
-  --idle-timeout <minutes>       Shut down after N minutes of inactivity (default: 0, disabled)
-  -v, --version                  Output the version number
-  -h, --help                     Show help
-
-Commands:
-  patch-settings                 Patch provider settings and exit (--proxy claude or codex)
-  restore-settings               Restore provider settings from backup and exit
-  install-agent                  Install a launchd agent with socket activation
-  uninstall-agent                Uninstall the launchd agent and restore settings
-```
-
-The `--proxy` flag determines which API the server exposes:
-
-| Provider | Flag                       | Routes                                                |
-|----------|----------------------------|-------------------------------------------------------|
-| OpenAI   | `--proxy openai` (default) | `GET /v1/models`, `POST /v1/chat/completions`         |
-| Claude   | `--proxy claude`           | `POST /v1/messages`, `POST /v1/messages/count_tokens` |
-| Codex    | `--proxy codex`            | `POST /v1/responses`                                  |
-
-## Xcode integration
-
-### OpenAI (custom model provider)
-
-1. Start the server: `xcode-copilot-server`
-2. Open Xcode and go to Settings > Intelligence > Add a provider
-3. Select "Locally hosted" and set the port to 8080 (or the port that you've chosen)
-4. Give it a description e.g. "Copilot"
-5. Save
+   ```bash
+   xcode-copilot-server
+   ```
 
 To enable tool calling, select the provider and enable "Allow tools" under "Advanced". To connect Xcode's MCP tools (Xcode 26.3+), enable "Xcode Tools" under "Model Context Protocol".
 
-### Claude (Claude Agent)
+</details>
 
-1. Open Xcode and go to Settings > Intelligence > Anthropic > Claude Agent
-2. Enable Claude Agent and sign in with an API key (the key can be any random text, since the calls are proxied through the server)
-3. Start the server with `--auto-patch` to automatically configure `settings.json`:
+<details>
+<summary>Claude (Claude Agent)</summary>
+
+1. In Xcode, go to Settings > Intelligence > Anthropic > Claude Agent
+2. Enable Claude Agent and sign in with an API key (the key can be any random text, since calls are proxied through the server)
+3. Start the server:
 
    ```bash
    xcode-copilot-server --proxy claude --auto-patch
    ```
 
-   This creates (or updates) `settings.json` at `~/Library/Developer/Xcode/CodingAssistant/ClaudeAgentConfig/` to point to the server, and restores the original file when the server shuts down. If `settings.json` already exists, a backup is saved as `settings.json.backup` and restored on exit.
+The `--auto-patch` flag creates (or updates) `settings.json` at `~/Library/Developer/Xcode/CodingAssistant/ClaudeAgentConfig/` to point to the server, and restores the original file when the server shuts down.
 
-   Alternatively, you can manage `settings.json` yourself. Create it manually at the path above:
+The tool bridge is enabled by default (`toolBridge: true` in the config). It intercepts tool calls from the Copilot session and forwards them to Xcode, so Claude Agent can read files, search code, and make edits through the IDE.
 
-   ```json
-   {
-     "env": {
-       "ANTHROPIC_BASE_URL": "http://localhost:8080",
-       "ANTHROPIC_AUTH_TOKEN": "12345"
-     }
-   }
-   ```
+<details>
+<summary>Manual setup (without --auto-patch)</summary>
 
-   Set the port to match your `--port` flag (default 8080). The auth token can be any non-empty string. Then start the server without `--auto-patch`:
+Create `settings.json` at `~/Library/Developer/Xcode/CodingAssistant/ClaudeAgentConfig/`:
 
-   ```bash
-   xcode-copilot-server --proxy claude
-   ```
+```json
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "http://localhost:8080",
+    "ANTHROPIC_AUTH_TOKEN": "12345"
+  }
+}
+```
 
-   You can also use the `patch-settings` and `restore-settings` subcommands to patch or restore settings without starting the server:
+Set the port to match your `--port` flag (default 8080). The auth token can be any non-empty string. Then start the server without `--auto-patch`:
 
-   ```bash
-   xcode-copilot-server patch-settings --proxy claude --port 8080
-   xcode-copilot-server restore-settings --proxy claude
-   ```
+```bash
+xcode-copilot-server --proxy claude
+```
 
-The tool bridge is enabled by default for Claude (`toolBridge: true` in the config). It intercepts tool calls from the Copilot session and forwards them to Xcode, so Claude Agent can read files, search code, and make edits through the IDE.
+You can also use the `patch-settings` and `restore-settings` subcommands to patch or restore settings without starting the server:
 
-### Codex (Codex Agent)
+```bash
+xcode-copilot-server patch-settings --proxy claude --port 8080
+xcode-copilot-server restore-settings --proxy claude
+```
 
-1. Open Xcode and go to Settings > Intelligence > OpenAI > Codex Agent
-2. Enable Codex Agent and sign in with an API key (the key can be any random text, since the calls are proxied through the server)
-3. Start the server with `--auto-patch` to automatically configure the environment:
+</details>
+
+</details>
+
+<details>
+<summary>Codex (Codex Agent)</summary>
+
+1. In Xcode, go to Settings > Intelligence > OpenAI > Codex Agent
+2. Enable Codex Agent and sign in with an API key (the key can be any random text, since calls are proxied through the server)
+3. Start the server:
 
    ```bash
    xcode-copilot-server --proxy codex --auto-patch
    ```
 
-   This sets `OPENAI_BASE_URL` and `OPENAI_API_KEY` via `launchctl setenv` so Xcode (and any Codex process it spawns) can reach the server. The original values are backed up and restored when the server shuts down. If Xcode was already running, you might need to restart it so it picks up the new environment variables.
+The `--auto-patch` flag sets `OPENAI_BASE_URL` and `OPENAI_API_KEY` via `launchctl setenv` so Xcode (and any Codex process it spawns) can reach the server. The original values are backed up and restored when the server shuts down.
 
-   Alternatively, you can set the environment variables yourself via `launchctl`:
+You might need to restart Xcode so it picks up the new environment variables.
 
-   ```bash
-   launchctl setenv OPENAI_BASE_URL http://localhost:8080/v1
-   launchctl setenv OPENAI_API_KEY 12345
-   ```
+The tool bridge works the same way as Claude, intercepting tool calls and routing them back to Xcode for execution.
 
-   Set the port to match your `--port` flag (default 8080). The API key can be any non-empty string. Then start the server without `--auto-patch`:
+<details>
+<summary>Manual setup (without --auto-patch)</summary>
 
-   ```bash
-   xcode-copilot-server --proxy codex
-   ```
+Set the environment variables yourself via `launchctl`:
 
-   To restore the original values when you're done:
+```bash
+launchctl setenv OPENAI_BASE_URL http://localhost:8080/v1
+launchctl setenv OPENAI_API_KEY 12345
+```
 
-   ```bash
-   launchctl unsetenv OPENAI_BASE_URL
-   launchctl unsetenv OPENAI_API_KEY
-   ```
+Set the port to match your `--port` flag (default 8080). The API key can be any non-empty string. Then start the server without `--auto-patch`:
 
-   You can also use the `patch-settings` and `restore-settings` subcommands to do this without starting the server:
+```bash
+xcode-copilot-server --proxy codex
+```
 
-   ```bash
-   xcode-copilot-server patch-settings --proxy codex --port 8080
-   xcode-copilot-server restore-settings --proxy codex
-   ```
+To restore the original values when you're done:
 
-The tool bridge works the same way as Claude, as it intercepts tool calls and routes them back to Xcode for execution.
+```bash
+launchctl unsetenv OPENAI_BASE_URL
+launchctl unsetenv OPENAI_API_KEY
+```
 
-### Agent skills
+You can also use the `patch-settings` and `restore-settings` subcommands to do this without starting the server:
+
+```bash
+xcode-copilot-server patch-settings --proxy codex --port 8080
+xcode-copilot-server restore-settings --proxy codex
+```
+
+</details>
+
+</details>
+
+> [!TIP]
+> If you want to run the server in the background with automatic start/stop, see [Launchd agent](#launchd-agent) below.
+
+## Agent skills
 
 [Agent skills](https://docs.github.com/en/copilot/concepts/agents/about-agent-skills) are an open standard for extending AI coding agents with specialised instructions and resources. All three providers support them through the underlying Copilot SDK session, and each agent also has its own skill paths:
 
@@ -275,6 +270,37 @@ The config file uses [JSON5](https://json5.org/) format, which supports comments
 }
 ```
 
+## CLI reference
+
+```text
+xcode-copilot-server [options]
+
+Options:
+  -p, --port <number>            Port to listen on (default: 8080)
+  --proxy <provider>             API format: openai, claude, codex (default: openai)
+  -l, --log-level <level>        Log verbosity (default: info)
+  -c, --config <path>            Path to config file
+  --cwd <path>                   Working directory for Copilot sessions
+  --auto-patch                   Auto-patch settings on start, restore on exit
+  --idle-timeout <minutes>       Shut down after N minutes of inactivity (default: 0, disabled)
+  -v, --version                  Output the version number
+  -h, --help                     Show help
+
+Commands:
+  patch-settings                 Patch provider settings and exit (--proxy claude or codex)
+  restore-settings               Restore provider settings from backup and exit
+  install-agent                  Install a launchd agent with socket activation
+  uninstall-agent                Uninstall the launchd agent and restore settings
+```
+
+The `--proxy` flag determines which API the server exposes:
+
+| Provider | Flag                       | Routes                                                |
+|----------|----------------------------|-------------------------------------------------------|
+| OpenAI   | `--proxy openai` (default) | `GET /v1/models`, `POST /v1/chat/completions`         |
+| Claude   | `--proxy claude`           | `POST /v1/messages`, `POST /v1/messages/count_tokens` |
+| Codex    | `--proxy codex`            | `POST /v1/responses`                                  |
+
 ## Security
 
 This server acts as a local proxy between Xcode and GitHub Copilot. It's designed to run on your machine and isn't intended to be exposed to the internet or shared networks. So, here's what you should know:
@@ -285,7 +311,10 @@ This server acts as a local proxy between Xcode and GitHub Copilot. It's designe
 
 - MCP servers defined in the config are spawned as child processes. The bundled config uses `xcrun mcpbridge`, which is an Apple-signed binary. If you add your own MCP servers, make sure you trust the commands you're configuring.
 
-- When you use `install-agent`, the generated plist file includes your `GITHUB_TOKEN` and `PATH` in cleartext so the agent can authenticate and find Node.js. The file is written to `~/Library/LaunchAgents/` which is only readable by your user account by default. If you have concerns about this, use `gh auth login` or `copilot login` instead of a `GITHUB_TOKEN` environment variable, and the token won't be embedded in the plist.
+- When you use `install-agent`, the generated plist file includes your `PATH` in cleartext so the agent can find Node.js. The file is written to `~/Library/LaunchAgents/` which is only readable by your user account by default.
+
+> [!NOTE]
+> If you authenticated with a `GITHUB_TOKEN` environment variable, that token is also embedded in the plist. If you'd rather not have a token in the plist, use `gh auth login` or `copilot login` instead.
 
 ## License
 
