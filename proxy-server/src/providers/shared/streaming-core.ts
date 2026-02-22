@@ -183,13 +183,15 @@ export async function runSessionStreaming(
         break;
       }
 
-      default:
-        if (event.type === "assistant.usage" && stats) {
+      case "assistant.usage":
+        if (stats) {
           stats.recordUsage(event.data);
           logger.debug(`Usage: ${String(event.data.inputTokens ?? 0)} in, ${String(event.data.outputTokens ?? 0)} out, cost=${String(event.data.cost ?? 0)}`);
-        } else {
-          logger.debug(`Unhandled event: ${event.type}, data=${JSON.stringify(event.data)}`);
         }
+        break;
+
+      default:
+        logger.debug(`Unhandled event: ${event.type}, data=${JSON.stringify(event.data)}`);
         break;
     }
   });
