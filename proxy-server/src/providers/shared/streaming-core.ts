@@ -4,7 +4,7 @@ import type { Logger } from "../../logger.js";
 import type { Stats } from "../../stats.js";
 import type { ToolBridgeState } from "../../tool-bridge/state.js";
 import { BRIDGE_TOOL_PREFIX } from "../../tool-bridge/index.js";
-import { formatCompaction } from "./streaming-utils.js";
+import { formatCompaction, recordUsageEvent } from "./streaming-utils.js";
 
 // Xcode doesn't know about the bridge prefix so we strip it
 export function stripBridgePrefix(name: string): string {
@@ -36,7 +36,7 @@ export async function runSessionStreaming(
   hasBridge: boolean,
   protocol: StreamProtocol,
   initialReply: FastifyReply,
-  stats?: Stats,
+  stats: Stats,
 ): Promise<void> {
   state.markSessionActive();
 
@@ -184,10 +184,7 @@ export async function runSessionStreaming(
       }
 
       case "assistant.usage":
-        if (stats) {
-          stats.recordUsage(event.data);
-          logger.debug(`Usage: ${String(event.data.inputTokens ?? 0)} in, ${String(event.data.outputTokens ?? 0)} out, cost=${String(event.data.cost ?? 0)}`);
-        }
+        recordUsageEvent(stats, logger, event.data);
         break;
 
       default:

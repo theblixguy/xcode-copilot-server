@@ -1,4 +1,6 @@
 import type { FastifyReply } from "fastify";
+import type { Stats, UsageData } from "../../stats.js";
+import type { Logger } from "../../logger.js";
 
 export const SSE_HEADERS = {
   "Content-Type": "text/event-stream",
@@ -23,6 +25,11 @@ export function sendSSEEvent(
 
 export function sendSSEComment(reply: FastifyReply): void {
   reply.raw.write(": keepalive\n\n");
+}
+
+export function recordUsageEvent(stats: Stats, logger: Logger, data: UsageData): void {
+  stats.recordUsage(data);
+  logger.debug(`Usage: ${String(data.inputTokens ?? 0)} in, ${String(data.outputTokens ?? 0)} out, cost=${String(data.cost ?? 0)}`);
 }
 
 export function formatCompaction(data: unknown): string {

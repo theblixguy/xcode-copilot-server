@@ -217,7 +217,7 @@ export async function handleResponsesStreaming(
   logger: Logger,
   hasBridge: boolean,
   responseId: string,
-  stats?: Stats,
+  stats: Stats,
 ): Promise<void> {
   const reply = state.currentReply;
   if (!reply) throw new Error("No reply set on bridge state");

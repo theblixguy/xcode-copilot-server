@@ -9,6 +9,29 @@ export interface UsageData {
 }
 
 export interface ModelMetricsSnapshot {
+  readonly requests: number;
+  readonly cost: number;
+  readonly inputTokens: number;
+  readonly outputTokens: number;
+  readonly cacheReadTokens: number;
+  readonly cacheWriteTokens: number;
+}
+
+export interface StatsSnapshot {
+  readonly requests: number;
+  readonly sessions: number;
+  readonly inputTokens: number;
+  readonly outputTokens: number;
+  readonly cacheReadTokens: number;
+  readonly cacheWriteTokens: number;
+  readonly totalCost: number;
+  readonly apiDurationMs: number;
+  readonly errors: number;
+  readonly uptimeMs: number;
+  readonly modelMetrics: Readonly<Record<string, ModelMetricsSnapshot>>;
+}
+
+interface MutableModelMetrics {
   requests: number;
   cost: number;
   inputTokens: number;
@@ -17,32 +40,20 @@ export interface ModelMetricsSnapshot {
   cacheWriteTokens: number;
 }
 
-export interface StatsSnapshot {
-  requests: number;
-  sessions: number;
-  inputTokens: number;
-  outputTokens: number;
-  cacheReadTokens: number;
-  cacheWriteTokens: number;
-  totalCost: number;
-  apiDurationMs: number;
-  errors: number;
-  uptimeMs: number;
-  modelMetrics: Record<string, ModelMetricsSnapshot>;
-}
-
 export class Stats {
-  requests = 0;
-  sessions = 0;
-  inputTokens = 0;
-  outputTokens = 0;
-  cacheReadTokens = 0;
-  cacheWriteTokens = 0;
-  totalCost = 0;
-  apiDurationMs = 0;
-  errors = 0;
+  // HTTP-level request count 
+  private requests = 0;
+  private sessions = 0;
+  private inputTokens = 0;
+  private outputTokens = 0;
+  private cacheReadTokens = 0;
+  private cacheWriteTokens = 0;
+  private totalCost = 0;
+  private apiDurationMs = 0;
+  private errors = 0;
   private startTime = Date.now();
-  private byModel = new Map<string, ModelMetricsSnapshot>();
+  // Per-model LLM API call metrics
+  private byModel = new Map<string, MutableModelMetrics>();
 
   recordUsage(data: UsageData): void {
     const input = data.inputTokens ?? 0;
@@ -100,7 +111,9 @@ export class Stats {
       apiDurationMs: this.apiDurationMs,
       errors: this.errors,
       uptimeMs: Date.now() - this.startTime,
-      modelMetrics: Object.fromEntries(this.byModel),
+      modelMetrics: Object.fromEntries(
+        Array.from(this.byModel.entries(), ([k, v]) => [k, { ...v }]),
+      ),
     };
   }
 }

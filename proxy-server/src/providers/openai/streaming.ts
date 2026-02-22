@@ -2,7 +2,7 @@ import type { FastifyReply } from "fastify";
 import type { CopilotSession } from "@github/copilot-sdk";
 import type { Logger } from "../../logger.js";
 import type { Stats } from "../../stats.js";
-import { formatCompaction, SSE_HEADERS } from "../shared/streaming-utils.js";
+import { formatCompaction, recordUsageEvent, SSE_HEADERS } from "../shared/streaming-utils.js";
 import { currentTimestamp, type ChatCompletionMessage, type ChatCompletionChunk } from "./schemas.js";
 
 const REQUEST_TIMEOUT_MS = 5 * 60 * 1000;
@@ -13,7 +13,7 @@ export async function handleStreaming(
   prompt: string,
   model: string,
   logger: Logger,
-  stats?: Stats,
+  stats: Stats,
 ): Promise<boolean> {
   reply.raw.writeHead(200, SSE_HEADERS);
 
@@ -143,10 +143,7 @@ export async function handleStreaming(
         break;
 
       case "assistant.usage":
-        if (stats) {
-          stats.recordUsage(event.data);
-          logger.debug(`Usage: ${String(event.data.inputTokens ?? 0)} in, ${String(event.data.outputTokens ?? 0)} out, cost=${String(event.data.cost ?? 0)}`);
-        }
+        recordUsageEvent(stats, logger, event.data);
         break;
 
       default:

@@ -145,7 +145,7 @@ export async function handleAnthropicStreaming(
   model: string,
   logger: Logger,
   hasBridge = false,
-  stats?: Stats,
+  stats: Stats,
 ): Promise<void> {
   const reply = state.currentReply;
   if (!reply) throw new Error("No reply set on bridge state");
