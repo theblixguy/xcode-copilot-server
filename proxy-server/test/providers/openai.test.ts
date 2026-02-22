@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createServer } from "../../src/server.js";
 import { openaiProvider } from "../../src/providers/openai/provider.js";
 import { Logger } from "../../src/logger.js";
+import { Stats } from "../../src/stats.js";
 import type { AppContext } from "../../src/context.js";
 import type { ServerConfig } from "../../src/config.js";
 import type { FastifyInstance } from "fastify";
@@ -22,6 +23,7 @@ const ctx: AppContext = {
   logger,
   config,
   port: 8080,
+  stats: new Stats(),
 };
 
 let app: FastifyInstance;

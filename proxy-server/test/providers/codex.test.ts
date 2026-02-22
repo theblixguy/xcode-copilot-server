@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { createServer } from "../../src/server.js";
 import { codexProvider } from "../../src/providers/codex/provider.js";
 import { Logger } from "../../src/logger.js";
+import { Stats } from "../../src/stats.js";
 import type { AppContext } from "../../src/context.js";
 import type { ServerConfig } from "../../src/config.js";
 import type { FastifyInstance } from "fastify";
@@ -22,6 +23,7 @@ const ctx: AppContext = {
   logger,
   config,
   port: 8080,
+  stats: new Stats(),
 };
 
 const codexHeaders = { "user-agent": "Xcode/0.87.0 (Mac OS 26.2.0; arm64) unknown (Xcode; 26.3 (17C518))" };
@@ -169,6 +171,7 @@ describe("Codex provider — /v1/responses happy path", () => {
       logger,
       config,
       port: 8080,
+      stats: new Stats(),
     };
 
     streamApp = await createServer(streamCtx, codexProvider);

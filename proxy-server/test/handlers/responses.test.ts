@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { createServer } from "../../src/server.js";
 import { codexProvider } from "../../src/providers/codex/provider.js";
 import { Logger } from "../../src/logger.js";
+import { Stats } from "../../src/stats.js";
 import type { AppContext } from "../../src/context.js";
 import type { ServerConfig } from "../../src/config.js";
 import type { FastifyInstance } from "fastify";
@@ -58,6 +59,7 @@ describe("Responses handler — model resolution failure", () => {
       logger,
       config: baseConfig,
       port: 8080,
+      stats: new Stats(),
     };
 
     app = await createServer(ctx, codexProvider);
@@ -110,6 +112,7 @@ describe("Responses handler — session creation failure", () => {
       logger,
       config: baseConfig,
       port: 8080,
+      stats: new Stats(),
     };
 
     app = await createServer(ctx, codexProvider);
@@ -165,6 +168,7 @@ describe("Responses handler — session error event", () => {
       logger,
       config: baseConfig,
       port: 8080,
+      stats: new Stats(),
     };
 
     app = await createServer(ctx, codexProvider);
@@ -206,6 +210,7 @@ describe("Responses handler — listModels failure falls through", () => {
       logger,
       config: baseConfig,
       port: 8080,
+      stats: new Stats(),
     };
 
     app = await createServer(ctx, codexProvider);
@@ -263,6 +268,7 @@ describe("Responses handler — text deltas", () => {
       logger,
       config: baseConfig,
       port: 8080,
+      stats: new Stats(),
     };
 
     app = await createServer(ctx, codexProvider);

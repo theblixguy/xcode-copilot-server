@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { createServer } from "../../src/server.js";
 import { claudeProvider } from "../../src/providers/claude/provider.js";
 import { Logger } from "../../src/logger.js";
+import { Stats } from "../../src/stats.js";
 import type { AppContext } from "../../src/context.js";
 import type { ServerConfig } from "../../src/config.js";
 import type { FastifyInstance } from "fastify";
@@ -22,6 +23,7 @@ const ctx: AppContext = {
   logger,
   config,
   port: 8080,
+  stats: new Stats(),
 };
 
 const claudeCliHeaders = { "user-agent": "claude-cli/2.1.14 (external, sdk-cli)" };
@@ -237,6 +239,7 @@ describe("Anthropic provider — /v1/messages happy path", () => {
       logger,
       config,
       port: 8080,
+      stats: new Stats(),
     };
 
     streamApp = await createServer(streamCtx, claudeProvider);
