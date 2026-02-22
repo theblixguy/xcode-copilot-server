@@ -18,7 +18,6 @@ import {
 import { bold, dim, createSpinner, printBanner, printUsageSummary } from "./ui.js";
 import { activateSocket } from "./launchd/index.js";
 import { Stats } from "./stats.js";
-import { StatusLine } from "./status-line.js";
 
 const AGENTS_DIR = join(
   homedir(),
@@ -133,14 +132,8 @@ export async function startServer(options: StartOptions): Promise<void> {
 
   // Must register hooks before listen() because Fastify freezes the instance after that
   let lastActivity = Date.now();
-  let statusLine: StatusLine | null = null;
-  if (!quiet && process.stdout.isTTY) {
-    const sl = new StatusLine();
-    statusLine = sl;
-  }
   app.addHook("onResponse", () => {
     lastActivity = Date.now();
-    statusLine?.update(stats.snapshot());
   });
 
   const listenSpinner = quiet ? null : createSpinner(`Starting server on port ${String(port)}...`);
@@ -186,11 +179,6 @@ export async function startServer(options: StartOptions): Promise<void> {
     }
   }
 
-  if (statusLine) {
-    logger.onBeforeLog = () => { statusLine.clearLine(); };
-    logger.onAfterLog = () => { statusLine.redraw(); };
-  }
-
   logger.debug(`Config loaded from ${configPath}`);
   const mcpCount = Object.keys(config.mcpServers).length;
   const cliToolsSummary = config.allowedCliTools.includes("*")
@@ -199,12 +187,10 @@ export async function startServer(options: StartOptions): Promise<void> {
   logger.debug(`${String(mcpCount)} MCP server(s), ${cliToolsSummary}`);
 
   const shutdown = async (signal: string) => {
-    // Tear down the status line before printing shutdown logs
-    if (statusLine) {
-      statusLine.clear();
-      logger.onBeforeLog = undefined;
-      logger.onAfterLog = undefined;
-    }
+    // Suppress errors from writes to already-closed pipes during teardown
+    process.on("uncaughtException", (err: NodeJS.ErrnoException) => {
+      logger.debug(`Ignoring error during shutdown: ${err.message}`);
+    });
 
     logger.info(`Got ${signal}, shutting down...`);
 
