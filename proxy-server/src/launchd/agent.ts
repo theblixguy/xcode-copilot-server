@@ -6,7 +6,7 @@ import { dirname, join, resolve } from "node:path";
 import { homedir } from "node:os";
 import { Command } from "commander";
 import plist, { type PlistObject } from "plist";
-import type { Logger } from "../logger.js";
+import type { Logger } from "copilot-sdk-proxy";
 import type { ProxyName } from "../providers/index.js";
 import { isProxyName } from "../cli-validators.js";
 import { patcherByProxy } from "../settings-patcher/index.js";

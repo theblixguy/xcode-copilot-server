@@ -1,6 +1,5 @@
-import type { AnthropicMessage } from "./schemas.js";
+import type { AnthropicMessage, Logger } from "copilot-sdk-proxy";
 import type { ToolBridgeState } from "../../tool-bridge/state.js";
-import type { Logger } from "../../logger.js";
 
 export function resolveToolResults(
   messages: AnthropicMessage[],

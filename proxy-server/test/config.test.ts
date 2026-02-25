@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { loadConfig, resolveConfigPath } from "../src/config.js";
-import { Logger } from "../src/logger.js";
+import { Logger } from "copilot-sdk-proxy";
 
 const logger = new Logger("none");
 

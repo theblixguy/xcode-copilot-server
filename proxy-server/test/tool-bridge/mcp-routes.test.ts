@@ -3,7 +3,7 @@ import Fastify from "fastify";
 import type { FastifyInstance } from "fastify";
 import { registerRoutes } from "../../src/tool-bridge/routes.js";
 import { ConversationManager } from "../../src/conversation-manager.js";
-import { Logger } from "../../src/logger.js";
+import { Logger } from "copilot-sdk-proxy";
 
 const logger = new Logger("none");
 

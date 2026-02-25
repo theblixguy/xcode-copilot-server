@@ -1,8 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
-import { createServer } from "../../src/server.js";
+import { createServer, Logger, Stats } from "copilot-sdk-proxy";
 import { claudeProvider } from "../../src/providers/claude/provider.js";
-import { Logger } from "../../src/logger.js";
-import { Stats } from "../../src/stats.js";
 import type { AppContext } from "../../src/context.js";
 import type { ServerConfig } from "../../src/config.js";
 import type { FastifyInstance } from "fastify";

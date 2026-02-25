@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createSessionConfig } from "../../src/providers/shared/session-config.js";
-import { Logger } from "../../src/logger.js";
+import { Logger } from "copilot-sdk-proxy";
 import type { ServerConfig, MCPLocalServer } from "../../src/config.js";
 import type { PermissionRequest } from "@github/copilot-sdk";
 

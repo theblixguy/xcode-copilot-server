@@ -8,7 +8,7 @@ A proxy API server that lets you use GitHub Copilot in Xcode, either as a custom
 
 Xcode 26 added support for third-party LLM providers, but it only supports ChatGPT and Claude out of the box. If you have a GitHub Copilot subscription, there's no built-in way to use it.
 
-This server bridges the gap by wrapping the [GitHub Copilot SDK](https://github.com/github/copilot-sdk) and exposing it as an API that Xcode can talk to. It supports three providers:
+This server wraps the [GitHub Copilot SDK](https://github.com/github/copilot-sdk) and exposes it as an API that Xcode can talk to. It's built on [copilot-sdk-proxy](https://github.com/theblixguy/copilot-sdk-proxy), which handles the SDK integration and protocol translation. It supports three providers:
 
 - **OpenAI** (default): Exposes an OpenAI-compatible completions API so Xcode can use Copilot as a custom model provider. Xcode handles tool execution directly.
 - **Claude**: Exposes an Anthropic-compatible API so Xcode can use Copilot as the backend for Claude Agent. A built-in tool bridge intercepts tool calls and routes them back to Xcode for execution.
@@ -155,7 +155,7 @@ xcode-copilot-server restore-settings --proxy codex
 
 ## Agent skills
 
-[Agent skills](https://docs.github.com/en/copilot/concepts/agents/about-agent-skills) are an open standard for extending AI coding agents with specialised instructions and resources. All three providers support them through the underlying Copilot SDK session, and each agent also has its own skill paths:
+[Agent skills](https://docs.github.com/en/copilot/concepts/agents/about-agent-skills) are an open standard for adding custom instructions and file context to AI coding agents. All three providers support them through the Copilot SDK session, and each agent has its own skill paths:
 
 | Agent   | Project skills                             | Personal skills        |
 |---------|--------------------------------------------|------------------------|
@@ -303,9 +303,9 @@ The `--proxy` flag determines which API the server exposes:
 
 ## Security
 
-This server acts as a local proxy between Xcode and GitHub Copilot. It's designed to run on your machine and isn't intended to be exposed to the internet or shared networks. So, here's what you should know:
+This server acts as a local proxy between Xcode and GitHub Copilot. It runs on your machine and isn't meant for the internet or shared networks.
 
-- The server binds to `127.0.0.1`, so it's only reachable from your machine. Incoming requests are checked for expected user-agent headers (`Xcode/` for OpenAI and Codex, `claude-cli/` for Claude), which means casual or accidental connections from other tools will be rejected. This isn't a strong security boundary since user-agent headers can be trivially spoofed, but it helps ensure only the expected client is talking to the server.
+- The server binds to `127.0.0.1`, so it's only reachable from your machine. Incoming requests are checked for expected user-agent headers (`Xcode/` for OpenAI and Codex, `claude-cli/` for Claude), which means casual or accidental connections from other tools will be rejected. This isn't a strong security boundary since user-agent headers can be trivially spoofed, but it means only the expected client talks to the server under normal use.
 
 - The bundled config sets `autoApprovePermissions` to `["read", "mcp"]`, which lets the Copilot session read files and call MCP tools without prompting. Writes, shell commands, and URL fetches are denied by default. You can set it to `true` to approve everything, `false` to deny everything, or pick specific kinds from `"read"`, `"write"`, `"shell"`, `"mcp"`, and `"url"`.
 

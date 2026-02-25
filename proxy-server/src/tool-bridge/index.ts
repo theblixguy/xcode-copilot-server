@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import type { Logger } from "../logger.js";
+import type { Logger } from "copilot-sdk-proxy";
 import { ConversationManager } from "../conversation-manager.js";
 import { registerRoutes } from "./routes.js";
 
