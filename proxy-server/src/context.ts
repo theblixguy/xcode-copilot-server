@@ -1,7 +1,5 @@
-import type { CopilotService } from "./copilot-service.js";
+import type { CopilotService, Logger, Stats } from "copilot-sdk-proxy";
 import type { ServerConfig } from "./config.js";
-import type { Logger } from "./logger.js";
-import type { Stats } from "./stats.js";
 
 export interface AppContext {
   service: CopilotService;

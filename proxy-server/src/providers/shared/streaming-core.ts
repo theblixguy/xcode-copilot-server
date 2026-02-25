@@ -1,10 +1,8 @@
 import type { FastifyReply } from "fastify";
-import type { CopilotSession } from "@github/copilot-sdk";
-import type { Logger } from "../../logger.js";
-import type { Stats } from "../../stats.js";
+import type { CopilotSession, Logger, Stats } from "copilot-sdk-proxy";
+import { formatCompaction, recordUsageEvent } from "copilot-sdk-proxy";
 import type { ToolBridgeState } from "../../tool-bridge/state.js";
 import { BRIDGE_TOOL_PREFIX } from "../../tool-bridge/index.js";
-import { formatCompaction, recordUsageEvent } from "./streaming-utils.js";
 
 // Xcode doesn't know about the bridge prefix so we strip it
 export function stripBridgePrefix(name: string): string {
@@ -17,9 +15,9 @@ export interface StrippedToolRequest {
   arguments?: unknown;
 }
 
-// The core handles session events, state management, and bridge logic;
-// each protocol just handles serializing events to the client.
-export interface StreamProtocol {
+// The core handles session events, state management, and bridge logic.
+// Each protocol just handles serializing events to the client.
+export interface BridgeStreamProtocol {
   flushDeltas(reply: FastifyReply, deltas: string[]): void;
   emitToolsAndFinish(reply: FastifyReply, tools: StrippedToolRequest[]): void;
   sendCompleted(reply: FastifyReply): void;
@@ -34,7 +32,7 @@ export async function runSessionStreaming(
   prompt: string,
   logger: Logger,
   hasBridge: boolean,
-  protocol: StreamProtocol,
+  protocol: BridgeStreamProtocol,
   initialReply: FastifyReply,
   stats: Stats,
 ): Promise<void> {

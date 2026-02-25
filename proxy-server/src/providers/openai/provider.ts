@@ -1,7 +1,7 @@
 import type { Provider } from "../types.js";
-import { createModelsHandler } from "./models.js";
-import { createCompletionsHandler } from "./handler.js";
+import { createModelsHandler, createCompletionsHandler } from "copilot-sdk-proxy";
 import { ConversationManager } from "../../conversation-manager.js";
+import { filterExcludedFiles } from "../shared/prompt-utils.js";
 
 export const openaiProvider = {
   name: "OpenAI",
@@ -26,6 +26,8 @@ export const openaiProvider = {
 
     const manager = new ConversationManager(ctx.logger);
     app.get("/v1/models", createModelsHandler(ctx));
-    app.post("/v1/chat/completions", createCompletionsHandler(ctx, manager));
+    app.post("/v1/chat/completions", createCompletionsHandler(ctx, manager, {
+      transformPrompt: (prompt) => filterExcludedFiles(prompt, ctx.config.excludedFilePatterns),
+    }));
   },
 } satisfies Provider;

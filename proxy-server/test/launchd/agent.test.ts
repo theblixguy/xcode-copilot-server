@@ -9,7 +9,7 @@ import {
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import plistLib from "plist";
-import { Logger } from "../../src/logger.js";
+import { Logger } from "copilot-sdk-proxy";
 import {
   generatePlist,
   parsePlistArgs,

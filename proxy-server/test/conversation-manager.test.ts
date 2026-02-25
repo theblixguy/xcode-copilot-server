@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { ConversationManager } from "../src/conversation-manager.js";
-import { Logger } from "../src/logger.js";
+import { Logger } from "copilot-sdk-proxy";
 
 const logger = new Logger("none");
 

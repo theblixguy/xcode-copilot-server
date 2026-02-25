@@ -1,5 +1,5 @@
 import type { FastifyReply } from "fastify";
-import type { AnthropicToolDefinition } from "../providers/claude/schemas.js";
+import type { AnthropicToolDefinition } from "copilot-sdk-proxy";
 import { ToolCache } from "./tool-cache.js";
 import { ToolRouter } from "./tool-router.js";
 import { ReplyTracker } from "./reply-tracker.js";

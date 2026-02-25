@@ -11,7 +11,7 @@ import { execFile as execFileCb } from "node:child_process";
 import { promisify } from "node:util";
 import { join } from "node:path";
 import { homedir } from "node:os";
-import type { Logger } from "../logger.js";
+import type { Logger } from "copilot-sdk-proxy";
 import type { PatchResult } from "./types.js";
 
 const execFileAsync = promisify(execFileCb);

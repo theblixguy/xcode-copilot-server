@@ -3,7 +3,7 @@ import { join, dirname } from "node:path";
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
 import { Command } from "commander";
-import { Logger } from "./logger.js";
+import { Logger } from "copilot-sdk-proxy";
 import { patcherByProxy } from "./settings-patcher/index.js";
 import { parsePort, parseLogLevel, parseProxy, parseIdleTimeout, validateAutoPatch } from "./cli-validators.js";
 import { startServer, type StartOptions } from "./startup.js";

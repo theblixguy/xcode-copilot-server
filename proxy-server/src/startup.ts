@@ -1,12 +1,16 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
-import { CopilotService } from "./copilot-service.js";
-import { loadConfig, resolveConfigPath } from "./config.js";
-import { createServer } from "./server.js";
-import { Logger } from "./logger.js";
-import { providers, type ProxyName } from "./providers/index.js";
+import {
+  CopilotService,
+  createServer,
+  Logger,
+  Stats,
+  bold, dim, createSpinner, printUsageSummary,
+} from "copilot-sdk-proxy";
 import type { AppContext } from "./context.js";
+import { loadConfig, resolveConfigPath } from "./config.js";
+import { providers, type ProxyName } from "./providers/index.js";
 import { patcherByProxy } from "./settings-patcher/index.js";
 import {
   parsePort,
@@ -15,9 +19,8 @@ import {
   parseIdleTimeout,
   validateAutoPatch,
 } from "./cli-validators.js";
-import { bold, dim, createSpinner, printBanner, printUsageSummary } from "./ui.js";
 import { activateSocket } from "./launchd/index.js";
-import { Stats } from "./stats.js";
+import { printProxyBanner } from "./banner.js";
 
 const AGENTS_DIR = join(
   homedir(),
@@ -159,24 +162,16 @@ export async function startServer(options: StartOptions): Promise<void> {
 
   if (!quiet) {
     const binaryName = AGENT_BINARY_NAMES[proxy];
-    const bannerBase = {
-      port,
-      proxy,
+    printProxyBanner({
       providerName: provider.name,
+      proxyFlag: proxy,
       routes: provider.routes,
       cwd: service.cwd,
       autoPatch,
-    };
-
-    if (binaryName) {
-      const agentPath = findAgentBinary(proxy);
-      const agentBinary = agentPath
-        ? { found: true as const, path: agentPath }
-        : { found: false as const, expected: `${AGENTS_DIR}/<version>/${binaryName}` };
-      printBanner({ ...bannerBase, agentBinary });
-    } else {
-      printBanner(bannerBase);
-    }
+      agentPath: binaryName ? findAgentBinary(proxy) : undefined,
+      agentBinaryName: binaryName,
+      agentsDir: AGENTS_DIR,
+    });
   }
 
   logger.debug(`Config loaded from ${configPath}`);

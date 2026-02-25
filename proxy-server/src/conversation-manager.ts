@@ -1,16 +1,9 @@
 import { randomUUID } from "node:crypto";
-import type { CopilotSession } from "@github/copilot-sdk";
 import { ToolBridgeState } from "./tool-bridge/state.js";
-import type { AnthropicMessage } from "./providers/claude/schemas.js";
-import type { Logger } from "./logger.js";
+import type { Conversation as CoreConversation, AnthropicMessage, Logger } from "copilot-sdk-proxy";
 
-export interface Conversation {
-  id: string;
+export interface Conversation extends CoreConversation {
   state: ToolBridgeState;
-  session: CopilotSession | null;
-  sentMessageCount: number;
-  isPrimary: boolean;
-  model: string | null;
 }
 
 export class ConversationManager {
@@ -33,6 +26,12 @@ export class ConversationManager {
       sentMessageCount: 0,
       isPrimary,
       model: null,
+      get sessionActive() { return state.sessionActive; },
+      set sessionActive(active: boolean) {
+        if (active) { state.markSessionActive(); } else { state.markSessionInactive(); }
+      },
+      get hadError() { return state.hadError; },
+      set hadError(_: boolean) { state.markSessionErrored(); },
     };
     this.conversations.set(id, conversation);
 

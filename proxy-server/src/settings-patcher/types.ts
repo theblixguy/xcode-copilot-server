@@ -1,4 +1,4 @@
-import type { Logger } from "../logger.js";
+import type { Logger } from "copilot-sdk-proxy";
 
 export interface SettingsPaths {
   dir: string;

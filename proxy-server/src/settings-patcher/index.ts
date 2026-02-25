@@ -1,4 +1,4 @@
-import type { Logger } from "../logger.js";
+import type { Logger } from "copilot-sdk-proxy";
 import type { ProxyName } from "../providers/index.js";
 import { patchClaudeSettings, restoreClaudeSettings } from "./claude.js";
 import { patchCodexSettings, restoreCodexSettings } from "./codex.js";

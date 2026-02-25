@@ -9,7 +9,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { Logger } from "../src/logger.js";
+import { Logger } from "copilot-sdk-proxy";
 import {
   patchClaudeSettings,
   restoreClaudeSettings,
