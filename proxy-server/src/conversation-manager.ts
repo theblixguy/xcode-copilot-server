@@ -68,6 +68,18 @@ export class ConversationManager {
   }
 
   findForNewRequest(): { conversation: Conversation; isReuse: boolean } {
+    // Isolated conversations pile up when the primary is busy, so clean
+    // up any that finished before we allocate more (the onSessionEnd
+    // callback usually handles this, but this catches edge cases where
+    // the callback never fired)
+    for (const [id, conv] of this.conversations) {
+      if (!conv.isPrimary && !conv.state.sessionActive) {
+        conv.state.cleanup();
+        this.conversations.delete(id);
+        this.logger.debug(`Evicted stale conversation ${id} (active: ${String(this.conversations.size)})`);
+      }
+    }
+
     const primary = this.getPrimary();
     if (primary) {
       if (primary.state.sessionActive || !primary.session) {

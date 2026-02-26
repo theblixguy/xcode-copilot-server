@@ -1,6 +1,6 @@
 {
   "name": "xcode-copilot-server",
-  "version": "3.3.0",
+  "version": "3.3.1",
   "description": "OpenAI-compatible proxy API server for Xcode, powered by GitHub Copilot",
   "type": "module",
   "license": "MIT",
@@ -30,8 +30,8 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "copilot-sdk-proxy": "1.0.3",
     "commander": "14.0.3",
+    "copilot-sdk-proxy": "1.0.5",
     "fastify": "5.7.4",
     "json5": "2.2.3",
     "koffi": "2.15.1",

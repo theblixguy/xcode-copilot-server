@@ -23,9 +23,10 @@ class BridgeResponsesProtocol extends ResponsesProtocol implements BridgeStreamP
     responseId: string,
     model: string,
     seq: SeqCounter,
+    createdAt: number,
     getReply: () => FastifyReply | null,
   ) {
-    super(responseId, model, seq);
+    super(responseId, model, seq, createdAt);
     this.getReply = getReply;
     // Keepalive every 15s so the client doesn't time out while
     // waiting for internal tool execution to finish
@@ -102,8 +103,8 @@ export async function handleResponsesStreaming(
 ): Promise<void> {
   const reply = state.currentReply;
   if (!reply) throw new Error("No reply set on bridge state");
-  const seq = startResponseStream(reply, responseId, model);
+  const { seq, createdAt } = startResponseStream(reply, responseId, model);
 
-  const protocol = new BridgeResponsesProtocol(responseId, model, seq, () => state.currentReply);
+  const protocol = new BridgeResponsesProtocol(responseId, model, seq, createdAt, () => state.currentReply);
   return runSessionStreaming(state, session, prompt, logger, hasBridge, protocol, reply, stats);
 }

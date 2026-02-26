@@ -26,8 +26,8 @@ export interface SessionConfigOptions {
   supportsReasoningEffort: boolean;
   cwd?: string | undefined;
   hasToolBridge?: boolean | undefined;
-  port?: number | undefined;
-  conversationId?: string | undefined;
+  port: number;
+  conversationId: string;
 }
 
 export function createSessionConfig({
@@ -67,7 +67,7 @@ export function createSessionConfig({
       ...base.mcpServers,
       [BRIDGE_SERVER_NAME]: {
         type: "http" as const,
-        url: `http://127.0.0.1:${String(port ?? 8080)}/mcp/${conversationId ?? ""}`,
+        url: `http://127.0.0.1:${String(port)}/mcp/${conversationId}`,
         tools: ["*"],
       },
     },

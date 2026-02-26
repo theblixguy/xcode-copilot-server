@@ -334,5 +334,48 @@ describe("ConversationManager", () => {
       expect(isReuse).toBe(false);
       expect(conversation.isPrimary).toBe(false);
     });
+
+    it("evicts idle non-primary conversations", () => {
+      const manager = createManager();
+      const primary = manager.create({ isPrimary: true });
+      primary.session = { on: () => () => {} } as never;
+
+      manager.create();
+      expect(manager.size).toBe(2);
+
+      manager.findForNewRequest();
+
+      expect(manager.size).toBe(1);
+      expect(manager.getPrimary()).toBe(primary);
+    });
+
+    it("does NOT evict active non-primary conversations", () => {
+      const manager = createManager();
+      const primary = manager.create({ isPrimary: true });
+      primary.session = { on: () => () => {} } as never;
+      primary.state.markSessionActive();
+
+      const isolated = manager.create();
+      isolated.state.markSessionActive();
+      expect(manager.size).toBe(2);
+
+      manager.findForNewRequest();
+      expect(manager.size).toBe(3);
+    });
+
+    it("calls cleanup on evicted conversations", async () => {
+      const manager = createManager();
+      const primary = manager.create({ isPrimary: true });
+      primary.session = { on: () => () => {} } as never;
+
+      const isolated = manager.create();
+      isolated.state.registerExpected("call-1", "Read");
+      const resultPromise = new Promise<string>((resolve, reject) => {
+        isolated.state.registerMCPRequest("Read", resolve, reject);
+      });
+
+      manager.findForNewRequest();
+      await expect(resultPromise).rejects.toThrow();
+    });
   });
 });
