@@ -35,10 +35,12 @@ function userInputRequest(question: string) {
 
 const invocation = { sessionId: "test" };
 const logger = new Logger("none");
+const baseOpts = { port: 8080, conversationId: "conv-1" } as const;
 
 describe("createSessionConfig", () => {
   it("sets model and streaming options", () => {
     const config = createSessionConfig({
+      ...baseOpts,
       model: "claude-sonnet-4-5-20250929",
       logger,
       config: makeConfig(),
@@ -51,6 +53,7 @@ describe("createSessionConfig", () => {
 
   it("includes systemMessage when provided", () => {
     const config = createSessionConfig({
+      ...baseOpts,
       model: "gpt-4",
       systemMessage: "You are helpful",
       logger,
@@ -65,6 +68,7 @@ describe("createSessionConfig", () => {
 
   it("omits systemMessage when not provided", () => {
     const config = createSessionConfig({
+      ...baseOpts,
       model: "gpt-4",
       logger,
       config: makeConfig(),
@@ -78,6 +82,7 @@ describe("createSessionConfig", () => {
       test: mcpStdio({ args: ["server.js"], allowedTools: ["tool1"] }),
     };
     const config = createSessionConfig({
+      ...baseOpts,
       model: "gpt-4",
       logger,
       config: makeConfig({ mcpServers }),
@@ -90,6 +95,7 @@ describe("createSessionConfig", () => {
 
   it("sets workingDirectory from cwd parameter", () => {
     const config = createSessionConfig({
+      ...baseOpts,
       model: "gpt-4",
       logger,
       config: makeConfig(),
@@ -101,6 +107,7 @@ describe("createSessionConfig", () => {
 
   it("defaults workingDirectory to process.cwd() when cwd not provided", () => {
     const config = createSessionConfig({
+      ...baseOpts,
       model: "gpt-4",
       logger,
       config: makeConfig(),
@@ -111,6 +118,7 @@ describe("createSessionConfig", () => {
 
   it("omits systemMessage when empty string is provided", () => {
     const config = createSessionConfig({
+      ...baseOpts,
       model: "gpt-4",
       systemMessage: "",
       logger,
@@ -124,6 +132,7 @@ describe("createSessionConfig", () => {
 describe("permission callbacks", () => {
   it("approves all permissions when rule is true", async () => {
     const config = createSessionConfig({
+      ...baseOpts,
       model: "gpt-4",
       logger,
       config: makeConfig({ autoApprovePermissions: true }),
@@ -135,6 +144,7 @@ describe("permission callbacks", () => {
 
   it("denies all permissions when rule is false", async () => {
     const config = createSessionConfig({
+      ...baseOpts,
       model: "gpt-4",
       logger,
       config: makeConfig({ autoApprovePermissions: false }),
@@ -146,6 +156,7 @@ describe("permission callbacks", () => {
 
   it("approves matching permission from string array", async () => {
     const config = createSessionConfig({
+      ...baseOpts,
       model: "gpt-4",
       logger,
       config: makeConfig({ autoApprovePermissions: ["read", "write"] }),
@@ -157,6 +168,7 @@ describe("permission callbacks", () => {
 
   it("denies non-matching permission from string array", async () => {
     const config = createSessionConfig({
+      ...baseOpts,
       model: "gpt-4",
       logger,
       config: makeConfig({ autoApprovePermissions: ["read"] }),
@@ -170,6 +182,7 @@ describe("permission callbacks", () => {
 describe("tool filtering", () => {
   it("denies all tools when both allowlists are empty", async () => {
     const config = createSessionConfig({
+      ...baseOpts,
       model: "gpt-4",
       logger,
       config: makeConfig({ allowedCliTools: [], mcpServers: {} }),
@@ -181,6 +194,7 @@ describe("tool filtering", () => {
 
   it("allows CLI tools from allowedCliTools", async () => {
     const config = createSessionConfig({
+      ...baseOpts,
       model: "gpt-4",
       logger,
       config: makeConfig({ allowedCliTools: ["glob", "grep"] }),
@@ -194,6 +208,7 @@ describe("tool filtering", () => {
 
   it("allows MCP tools from server allowedTools", async () => {
     const config = createSessionConfig({
+      ...baseOpts,
       model: "gpt-4",
       logger,
       config: makeConfig({
@@ -212,6 +227,7 @@ describe("tool filtering", () => {
 
   it("allows tools with wildcard in allowedCliTools", async () => {
     const config = createSessionConfig({
+      ...baseOpts,
       model: "gpt-4",
       logger,
       config: makeConfig({ allowedCliTools: ["*"] }),
@@ -223,6 +239,7 @@ describe("tool filtering", () => {
 
   it("allows tools with wildcard in server allowedTools", async () => {
     const config = createSessionConfig({
+      ...baseOpts,
       model: "gpt-4",
       logger,
       config: makeConfig({
@@ -239,6 +256,7 @@ describe("tool filtering", () => {
 
   it("checks all allowlists across CLI and MCP servers", async () => {
     const config = createSessionConfig({
+      ...baseOpts,
       model: "gpt-4",
       logger,
       config: makeConfig({
@@ -262,6 +280,7 @@ describe("tool filtering", () => {
 
   it("passes allowedCliTools as availableTools when non-empty", () => {
     const config = createSessionConfig({
+      ...baseOpts,
       model: "gpt-4",
       logger,
       config: makeConfig({ allowedCliTools: ["glob", "grep"] }),
@@ -272,6 +291,7 @@ describe("tool filtering", () => {
 
   it("omits availableTools when allowedCliTools is empty", () => {
     const config = createSessionConfig({
+      ...baseOpts,
       model: "gpt-4",
       logger,
       config: makeConfig({ allowedCliTools: [] }),
@@ -282,6 +302,7 @@ describe("tool filtering", () => {
 
   it("allows xcode-bridge-* tools when bridge is active", async () => {
     const config = createSessionConfig({
+      ...baseOpts,
       model: "gpt-4",
       logger,
       config: makeConfig(),
@@ -295,6 +316,7 @@ describe("tool filtering", () => {
 
   it("allows CLI tools alongside bridge when allowedCliTools is set", async () => {
     const config = createSessionConfig({
+      ...baseOpts,
       model: "gpt-4",
       logger,
       config: makeConfig({ allowedCliTools: ["glob", "grep"] }),
@@ -315,6 +337,7 @@ describe("tool filtering", () => {
 
   it("does not activate bridge when hasToolBridge is false", async () => {
     const config = createSessionConfig({
+      ...baseOpts,
       model: "gpt-4",
       logger,
       config: makeConfig({ allowedCliTools: [] }),
@@ -331,6 +354,7 @@ describe("tool filtering", () => {
 
   it("does not activate bridge when hasToolBridge is omitted", async () => {
     const config = createSessionConfig({
+      ...baseOpts,
       model: "gpt-4",
       logger,
       config: makeConfig({ allowedCliTools: [] }),
@@ -344,6 +368,7 @@ describe("tool filtering", () => {
 
   it("sets HTTP MCP URL with port and conversationId", () => {
     const config = createSessionConfig({
+      ...baseOpts,
       model: "gpt-4",
       logger,
       config: makeConfig(),
@@ -358,8 +383,9 @@ describe("tool filtering", () => {
     expect(bridge.tools).toEqual(["*"]);
   });
 
-  it("defaults port to 8080 and conversationId to empty in MCP URL", () => {
+  it("uses provided port and conversationId in MCP URL", () => {
     const config = createSessionConfig({
+      ...baseOpts,
       model: "gpt-4",
       logger,
       config: makeConfig(),
@@ -368,13 +394,14 @@ describe("tool filtering", () => {
     });
     const bridge = config.mcpServers?.["xcode-bridge"] as { type: string; url: string };
     expect(bridge.type).toBe("http");
-    expect(bridge.url).toBe("http://127.0.0.1:8080/mcp/");
+    expect(bridge.url).toBe("http://127.0.0.1:8080/mcp/conv-1");
   });
 });
 
 describe("onUserInputRequest", () => {
   it("returns a fallback answer for user input requests", async () => {
     const config = createSessionConfig({
+      ...baseOpts,
       model: "gpt-4",
       logger,
       config: makeConfig(),
@@ -392,6 +419,7 @@ describe("onUserInputRequest", () => {
 describe("reasoningEffort", () => {
   it("passes reasoningEffort when set and model supports it", () => {
     const config = createSessionConfig({
+      ...baseOpts,
       model: "gpt-4",
       logger,
       config: makeConfig({ reasoningEffort: "high" }),
@@ -402,6 +430,7 @@ describe("reasoningEffort", () => {
 
   it("omits reasoningEffort when set but model does not support it", () => {
     const config = createSessionConfig({
+      ...baseOpts,
       model: "gpt-4",
       logger,
       config: makeConfig({ reasoningEffort: "high" }),
@@ -412,6 +441,7 @@ describe("reasoningEffort", () => {
 
   it("omits reasoningEffort when not set", () => {
     const config = createSessionConfig({
+      ...baseOpts,
       model: "gpt-4",
       logger,
       config: makeConfig(),
