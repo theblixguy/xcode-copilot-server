@@ -138,7 +138,7 @@ describe("permission callbacks", () => {
       config: makeConfig({ autoApprovePermissions: true }),
       supportsReasoningEffort: false,
     });
-    const result = await config.onPermissionRequest!(permissionRequest("shell"), invocation);
+    const result = await config.onPermissionRequest(permissionRequest("shell"), invocation);
     expect(result).toEqual({ kind: "approved" });
   });
 
@@ -150,7 +150,7 @@ describe("permission callbacks", () => {
       config: makeConfig({ autoApprovePermissions: false }),
       supportsReasoningEffort: false,
     });
-    const result = await config.onPermissionRequest!(permissionRequest("read"), invocation);
+    const result = await config.onPermissionRequest(permissionRequest("read"), invocation);
     expect(result).toEqual({ kind: "denied-by-rules" });
   });
 
@@ -162,7 +162,7 @@ describe("permission callbacks", () => {
       config: makeConfig({ autoApprovePermissions: ["read", "write"] }),
       supportsReasoningEffort: false,
     });
-    const result = await config.onPermissionRequest!(permissionRequest("read"), invocation);
+    const result = await config.onPermissionRequest(permissionRequest("read"), invocation);
     expect(result).toEqual({ kind: "approved" });
   });
 
@@ -174,7 +174,7 @@ describe("permission callbacks", () => {
       config: makeConfig({ autoApprovePermissions: ["read"] }),
       supportsReasoningEffort: false,
     });
-    const result = await config.onPermissionRequest!(permissionRequest("shell"), invocation);
+    const result = await config.onPermissionRequest(permissionRequest("shell"), invocation);
     expect(result).toEqual({ kind: "denied-by-rules" });
   });
 });
