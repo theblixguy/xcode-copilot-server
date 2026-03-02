@@ -1,8 +1,8 @@
 import { parsePort, parseLogLevel, parseIdleTimeout } from "copilot-sdk-proxy";
-import { providers, type ProxyName } from "./providers/index.js";
+import { providers, type ProxyName, type ProxyMode } from "./providers/index.js";
 
 export { parsePort, parseLogLevel, parseIdleTimeout };
-export type { ProxyName };
+export type { ProxyName, ProxyMode };
 
 const VALID_PROXIES = Object.keys(providers) as ProxyName[];
 
@@ -17,6 +17,11 @@ export function parseProxy(value: string): ProxyName {
     );
   }
   return value;
+}
+
+export function parseProxyMode(value: string): ProxyMode {
+  if (value === "auto") return "auto";
+  return parseProxy(value);
 }
 
 const PATCHABLE_PROXIES: ReadonlySet<string> = new Set(["claude", "codex"]);

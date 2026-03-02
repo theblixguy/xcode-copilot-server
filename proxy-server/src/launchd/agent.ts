@@ -7,9 +7,9 @@ import { homedir } from "node:os";
 import { Command } from "commander";
 import plist, { type PlistObject } from "plist";
 import type { Logger } from "copilot-sdk-proxy";
-import type { ProxyName } from "../providers/index.js";
+import type { ProxyMode } from "../providers/index.js";
 import { isProxyName } from "../cli-validators.js";
-import { patcherByProxy } from "../settings-patcher/index.js";
+import { patchSettings, restoreSettings } from "../settings-patcher/index.js";
 
 const execFileAsync = promisify(execFileCb);
 
@@ -38,7 +38,7 @@ export interface PlistOptions {
   nodePath: string;
   entryPoint: string;
   port: number;
-  proxy: ProxyName;
+  proxy: ProxyMode;
   logLevel: string;
   config?: string | undefined;
   cwd?: string | undefined;
@@ -53,10 +53,13 @@ export function generatePlist(options: PlistOptions): string {
     options.nodePath,
     options.entryPoint,
     "--launchd",
-    "--proxy", options.proxy,
     "--port", String(options.port),
     "--log-level", options.logLevel,
   ];
+
+  if (options.proxy !== "auto") {
+    args.push("--proxy", options.proxy);
+  }
 
   if (options.config) {
     args.push("--config", options.config);
@@ -105,7 +108,7 @@ export function generatePlist(options: PlistOptions): string {
 }
 
 export interface ParsedPlistArgs {
-  proxy: ProxyName | null;
+  proxy: ProxyMode | null;
   autoPatch: boolean;
 }
 
@@ -145,14 +148,22 @@ export function parsePlistArgs(plistContent: string): ParsedPlistArgs {
   }
 
   const opts = cmd.opts<{ proxy?: string; autoPatch?: true }>();
-  const proxy = opts.proxy && isProxyName(opts.proxy) ? opts.proxy : null;
+  let proxy: ProxyMode | null;
+  if (opts.proxy && isProxyName(opts.proxy)) {
+    proxy = opts.proxy;
+  } else if (opts.proxy === undefined) {
+    // Omitting --proxy is how auto mode plists are generated
+    proxy = "auto";
+  } else {
+    proxy = null;
+  }
 
-  return { proxy, autoPatch: opts.autoPatch === true };
+  return { proxy, autoPatch: opts.autoPatch === true || proxy === "auto" };
 }
 
 export interface InstallAgentOptions {
   port: number;
-  proxy: ProxyName;
+  proxy: ProxyMode;
   logLevel: string;
   logger: Logger;
   config?: string | undefined;
@@ -171,7 +182,7 @@ export async function installAgent(options: InstallAgentOptions): Promise<void> 
     proxy,
     logLevel,
     logger,
-    autoPatch = false,
+    autoPatch = proxy === "auto",
   } = options;
   const exec = options.exec ?? defaultExec;
   const plistPath = options.plistPath ?? defaultPlistPath();
@@ -204,10 +215,7 @@ export async function installAgent(options: InstallAgentOptions): Promise<void> 
   await exec("launchctl", ["load", plistPath]);
 
   if (autoPatch) {
-    const patcher = patcherByProxy[proxy];
-    if (patcher) {
-      await patcher.patch({ port, logger });
-    }
+    await patchSettings(proxy, port, logger);
   }
 
   const logPaths = defaultLogPaths();
@@ -251,11 +259,8 @@ export async function uninstallAgent(options: UninstallAgentOptions): Promise<vo
 
   await unlink(plistPath);
 
-  if (parsed.autoPatch && parsed.proxy) {
-    const patcher = patcherByProxy[parsed.proxy];
-    if (patcher) {
-      await patcher.restore({ logger });
-    }
+  if (parsed.autoPatch) {
+    await restoreSettings(parsed.proxy, logger);
   }
 
   logger.info(`Launchd agent uninstalled: ${AGENT_LABEL}`);

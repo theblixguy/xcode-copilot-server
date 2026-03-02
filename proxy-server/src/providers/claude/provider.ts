@@ -31,7 +31,7 @@ export const claudeProvider = {
       done();
     });
 
-    const manager = registerToolBridge(app, ctx.logger);
+    const manager = ctx.toolBridgeManager ?? registerToolBridge(app, ctx.logger);
     const { logger, config, port, stats } = ctx;
 
     app.post("/v1/messages", createMessagesHandler(ctx, manager, {

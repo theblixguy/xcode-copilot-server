@@ -13,7 +13,10 @@ export interface ProxyBannerInfo {
 
 export function printProxyBanner(info: ProxyBannerInfo): void {
   console.log();
-  console.log(`  ${dim("Provider")}   ${info.providerName} ${dim(`(--proxy ${info.proxyFlag})`)}`);
+  const providerHint = info.proxyFlag === "auto"
+    ? ""
+    : ` ${dim(`(--proxy ${info.proxyFlag})`)}`;
+  console.log(`  ${dim("Provider")}   ${info.providerName}${providerHint}`);
   console.log(`  ${dim("Routes")}     ${info.routes.join(dim(", "))}`);
   console.log(`  ${dim("Directory")}  ${info.cwd}`);
   if (info.autoPatch) {
