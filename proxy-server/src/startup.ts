@@ -9,13 +9,14 @@ import {
   bold, dim, createSpinner, printUsageSummary,
 } from "copilot-sdk-proxy";
 import type { AppContext } from "./context.js";
-import { loadConfig, resolveConfigPath } from "./config.js";
-import { providers, type ProxyName } from "./providers/index.js";
-import { patcherByProxy } from "./settings-patcher/index.js";
+import { loadConfig, loadAllProviderConfigs, resolveConfigPath, type ServerConfig, type AllProviderConfigs } from "./config.js";
+import { providers, createAutoProvider, type ProxyName, type ProxyMode } from "./providers/index.js";
+import type { Provider } from "./providers/types.js";
+import { patchSettings, restoreSettings } from "./settings-patcher/index.js";
 import {
   parsePort,
   parseLogLevel,
-  parseProxy,
+  parseProxyMode,
   parseIdleTimeout,
   validateAutoPatch,
 } from "./cli-validators.js";
@@ -54,7 +55,7 @@ function findAgentBinary(proxy: ProxyName): string | null {
 
 export interface StartOptions {
   port: string;
-  proxy: string;
+  proxy?: string;
   logLevel: string;
   version: string;
   defaultConfigPath: string;
@@ -69,20 +70,32 @@ export async function startServer(options: StartOptions): Promise<void> {
   const logLevel = parseLogLevel(options.logLevel);
   const logger = new Logger(logLevel);
   const port = parsePort(options.port);
-  const proxy = parseProxy(options.proxy);
+  const proxyMode: ProxyMode = options.proxy ? parseProxyMode(options.proxy) : "auto";
 
   const idleTimeoutMinutes = options.idleTimeout ? parseIdleTimeout(options.idleTimeout) : 0;
   const launchdMode = options.launchd === true;
-  const autoPatch = options.autoPatch === true && !launchdMode;
-  if (!launchdMode) {
-    validateAutoPatch(proxy, options.autoPatch === true);
+  const isAuto = proxyMode === "auto";
+  const shouldPatch = isAuto
+    ? !launchdMode
+    : options.autoPatch === true && !launchdMode;
+  if (!isAuto && !launchdMode) {
+    validateAutoPatch(proxyMode, options.autoPatch === true);
   }
 
-  const provider = providers[proxy];
-
   const configPath = options.config ?? resolveConfigPath(options.cwd, process.cwd(), options.defaultConfigPath);
-  const config = await loadConfig(configPath, logger, proxy);
   const cwd = options.cwd;
+
+  let provider: Provider;
+  let config: ServerConfig;
+  let allConfigs: AllProviderConfigs | undefined;
+  if (isAuto) {
+    allConfigs = await loadAllProviderConfigs(configPath, logger);
+    provider = createAutoProvider(allConfigs.providers);
+    config = allConfigs.shared;
+  } else {
+    config = await loadConfig(configPath, logger, proxyMode);
+    provider = providers[proxyMode];
+  }
 
   const service = new CopilotService({
     logLevel,
@@ -116,16 +129,13 @@ export async function startServer(options: StartOptions): Promise<void> {
   const authType = auth.authType ?? "unknown";
   authSpinner?.succeed(`Authenticated as ${bold(login)} ${dim(`(${authType})`)}`);
 
-  if (autoPatch) {
-    const patcher = patcherByProxy[proxy];
-    if (patcher) {
-      const patchSpinner = quiet ? null : createSpinner("Patching settings...");
-      try {
-        await patcher.patch({ port, logger });
-        patchSpinner?.succeed("Settings patched");
-      } catch (err) {
-        patchSpinner?.fail(`Failed to patch settings: ${String(err)}`);
-      }
+  if (shouldPatch) {
+    const patchSpinner = quiet ? null : createSpinner("Patching settings...");
+    try {
+      await patchSettings(proxyMode, port, logger);
+      patchSpinner?.succeed("Settings patched");
+    } catch (err) {
+      patchSpinner?.fail(`Failed to patch settings: ${String(err)}`);
     }
   }
 
@@ -161,21 +171,33 @@ export async function startServer(options: StartOptions): Promise<void> {
   listenSpinner?.succeed(`Listening on ${bold(`http://localhost:${String(port)}`)}`);
 
   if (!quiet) {
-    const binaryName = AGENT_BINARY_NAMES[proxy];
-    printProxyBanner({
-      providerName: provider.name,
-      proxyFlag: proxy,
-      routes: provider.routes,
-      cwd: service.cwd,
-      autoPatch,
-      agentPath: binaryName ? findAgentBinary(proxy) : undefined,
-      agentBinaryName: binaryName,
-      agentsDir: AGENTS_DIR,
-    });
+    if (isAuto) {
+      printProxyBanner({
+        providerName: "Auto",
+        proxyFlag: "auto",
+        routes: provider.routes,
+        cwd: service.cwd,
+        autoPatch: shouldPatch,
+      });
+    } else {
+      const binaryName = AGENT_BINARY_NAMES[proxyMode];
+      printProxyBanner({
+        providerName: provider.name,
+        proxyFlag: proxyMode,
+        routes: provider.routes,
+        cwd: service.cwd,
+        autoPatch: shouldPatch,
+        agentPath: binaryName ? findAgentBinary(proxyMode) : undefined,
+        agentBinaryName: binaryName,
+        agentsDir: AGENTS_DIR,
+      });
+    }
   }
 
   logger.debug(`Config loaded from ${configPath}`);
-  const mcpCount = Object.keys(config.mcpServers).length;
+  const mcpCount = allConfigs
+    ? new Set(Object.values(allConfigs.providers).flatMap((c) => Object.keys(c.mcpServers))).size
+    : Object.keys(config.mcpServers).length;
   const cliToolsSummary = config.allowedCliTools.includes("*")
     ? "all CLI tools allowed"
     : `${String(config.allowedCliTools.length)} allowed CLI tool(s)`;
@@ -189,15 +211,8 @@ export async function startServer(options: StartOptions): Promise<void> {
 
     logger.info(`Got ${signal}, shutting down...`);
 
-    if (autoPatch) {
-      const patcher = patcherByProxy[proxy];
-      if (patcher) {
-        try {
-          await patcher.restore({ logger });
-        } catch (err) {
-          logger.error(`Failed to restore settings: ${String(err)}`);
-        }
-      }
+    if (shouldPatch) {
+      await restoreSettings(proxyMode, logger);
     }
 
     await app.close();

@@ -48,7 +48,9 @@ describe("OpenAI completions session reuse", () => {
 
     const mockService = {
       cwd: "/test",
-      listModels: vi.fn().mockResolvedValue([]),
+      listModels: vi.fn().mockResolvedValue([
+        { id: "copilot-chat", capabilities: { supports: { reasoningEffort: false } } },
+      ]),
       createSession: createSessionSpy,
     };
 

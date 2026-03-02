@@ -19,7 +19,7 @@ const { version } = z.object({ version: z.string() }).parse(
 
 interface PatchOptions {
   port: string;
-  proxy: string;
+  proxy?: string;
   logLevel: string;
 }
 
@@ -27,8 +27,15 @@ async function patchSettingsCommand(options: PatchOptions): Promise<void> {
   const logLevel = parseLogLevel(options.logLevel);
   const logger = new Logger(logLevel);
   const port = parsePort(options.port);
-  const proxy = parseProxy(options.proxy);
 
+  if (!options.proxy) {
+    for (const patcher of Object.values(patcherByProxy)) {
+      await patcher.patch({ port, logger });
+    }
+    return;
+  }
+
+  const proxy = parseProxy(options.proxy);
   const patcher = patcherByProxy[proxy];
   if (!patcher) {
     throw new Error(`No settings patcher for --proxy ${proxy}`);
@@ -37,15 +44,22 @@ async function patchSettingsCommand(options: PatchOptions): Promise<void> {
 }
 
 interface RestoreOptions {
-  proxy: string;
+  proxy?: string;
   logLevel: string;
 }
 
 async function restoreSettingsCommand(options: RestoreOptions): Promise<void> {
   const logLevel = parseLogLevel(options.logLevel);
   const logger = new Logger(logLevel);
-  const proxy = parseProxy(options.proxy);
 
+  if (!options.proxy) {
+    for (const patcher of Object.values(patcherByProxy)) {
+      await patcher.restore({ logger });
+    }
+    return;
+  }
+
+  const proxy = parseProxy(options.proxy);
   const patcher = patcherByProxy[proxy];
   if (!patcher) {
     throw new Error(`No settings patcher for --proxy ${proxy}`);
@@ -55,7 +69,7 @@ async function restoreSettingsCommand(options: RestoreOptions): Promise<void> {
 
 interface InstallAgentCliOptions {
   port: string;
-  proxy: string;
+  proxy?: string;
   logLevel: string;
   idleTimeout: string;
   config?: string | undefined;
@@ -67,21 +81,21 @@ async function installAgentCommand(options: InstallAgentCliOptions): Promise<voi
   const logLevel = parseLogLevel(options.logLevel);
   const logger = new Logger(logLevel);
   const port = parsePort(options.port);
-  const proxy = parseProxy(options.proxy);
   const idleTimeout = parseIdleTimeout(options.idleTimeout);
 
-  if (options.autoPatch) {
+  const proxy = options.proxy ? parseProxy(options.proxy) : undefined;
+  if (proxy && options.autoPatch) {
     validateAutoPatch(proxy, true);
   }
 
   await installAgent({
     port,
-    proxy,
+    proxy: proxy ?? "auto",
     logLevel: options.logLevel,
     logger,
     config: options.config,
     cwd: options.cwd,
-    autoPatch: options.autoPatch === true,
+    autoPatch: proxy ? options.autoPatch === true : true,
     idleTimeout,
   });
 }
@@ -101,11 +115,11 @@ const program = new Command()
 
 program
   .option("-p, --port <number>", "port to listen on", "8080")
-  .option("--proxy <provider>", "API format: openai, claude, codex", "openai")
+  .option("--proxy <provider>", "API format: openai, claude, codex (default: all)")
   .option("-l, --log-level <level>", "log verbosity", "info")
   .option("-c, --config <path>", "path to config file")
   .option("--cwd <path>", "working directory for Copilot sessions")
-  .option("--auto-patch", "auto-patch settings.json on start, restore on exit")
+  .option("--auto-patch", "auto-patch settings on start, restore on exit (implied when --proxy is omitted)")
   .option("--idle-timeout <minutes>", "shut down after N minutes of inactivity", "0")
   .option("--launchd", "run in launchd mode (socket activation, no TTY output)")
   .action((options: StartOptions) => startServer({ ...options, version, defaultConfigPath: DEFAULT_CONFIG_PATH }));
@@ -114,14 +128,14 @@ program
   .command("patch-settings")
   .description("Patch settings to point to this server, then exit")
   .option("-p, --port <number>", "port to write into settings", "8080")
-  .option("--proxy <provider>", "which provider to patch: claude, codex", "claude")
+  .option("--proxy <provider>", "which provider to patch: claude, codex (default: all)")
   .option("-l, --log-level <level>", "log verbosity", "info")
   .action((options: PatchOptions) => patchSettingsCommand(options));
 
 program
   .command("restore-settings")
   .description("Restore settings from backup, then exit")
-  .option("--proxy <provider>", "which provider to restore: claude, codex", "claude")
+  .option("--proxy <provider>", "which provider to restore: claude, codex (default: all)")
   .option("-l, --log-level <level>", "log verbosity", "info")
   .action((options: RestoreOptions) => restoreSettingsCommand(options));
 
@@ -129,11 +143,11 @@ program
   .command("install-agent")
   .description("Install a launchd agent with socket activation")
   .option("-p, --port <number>", "port to listen on", "8080")
-  .option("--proxy <provider>", "API format: openai, claude, codex", "openai")
+  .option("--proxy <provider>", "API format: openai, claude, codex (default: all)")
   .option("-l, --log-level <level>", "log verbosity for the agent", "info")
   .option("-c, --config <path>", "path to config file")
   .option("--cwd <path>", "working directory for Copilot sessions")
-  .option("--auto-patch", "patch settings on install, restore on uninstall")
+  .option("--auto-patch", "patch settings on install, restore on uninstall (implied when --proxy is omitted)")
   .option("--idle-timeout <minutes>", "shut down agent after N minutes of inactivity", "60")
   .action((options: InstallAgentCliOptions) => installAgentCommand(options));
 

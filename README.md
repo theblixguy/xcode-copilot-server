@@ -35,7 +35,7 @@ Or set a `GITHUB_TOKEN` environment variable with a valid fine-grained Copilot a
 npm install -g xcode-copilot-server
 ```
 
-**3. Pick your provider and start the server:**
+**3. Start the server:**
 
 <details>
 <summary>OpenAI (custom model provider)</summary>
@@ -49,6 +49,8 @@ npm install -g xcode-copilot-server
    xcode-copilot-server
    ```
 
+   The server starts in auto mode by default, which registers all three providers and auto-patches Claude and Codex settings.
+
 To enable tool calling, select the provider and enable "Allow tools" under "Advanced". To connect Xcode's MCP tools (Xcode 26.3+), enable "Xcode Tools" under "Model Context Protocol".
 
 </details>
@@ -61,15 +63,15 @@ To enable tool calling, select the provider and enable "Allow tools" under "Adva
 3. Start the server:
 
    ```bash
-   xcode-copilot-server --proxy claude --auto-patch
+   xcode-copilot-server
    ```
 
-The `--auto-patch` flag creates (or updates) `settings.json` at `~/Library/Developer/Xcode/CodingAssistant/ClaudeAgentConfig/` to point to the server, and restores the original file when the server shuts down.
+In auto mode (the default), settings are patched automatically on startup and restored on shutdown. The server creates (or updates) `settings.json` at `~/Library/Developer/Xcode/CodingAssistant/ClaudeAgentConfig/` to point to the server.
 
 The tool bridge is enabled by default (`toolBridge: true` in the config). It intercepts tool calls from the Copilot session and forwards them to Xcode, so Claude Agent can read files, search code, and make edits through the IDE.
 
 <details>
-<summary>Manual setup (without --auto-patch)</summary>
+<summary>Manual setup (single-provider mode)</summary>
 
 Create `settings.json` at `~/Library/Developer/Xcode/CodingAssistant/ClaudeAgentConfig/`:
 
@@ -82,7 +84,7 @@ Create `settings.json` at `~/Library/Developer/Xcode/CodingAssistant/ClaudeAgent
 }
 ```
 
-Set the port to match your `--port` flag (default 8080). The auth token can be any non-empty string. Then start the server without `--auto-patch`:
+Set the port to match your `--port` flag (default 8080). The auth token can be any non-empty string. Then start the server in single-provider mode:
 
 ```bash
 xcode-copilot-server --proxy claude
@@ -107,17 +109,17 @@ xcode-copilot-server restore-settings --proxy claude
 3. Start the server:
 
    ```bash
-   xcode-copilot-server --proxy codex --auto-patch
+   xcode-copilot-server
    ```
 
-The `--auto-patch` flag sets `OPENAI_BASE_URL` and `OPENAI_API_KEY` via `launchctl setenv` so Xcode (and any Codex process it spawns) can reach the server. The original values are backed up and restored when the server shuts down.
+In auto mode (the default), `OPENAI_BASE_URL` and `OPENAI_API_KEY` are set via `launchctl setenv` so Xcode (and any Codex process it spawns) can reach the server. The original values are backed up and restored when the server shuts down.
 
 You might need to restart Xcode so it picks up the new environment variables.
 
 The tool bridge works the same way as Claude, intercepting tool calls and routing them back to Xcode for execution.
 
 <details>
-<summary>Manual setup (without --auto-patch)</summary>
+<summary>Manual setup (single-provider mode)</summary>
 
 Set the environment variables yourself via `launchctl`:
 
@@ -126,7 +128,7 @@ launchctl setenv OPENAI_BASE_URL http://localhost:8080/v1
 launchctl setenv OPENAI_API_KEY 12345
 ```
 
-Set the port to match your `--port` flag (default 8080). The API key can be any non-empty string. Then start the server without `--auto-patch`:
+Set the port to match your `--port` flag (default 8080). The API key can be any non-empty string. Then start the server in single-provider mode:
 
 ```bash
 xcode-copilot-server --proxy codex
@@ -170,12 +172,12 @@ Instead of starting the server manually every time, you can install it as a laun
 ### Installing
 
 ```bash
-xcode-copilot-server install-agent --proxy claude --auto-patch
+xcode-copilot-server install-agent
 ```
 
-This writes a plist to `~/Library/LaunchAgents/` and loads it with `launchctl`. The agent is set up with socket activation on the specified port, so launchd owns the socket and starts the server on demand. If `--auto-patch` is passed, settings are patched at install time.
+This writes a plist to `~/Library/LaunchAgents/` and loads it with `launchctl`. The agent is set up with socket activation on the specified port, so launchd owns the socket and starts the server on demand. Settings are patched at install time.
 
-The `install-agent` subcommand accepts the same options as the main command (`--port`, `--proxy`, `--log-level`, `--config`, `--cwd`, `--auto-patch`), plus `--idle-timeout` which defaults to 60 minutes for the agent. After 60 minutes with no requests, the server shuts itself down. The next incoming connection will start it again automatically.
+The `install-agent` subcommand accepts the same options as the main command (`--port`, `--proxy`, `--log-level`, `--config`, `--cwd`), plus `--idle-timeout` which defaults to 60 minutes for the agent. After 60 minutes with no requests, the server shuts itself down. The next incoming connection will start it again automatically.
 
 Server logs go to `~/Library/Logs/xcode-copilot-server.out.log` and `~/Library/Logs/xcode-copilot-server.err.log`.
 
@@ -207,7 +209,7 @@ The server reads its configuration from a `config.json5` file. By default, it us
 xcode-copilot-server --config ./my-config.json5
 ```
 
-The config file uses [JSON5](https://json5.org/) format, which supports comments and trailing commas. The `--proxy` flag determines which provider section (`openai`, `claude`, or `codex`) is used at runtime:
+The config file uses [JSON5](https://json5.org/) format, which supports comments and trailing commas. In auto mode, all three provider sections are active. In single-provider mode (`--proxy`), only the specified section is used:
 
 ```json5
 {
@@ -277,29 +279,29 @@ xcode-copilot-server [options]
 
 Options:
   -p, --port <number>            Port to listen on (default: 8080)
-  --proxy <provider>             API format: openai, claude, codex (default: openai)
+  --proxy <provider>             API format: openai, claude, codex (default: auto)
   -l, --log-level <level>        Log verbosity (default: info)
   -c, --config <path>            Path to config file
   --cwd <path>                   Working directory for Copilot sessions
-  --auto-patch                   Auto-patch settings on start, restore on exit
+  --auto-patch                   Auto-patch settings on start, restore on exit (implicit in auto mode)
   --idle-timeout <minutes>       Shut down after N minutes of inactivity (default: 0, disabled)
   -v, --version                  Output the version number
   -h, --help                     Show help
 
 Commands:
-  patch-settings                 Patch provider settings and exit (--proxy claude or codex)
+  patch-settings                 Patch provider settings and exit (all providers unless --proxy is set)
   restore-settings               Restore provider settings from backup and exit
   install-agent                  Install a launchd agent with socket activation
   uninstall-agent                Uninstall the launchd agent and restore settings
 ```
 
-The `--proxy` flag determines which API the server exposes:
+By default, the server runs in auto mode and registers all providers. Use `--proxy` to run a single provider instead:
 
-| Provider | Flag                       | Routes                                                |
-|----------|----------------------------|-------------------------------------------------------|
-| OpenAI   | `--proxy openai` (default) | `GET /v1/models`, `POST /v1/chat/completions`         |
-| Claude   | `--proxy claude`           | `POST /v1/messages`, `POST /v1/messages/count_tokens` |
-| Codex    | `--proxy codex`            | `POST /v1/responses`                                  |
+| Provider | Flag              | Routes                                                |
+|----------|-------------------|-------------------------------------------------------|
+| OpenAI   | `--proxy openai`  | `GET /v1/models`, `POST /v1/chat/completions`         |
+| Claude   | `--proxy claude`  | `POST /v1/messages`, `POST /v1/messages/count_tokens` |
+| Codex    | `--proxy codex`   | `POST /v1/responses`                                  |
 
 ## Security
 

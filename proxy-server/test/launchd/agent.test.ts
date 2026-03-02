@@ -272,8 +272,9 @@ describe("parsePlistArgs", () => {
   it("handles ProgramArguments with fewer than two elements", () => {
     const xml = plistLib.build({ ProgramArguments: ["/usr/bin/node"] });
     const parsed = parsePlistArgs(xml);
-    expect(parsed.proxy).toBeNull();
-    expect(parsed.autoPatch).toBe(false);
+    // No --proxy flag means auto mode
+    expect(parsed.proxy).toBe("auto");
+    expect(parsed.autoPatch).toBe(true);
   });
 
   it("handles all proxy values", () => {

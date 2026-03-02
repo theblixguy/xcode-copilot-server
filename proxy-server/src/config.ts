@@ -13,7 +13,7 @@ export type {
   ReasoningEffort,
 } from "copilot-sdk-proxy";
 
-import type { ProxyName } from "./providers/index.js";
+import { PROVIDER_NAMES, type ProxyName } from "./providers/index.js";
 export type { ProxyName };
 
 // Xcode config schema, extends core with per-provider toolBridge + mcpServers
@@ -125,11 +125,15 @@ export function resolveConfigPath(
   return defaultPath;
 }
 
-export async function loadConfig(
+type ParsedConfig = {
+  data: z.infer<typeof ServerConfigSchema>;
+  configDir: string;
+};
+
+async function parseConfigFile(
   configPath: string,
   logger: Logger,
-  proxy: ProxyName,
-): Promise<ServerConfig> {
+): Promise<ParsedConfig | null> {
   const absolutePath = isAbsolute(configPath)
     ? configPath
     : resolve(process.cwd(), configPath);
@@ -140,7 +144,7 @@ export async function loadConfig(
   } catch (err: unknown) {
     if (err instanceof Error && "code" in err && (err as NodeJS.ErrnoException).code === "ENOENT") {
       logger.warn(`No config file at ${absolutePath}, using defaults`);
-      return DEFAULT_CONFIG;
+      return null;
     }
     throw err;
   }
@@ -171,10 +175,16 @@ export async function loadConfig(
     );
   }
 
-  const configDir = dirname(absolutePath);
-  const parsed = parseResult.data;
+  return { data: parseResult.data, configDir: dirname(absolutePath) };
+}
+
+function buildServerConfig(
+  parsed: z.infer<typeof ServerConfigSchema>,
+  configDir: string,
+  proxy: ProxyName,
+): ServerConfig {
   const provider = parsed[proxy];
-  const config: ServerConfig = {
+  return {
     allowedCliTools: parsed.allowedCliTools,
     excludedFilePatterns: parsed.excludedFilePatterns,
     autoApprovePermissions: parsed.autoApprovePermissions,
@@ -183,6 +193,36 @@ export async function loadConfig(
     toolBridge: provider.toolBridge,
     mcpServers: resolveServerPaths(provider.mcpServers, configDir),
   };
+}
 
-  return config;
+export async function loadConfig(
+  configPath: string,
+  logger: Logger,
+  proxy: ProxyName,
+): Promise<ServerConfig> {
+  const result = await parseConfigFile(configPath, logger);
+  if (!result) return DEFAULT_CONFIG;
+  return buildServerConfig(result.data, result.configDir, proxy);
+}
+
+export type AllProviderConfigs = {
+  providers: Record<ProxyName, ServerConfig>;
+  shared: ServerConfig;
+};
+
+export async function loadAllProviderConfigs(
+  configPath: string,
+  logger: Logger,
+): Promise<AllProviderConfigs> {
+  const result = await parseConfigFile(configPath, logger);
+  const providers = Object.fromEntries(
+    PROVIDER_NAMES.map((name) => [
+      name,
+      result ? buildServerConfig(result.data, result.configDir, name) : DEFAULT_CONFIG,
+    ]),
+  ) as Record<ProxyName, ServerConfig>;
+  return {
+    providers,
+    shared: { ...providers.openai, toolBridge: false, mcpServers: {} },
+  };
 }
