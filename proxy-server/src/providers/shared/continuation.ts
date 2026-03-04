@@ -17,6 +17,12 @@ export async function handleContinuation(
   const { state } = existingConv;
 
   logger.info(`Continuation for conversation ${existingConv.id} (hasPending=${String(state.toolRouter.hasPending)}, sessionActive=${String(state.session.sessionActive)})`);
+
+  if (state.session.sessionActive) {
+    logger.warn(`Conversation ${existingConv.id} is already streaming, cannot handle continuation`);
+    return false;
+  }
+
   state.replies.setReply(reply);
   callbacks.startStream();
 
