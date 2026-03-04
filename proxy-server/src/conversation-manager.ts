@@ -99,6 +99,10 @@ export class ConversationManager implements ToolStateProvider {
         this.logger.debug(`Primary ${primary.id} is busy, creating isolated conversation`);
         return { conversation: this.create(), isReuse: false };
       }
+      if (primary.state.toolRouter.hasPending) {
+        this.logger.debug(`Primary ${primary.id} has pending tool calls, creating isolated conversation`);
+        return { conversation: this.create(), isReuse: false };
+      }
       if (!primary.session) {
         // No SDK session yet. Create an isolated conversation so the primary
         // stays available for the first real request.
