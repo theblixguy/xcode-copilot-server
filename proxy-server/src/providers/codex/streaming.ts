@@ -13,7 +13,7 @@ import type { ToolBridgeState } from "../../tool-bridge/state.js";
 import type { BridgeStreamProtocol, StrippedToolRequest } from "../shared/streaming-core.js";
 import { runSessionStreaming } from "../shared/streaming-core.js";
 
-export { type SeqCounter, startResponseStream };
+export { startResponseStream };
 
 class BridgeResponsesProtocol extends ResponsesProtocol implements BridgeStreamProtocol {
   private readonly keepaliveInterval: ReturnType<typeof setInterval>;
@@ -28,8 +28,7 @@ class BridgeResponsesProtocol extends ResponsesProtocol implements BridgeStreamP
   ) {
     super(responseId, model, seq, createdAt);
     this.getReply = getReply;
-    // Keepalive every 15s so the client doesn't time out while
-    // waiting for internal tool execution to finish
+    // Keepalive every 15s so the client doesn't time out waiting for tool execution.
     this.keepaliveInterval = setInterval(() => {
       const r = this.getReply();
       if (r) sendSSEComment(r);
@@ -91,20 +90,23 @@ class BridgeResponsesProtocol extends ResponsesProtocol implements BridgeStreamP
   }
 }
 
-export async function handleResponsesStreaming(
-  state: ToolBridgeState,
-  session: CopilotSession,
-  prompt: string,
-  model: string,
-  logger: Logger,
-  hasBridge: boolean,
-  responseId: string,
-  stats: Stats,
-): Promise<void> {
-  const reply = state.currentReply;
+interface ResponsesStreamingOptions {
+  state: ToolBridgeState;
+  session: CopilotSession;
+  prompt: string;
+  model: string;
+  logger: Logger;
+  hasBridge: boolean;
+  responseId: string;
+  stats: Stats;
+}
+
+export function handleResponsesStreaming(opts: ResponsesStreamingOptions): Promise<void> {
+  const { state, session, prompt, model, logger, hasBridge, responseId, stats } = opts;
+  const reply = state.replies.currentReply;
   if (!reply) throw new Error("No reply set on bridge state");
   const { seq, createdAt } = startResponseStream(reply, responseId, model);
 
-  const protocol = new BridgeResponsesProtocol(responseId, model, seq, createdAt, () => state.currentReply);
-  return runSessionStreaming(state, session, prompt, logger, hasBridge, protocol, reply, stats);
+  const protocol = new BridgeResponsesProtocol(responseId, model, seq, createdAt, () => state.replies.currentReply);
+  return runSessionStreaming({ state, session, prompt, logger, hasBridge, protocol, initialReply: reply, stats });
 }

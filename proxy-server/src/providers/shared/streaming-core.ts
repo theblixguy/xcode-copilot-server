@@ -2,10 +2,11 @@ import type { FastifyReply } from "fastify";
 import type { CopilotSession, Logger, Stats } from "copilot-sdk-proxy";
 import { formatCompaction, recordUsageEvent } from "copilot-sdk-proxy";
 import type { ToolBridgeState } from "../../tool-bridge/state.js";
-import { BRIDGE_TOOL_PREFIX } from "../../tool-bridge/index.js";
+import { isRecord } from "../../utils/type-guards.js";
+import { BRIDGE_TOOL_PREFIX } from "../../bridge-constants.js";
 
-// Xcode doesn't know about the bridge prefix so we strip it
-export function stripBridgePrefix(name: string): string {
+// Xcode sends tool names without the bridge prefix.
+function stripBridgePrefix(name: string): string {
   return name.startsWith(BRIDGE_TOOL_PREFIX) ? name.slice(BRIDGE_TOOL_PREFIX.length) : name;
 }
 
@@ -15,8 +16,6 @@ export interface StrippedToolRequest {
   arguments?: unknown;
 }
 
-// The core handles session events, state management, and bridge logic.
-// Each protocol just handles serializing events to the client.
 export interface BridgeStreamProtocol {
   flushDeltas(reply: FastifyReply, deltas: string[]): void;
   emitToolsAndFinish(reply: FastifyReply, tools: StrippedToolRequest[]): void;
@@ -26,202 +25,225 @@ export interface BridgeStreamProtocol {
   reset(): void;
 }
 
-export async function runSessionStreaming(
-  state: ToolBridgeState,
-  session: CopilotSession,
-  prompt: string,
-  logger: Logger,
-  hasBridge: boolean,
-  protocol: BridgeStreamProtocol,
-  initialReply: FastifyReply,
-  stats: Stats,
-): Promise<void> {
-  state.markSessionActive();
+interface SessionStreamingOptions {
+  state: ToolBridgeState;
+  session: CopilotSession;
+  prompt: string;
+  logger: Logger;
+  hasBridge: boolean;
+  protocol: BridgeStreamProtocol;
+  initialReply: FastifyReply;
+  stats: Stats;
+}
 
-  let pendingDeltas: string[] = [];
-  let sessionDone = false;
-  const toolNames = new Map<string, string>();
+export function runSessionStreaming(opts: SessionStreamingOptions): Promise<void> {
+  return new StreamingHandler(opts).run();
+}
 
-  function getReply(): FastifyReply | null {
-    return state.currentReply;
+class StreamingHandler {
+  private pendingDeltas: string[] = [];
+  private sessionDone = false;
+  private readonly toolNames = new Map<string, string>();
+  private unsubscribe = (): void => {};
+
+  private readonly state: ToolBridgeState;
+  private readonly session: CopilotSession;
+  private readonly prompt: string;
+  private readonly logger: Logger;
+  private readonly hasBridge: boolean;
+  private readonly protocol: BridgeStreamProtocol;
+  private readonly initialReply: FastifyReply;
+  private readonly stats: Stats;
+
+  constructor(opts: SessionStreamingOptions) {
+    this.state = opts.state;
+    this.session = opts.session;
+    this.prompt = opts.prompt;
+    this.logger = opts.logger;
+    this.hasBridge = opts.hasBridge;
+    this.protocol = opts.protocol;
+    this.initialReply = opts.initialReply;
+    this.stats = opts.stats;
   }
 
-  function flushToProtocol(): void {
-    if (pendingDeltas.length === 0) return;
-    const r = getReply();
+  run(): Promise<void> {
+    this.state.session.markSessionActive();
+    this.unsubscribe = this.subscribeToEvents();
+    this.setupClientDisconnect();
+
+    const done = this.state.replies.waitForStreamingDone();
+    this.sendPrompt();
+    return done;
+  }
+
+  private getReply(): FastifyReply | null {
+    return this.state.replies.currentReply;
+  }
+
+  private flushToProtocol(): void {
+    if (this.pendingDeltas.length === 0) return;
+    const r = this.getReply();
     if (!r) return;
-    protocol.flushDeltas(r, pendingDeltas);
-    pendingDeltas = [];
+    this.protocol.flushDeltas(r, this.pendingDeltas);
+    this.pendingDeltas = [];
   }
 
-  const unsubscribe = session.on((event) => {
-    logger.debug(`Session event: ${event.type}`);
+  private finishStream(reply: FastifyReply | null): void {
+    if (reply) {
+      reply.raw.end();
+      this.state.replies.clearReply();
+    }
+    this.state.replies.notifyStreamingDone();
+  }
 
-    if (event.type === "tool.execution_start") {
-      const d = event.data;
-      toolNames.set(d.toolCallId, d.toolName);
-      logger.debug(`Running ${d.toolName} (id=${d.toolCallId}, args=${JSON.stringify(d.arguments)})`);
+  private subscribeToEvents(): () => void {
+    return this.session.on((event) => {
+      switch (event.type) {
+        case "tool.execution_start":
+          this.onToolStart(event.data);
+          break;
+        case "tool.execution_complete":
+          this.onToolComplete(event.data);
+          break;
+        case "assistant.message_delta":
+          this.onDelta(event.data);
+          break;
+        case "assistant.message":
+          this.onMessage(event.data);
+          break;
+        case "session.idle":
+          this.onIdle();
+          break;
+        case "session.compaction_start":
+          this.logger.info("Compacting context...");
+          break;
+        case "session.compaction_complete":
+          this.logger.info(`Context compacted: ${formatCompaction(event.data)}`);
+          break;
+        case "session.error":
+          this.onError(event.data.message);
+          break;
+        case "assistant.usage":
+          recordUsageEvent(this.stats, this.logger, event.data);
+          break;
+        default:
+          break;
+      }
+    });
+  }
+
+  private onToolStart(d: { toolCallId: string; toolName: string }): void {
+    this.toolNames.set(d.toolCallId, d.toolName);
+  }
+
+  private onToolComplete(d: { toolCallId: string; success: boolean; error?: { message: string } }): void {
+    const name = this.toolNames.get(d.toolCallId) ?? d.toolCallId;
+    this.toolNames.delete(d.toolCallId);
+    if (!d.success) {
+      this.logger.debug(`${name} failed: ${d.error?.message ?? "unknown"}`);
+    }
+  }
+
+  private onDelta(d: { deltaContent?: string }): void {
+    if (d.deltaContent) this.pendingDeltas.push(d.deltaContent);
+  }
+
+  private stripAndNormalize(
+    requests: { toolCallId: string; name: string; arguments?: unknown }[],
+  ): StrippedToolRequest[] {
+    const filtered = this.hasBridge
+      ? requests.filter((tr) => tr.name.startsWith(BRIDGE_TOOL_PREFIX))
+      : requests;
+
+    return filtered.map((tr) => {
+      const resolved = this.state.toolCache.resolveToolName(stripBridgePrefix(tr.name));
+      const args: Record<string, unknown> = isRecord(tr.arguments) ? tr.arguments : {};
+      return {
+        toolCallId: tr.toolCallId,
+        name: resolved,
+        arguments: this.state.toolCache.normalizeArgs(resolved, args),
+      };
+    });
+  }
+
+  private onMessage(data: { toolRequests?: { toolCallId: string; name: string; arguments?: unknown }[] }): void {
+    if (!data.toolRequests || data.toolRequests.length === 0) {
+      const r = this.getReply();
+      if (r) this.flushToProtocol();
       return;
     }
-    if (event.type === "tool.execution_complete") {
-      const d = event.data;
-      const name = toolNames.get(d.toolCallId) ?? d.toolCallId;
-      toolNames.delete(d.toolCallId);
-      const detail = d.success
-        ? JSON.stringify(d.result?.content)
-        : d.error?.message ?? "failed";
-      logger.debug(`${name} done (success=${String(d.success)}, ${detail})`);
-      return;
+
+    const stripped = this.stripAndNormalize(data.toolRequests);
+    if (stripped.length === 0) return;
+
+    for (const tr of stripped) {
+      this.logger.info(`Tool request: name="${tr.name}", id="${tr.toolCallId}"`);
+      this.state.toolRouter.registerExpected(tr.toolCallId, tr.name);
     }
 
-    switch (event.type) {
-      case "assistant.message_delta":
-        if (event.data.deltaContent) {
-          logger.debug(`Delta: ${event.data.deltaContent}`);
-          pendingDeltas.push(event.data.deltaContent);
-        }
-        break;
-
-      case "assistant.message": {
-        logger.debug(`assistant.message: toolRequests=${String(event.data.toolRequests?.length ?? 0)}`);
-
-        if (event.data.toolRequests && event.data.toolRequests.length > 0) {
-          const bridgeRequests = hasBridge
-            ? event.data.toolRequests.filter((tr) => tr.name.startsWith(BRIDGE_TOOL_PREFIX))
-            : event.data.toolRequests;
-
-          if (hasBridge && bridgeRequests.length < event.data.toolRequests.length) {
-            const skipped = event.data.toolRequests.length - bridgeRequests.length;
-            logger.debug(`Skipped ${String(skipped)} non-bridge tool request(s) (handled internally by CLI)`);
-          }
-
-          const stripped: StrippedToolRequest[] = bridgeRequests.map((tr) => {
-            const resolved = state.resolveToolName(stripBridgePrefix(tr.name));
-            return {
-              toolCallId: tr.toolCallId,
-              name: resolved,
-              arguments: state.normalizeArgs(
-                resolved,
-                (tr.arguments ?? {}) as Record<string, unknown>,
-              ),
-            };
-          });
-
-          if (stripped.length > 0) {
-            for (const tr of stripped) {
-              logger.info(`Tool request: name="${tr.name}", id="${tr.toolCallId}", args=${JSON.stringify(tr.arguments)}`);
-              state.registerExpected(tr.toolCallId, tr.name);
-            }
-
-            const r = getReply();
-            if (r) {
-              flushToProtocol();
-              protocol.emitToolsAndFinish(r, stripped);
-              r.raw.end();
-              state.clearReply();
-              protocol.reset();
-              state.notifyStreamingDone();
-            } else {
-              logger.debug("Tool requests but no reply (internal retry), registered expected tools");
-            }
-          } else {
-            logger.debug("All tool requests were non-bridge, none emitted");
-          }
-        } else {
-          const r = getReply();
-          if (r) {
-            logger.debug(`Flushing ${String(pendingDeltas.length)} pending deltas`);
-            flushToProtocol();
-          }
-        }
-        break;
-      }
-
-      case "session.idle": {
-        logger.info(`Done, wrapping up stream (pendingDeltas=${String(pendingDeltas.length)})`);
-        sessionDone = true;
-        state.markSessionInactive();
-        flushToProtocol();
-        const r = getReply();
-        if (r) {
-          protocol.sendCompleted(r);
-          protocol.teardown();
-          r.raw.end();
-          state.clearReply();
-          state.notifyStreamingDone();
-        }
-        unsubscribe();
-        break;
-      }
-
-      case "session.compaction_start":
-        logger.info("Compacting context...");
-        break;
-
-      case "session.compaction_complete":
-        logger.info(`Context compacted: ${formatCompaction(event.data)}`);
-        break;
-
-      case "session.error": {
-        logger.error(`Session error: ${event.data.message}`);
-        sessionDone = true;
-        state.markSessionErrored();
-        state.markSessionInactive();
-        const r = getReply();
-        if (r) {
-          protocol.sendFailed(r);
-          protocol.teardown();
-          r.raw.end();
-          state.clearReply();
-        } else {
-          protocol.teardown();
-        }
-        state.notifyStreamingDone();
-        unsubscribe();
-        break;
-      }
-
-      case "assistant.usage":
-        recordUsageEvent(stats, logger, event.data);
-        break;
-
-      default:
-        logger.debug(`Unhandled event: ${event.type}, data=${JSON.stringify(event.data)}`);
-        break;
-    }
-  });
-
-  initialReply.raw.on("close", () => {
-    if (!sessionDone && state.currentReply === initialReply) {
-      logger.info("Client disconnected, aborting session");
-      protocol.teardown();
-      protocol.reset();
-      state.markSessionErrored();
-      state.cleanup();
-      unsubscribe();
-      session.abort().catch((err: unknown) => {
-        logger.error("Failed to abort session:", err);
-      });
-      state.notifyStreamingDone();
-    }
-  });
-
-  const done = state.waitForStreamingDone();
-
-  session.send({ prompt }).catch((err: unknown) => {
-    if (sessionDone) return;
-    logger.error("Failed to send prompt:", err);
-    sessionDone = true;
-    protocol.teardown();
-    protocol.reset();
-    const r = getReply();
+    const r = this.getReply();
     if (r) {
-      r.raw.end();
-      state.clearReply();
+      this.flushToProtocol();
+      this.protocol.emitToolsAndFinish(r, stripped);
+      this.protocol.reset();
+      this.finishStream(r);
     }
-    unsubscribe();
-    state.notifyStreamingDone();
-  });
+  }
 
-  return done;
+  private onIdle(): void {
+    this.logger.info("Done, wrapping up stream");
+    this.sessionDone = true;
+    this.state.session.markSessionInactive();
+    this.flushToProtocol();
+    const r = this.getReply();
+    if (r) {
+      this.protocol.sendCompleted(r);
+      this.protocol.teardown();
+    }
+    this.finishStream(r);
+    this.unsubscribe();
+  }
+
+  private onError(message: string): void {
+    this.logger.error(`Session error: ${message}`);
+    this.sessionDone = true;
+    this.state.session.markSessionErrored();
+    this.state.session.markSessionInactive();
+    const r = this.getReply();
+    if (r) {
+      this.protocol.sendFailed(r);
+    }
+    this.protocol.teardown();
+    this.finishStream(r);
+    this.unsubscribe();
+  }
+
+  private setupClientDisconnect(): void {
+    this.initialReply.raw.on("close", () => {
+      if (!this.sessionDone && this.state.replies.currentReply === this.initialReply) {
+        this.logger.info("Client disconnected, aborting session");
+        this.protocol.teardown();
+        this.protocol.reset();
+        this.state.session.markSessionErrored();
+        this.state.session.cleanup();
+        this.unsubscribe();
+        this.session.abort().catch((err: unknown) => {
+          this.logger.error("Failed to abort session:", err);
+        });
+        this.finishStream(null);
+      }
+    });
+  }
+
+  private sendPrompt(): void {
+    this.session.send({ prompt: this.prompt }).catch((err: unknown) => {
+      if (this.sessionDone) return;
+      this.logger.error("Failed to send prompt:", err);
+      this.sessionDone = true;
+      this.protocol.teardown();
+      this.protocol.reset();
+      this.unsubscribe();
+      this.finishStream(this.getReply());
+    });
+  }
 }

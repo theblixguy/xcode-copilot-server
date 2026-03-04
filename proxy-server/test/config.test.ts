@@ -3,6 +3,7 @@ import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { loadConfig, resolveConfigPath } from "../src/config.js";
+import { BYTES_PER_MIB } from "../src/config-schema.js";
 import { Logger } from "copilot-sdk-proxy";
 
 const logger = new Logger("none");
@@ -30,7 +31,7 @@ describe("loadConfig", () => {
     expect(config.mcpServers).toEqual({});
     expect(config.allowedCliTools).toEqual([]);
     expect(config.excludedFilePatterns).toEqual([]);
-    expect(config.bodyLimit).toBe(10 * 1024 * 1024);
+    expect(config.bodyLimit).toBe(10 * BYTES_PER_MIB);
     expect(config.reasoningEffort).toBeUndefined();
     expect(config.autoApprovePermissions).toEqual(["read", "mcp"]);
   });
@@ -53,7 +54,7 @@ describe("loadConfig", () => {
     );
     const config = await loadConfig(path, logger, "openai");
     expect(config.allowedCliTools).toEqual(["search"]);
-    expect(config.bodyLimit).toBe(1 * 1024 * 1024);
+    expect(config.bodyLimit).toBe(1 * BYTES_PER_MIB);
     expect(config.mcpServers).toEqual({});
     expect(config.autoApprovePermissions).toEqual(["read", "mcp"]);
   });
@@ -97,7 +98,7 @@ describe("loadConfig", () => {
       }`,
     );
     const config = await loadConfig(path, logger, "openai");
-    const args = (config.mcpServers.local as any).args;
+    const args = (config.mcpServers.local as { args: string[] }).args;
     expect(args[0]).toBe(join(tempDir, "server.js"));
     expect(args[1]).toBe("--flag");
   });
@@ -118,7 +119,7 @@ describe("loadConfig", () => {
       }`,
     );
     const config = await loadConfig(path, logger, "claude");
-    const args = (config.mcpServers.local as any).args;
+    const args = (config.mcpServers.local as { args: string[] }).args;
     expect(args[0]).toBe("/usr/bin/server.js");
   });
 
@@ -143,7 +144,7 @@ describe("loadConfig", () => {
   it("converts bodyLimitMiB to bytes", async () => {
     const path = writeConfig("limit.json5", `{ bodyLimitMiB: 10 }`);
     const config = await loadConfig(path, logger, "openai");
-    expect(config.bodyLimit).toBe(10 * 1024 * 1024);
+    expect(config.bodyLimit).toBe(10 * BYTES_PER_MIB);
   });
 
   it("loads toolBridge as boolean", async () => {
@@ -291,7 +292,7 @@ describe("config validation", () => {
     expect(config.toolBridge).toBe(false);
     expect(config.mcpServers).toEqual({});
     expect(config.allowedCliTools).toEqual([]);
-    expect(config.bodyLimit).toBe(10 * 1024 * 1024);
+    expect(config.bodyLimit).toBe(10 * BYTES_PER_MIB);
     expect(config.autoApprovePermissions).toEqual(["read", "mcp"]);
   });
 });

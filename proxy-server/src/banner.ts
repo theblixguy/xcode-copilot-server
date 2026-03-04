@@ -1,33 +1,76 @@
+import { existsSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+import { homedir } from "node:os";
 import { dim } from "copilot-sdk-proxy";
+import type { Logger } from "copilot-sdk-proxy";
+import type { ProxyName, ProxyMode } from "./providers/index.js";
+
+const AGENTS_DIR = join(
+  homedir(),
+  "Library/Developer/Xcode/CodingAssistant/Agents/Versions",
+);
+
+const AGENT_BINARY_NAMES: Partial<Record<ProxyName, string>> = {
+  claude: "claude",
+  codex: "codex",
+};
+
+function findAgentBinary(proxy: ProxyName, logger?: Logger): string | null {
+  const binaryName = AGENT_BINARY_NAMES[proxy];
+  if (!binaryName) return null;
+
+  if (!existsSync(AGENTS_DIR)) return null;
+
+  let versions: string[];
+  try {
+    versions = readdirSync(AGENTS_DIR);
+  } catch (err) {
+    logger?.debug(`Failed to read agents directory: ${String(err)}`);
+    return null;
+  }
+
+  for (const version of versions) {
+    const binaryPath = join(AGENTS_DIR, version, binaryName);
+    if (existsSync(binaryPath)) return binaryPath;
+  }
+  return null;
+}
 
 export interface ProxyBannerInfo {
   providerName: string;
-  proxyFlag: string;
+  proxyFlag: ProxyMode;
   routes: string[];
   cwd: string;
   autoPatch?: boolean | undefined;
-  agentPath?: string | null | undefined;
-  agentBinaryName?: string | undefined;
-  agentsDir?: string | undefined;
+  logger?: Logger | undefined;
 }
 
 export function printProxyBanner(info: ProxyBannerInfo): void {
-  console.log();
   const providerHint = info.proxyFlag === "auto"
     ? ""
     : ` ${dim(`(--proxy ${info.proxyFlag})`)}`;
-  console.log(`  ${dim("Provider")}   ${info.providerName}${providerHint}`);
-  console.log(`  ${dim("Routes")}     ${info.routes.join(dim(", "))}`);
-  console.log(`  ${dim("Directory")}  ${info.cwd}`);
+
+  const lines = [
+    "",
+    `  ${dim("Provider")}   ${info.providerName}${providerHint}`,
+    `  ${dim("Routes")}     ${info.routes.join(dim(", "))}`,
+    `  ${dim("Directory")}  ${info.cwd}`,
+  ];
+
   if (info.autoPatch) {
-    console.log(`  ${dim("Auto-patch")} enabled`);
+    lines.push(`  ${dim("Auto-patch")} enabled`);
   }
-  if (info.agentBinaryName) {
-    if (info.agentPath) {
-      console.log(`  ${dim("Agent")}      ${info.agentPath}`);
-    } else {
-      console.log(`  ${dim("Agent")}      ${dim(`not found (expected at ${info.agentsDir ?? ""}/<version>/${info.agentBinaryName})`)}`);
+
+  if (info.proxyFlag !== "auto") {
+    const binaryName = AGENT_BINARY_NAMES[info.proxyFlag];
+    if (binaryName) {
+      const agentPath = findAgentBinary(info.proxyFlag, info.logger);
+      lines.push(agentPath
+        ? `  ${dim("Agent")}      ${agentPath}`
+        : `  ${dim("Agent")}      ${dim(`not found (expected at ${AGENTS_DIR}/<version>/${binaryName})`)}`);
     }
   }
-  console.log();
+  lines.push("");
+
+  console.log(lines.join("\n"));
 }

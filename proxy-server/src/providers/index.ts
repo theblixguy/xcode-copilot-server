@@ -3,21 +3,18 @@ import { claudeProvider } from "./claude/provider.js";
 import { codexProvider } from "./codex/provider.js";
 import type { Provider } from "./types.js";
 import type { AppContext } from "../context.js";
-import type { ServerConfig } from "../config.js";
+import type { ServerConfig } from "../config-schema.js";
 import { registerToolBridge } from "../tool-bridge/index.js";
+import { PROVIDER_NAMES } from "./names.js";
+import type { ProxyName } from "./names.js";
 
-export type { Provider };
+export type { ProxyName, ProxyMode } from "./names.js";
 
-export const providers = {
+export const providers: Record<ProxyName, Provider> = {
   openai: openaiProvider,
   claude: claudeProvider,
   codex: codexProvider,
-} satisfies Record<string, Provider>;
-
-export type ProxyName = keyof typeof providers;
-export type ProxyMode = ProxyName | "auto";
-
-export const PROVIDER_NAMES = Object.keys(providers) as ProxyName[];
+};
 
 export function createAutoProvider(
   configs: Record<ProxyName, ServerConfig>,

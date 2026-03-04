@@ -16,9 +16,9 @@ import {
   installAgent,
   uninstallAgent,
   AGENT_LABEL,
-  type ExecFn,
   type PlistOptions,
 } from "../../src/launchd/index.js";
+import type { ExecFn } from "../../src/utils/child-process.js";
 
 const logger = new Logger("none");
 
@@ -345,8 +345,8 @@ describe("installAgent", () => {
 
     const loadCall = mock.calls.find((c) => c.args[0] === "load");
     expect(loadCall).toBeDefined();
-    expect(loadCall!.cmd).toBe("launchctl");
-    expect(loadCall!.args).toEqual(["load", plistPath]);
+    expect(loadCall?.cmd).toBe("launchctl");
+    expect(loadCall?.args).toEqual(["load", plistPath]);
   });
 
   it("calls launchctl unload before load when plist already exists", async () => {
@@ -480,7 +480,7 @@ describe("uninstallAgent", () => {
 
     const unloadCall = mock.calls.find((c) => c.args[0] === "unload");
     expect(unloadCall).toBeDefined();
-    expect(unloadCall!.args).toEqual(["unload", plistPath]);
+    expect(unloadCall?.args).toEqual(["unload", plistPath]);
   });
 
   it("deletes the plist file", async () => {

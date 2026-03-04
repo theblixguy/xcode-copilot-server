@@ -38,7 +38,7 @@ function defaultNativeActivate(name: string): number[] {
   return fds;
 }
 
-export interface ActivateSocketOptions {
+interface ActivateSocketOptions {
   nativeActivate?: NativeActivateFn;
 }
 

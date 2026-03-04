@@ -13,9 +13,16 @@ const PACKAGE_ROOT = dirname(import.meta.dirname);
 const DEFAULT_CONFIG_PATH = join(PACKAGE_ROOT, "config.json5");
 
 // Can't use a JSON import here because rootDir is src/ and package.json lives at the root
-const { version } = z.object({ version: z.string() }).parse(
-  JSON.parse(await readFile(join(PACKAGE_ROOT, "package.json"), "utf-8")),
-);
+let version: string;
+try {
+  const raw: unknown = JSON.parse(await readFile(join(PACKAGE_ROOT, "package.json"), "utf-8"));
+  version = z.object({ version: z.string() }).parse(raw).version;
+} catch (err) {
+  throw new Error(
+    `Failed to read package.json: ${err instanceof Error ? err.message : String(err)}`,
+    { cause: err },
+  );
+}
 
 interface PatchOptions {
   port: string;
@@ -158,6 +165,6 @@ program
   .action((options: { logLevel: string }) => uninstallAgentCommand(options));
 
 program.parseAsync().catch((err: unknown) => {
-  console.error("Fatal error:", err);
+  process.stderr.write(`Fatal error: ${String(err)}\n`);
   process.exit(1);
 });

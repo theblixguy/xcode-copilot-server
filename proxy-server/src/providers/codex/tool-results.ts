@@ -8,7 +8,7 @@ export function resolveResponsesToolResults(
 ): void {
   for (const item of outputs) {
     logger.debug(`Resolving tool result for ${item.call_id}`);
-    if (!state.resolveToolCall(item.call_id, item.output)) {
+    if (!state.toolRouter.resolveToolCall(item.call_id, item.output)) {
       logger.warn(`No pending MCP request for call_id ${item.call_id}`);
     }
   }
