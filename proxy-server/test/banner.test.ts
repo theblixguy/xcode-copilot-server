@@ -50,32 +50,20 @@ describe("printProxyBanner", () => {
     expect(output).not.toContain("Auto-patch");
   });
 
-  it("shows agent path when found", () => {
-    printProxyBanner({
-      ...base,
-      agentBinaryName: "claude",
-      agentPath: "/path/to/claude",
-    });
+  it("shows agent line for provider with a known binary name", () => {
+    printProxyBanner({ ...base, proxyFlag: "claude" });
     const output = lines.join("\n");
     expect(output).toContain("Agent");
-    expect(output).toContain("/path/to/claude");
   });
 
-  it("shows agent not-found message when binary expected but not found", () => {
-    printProxyBanner({
-      ...base,
-      agentBinaryName: "claude",
-      agentPath: null,
-      agentsDir: "/Library/Agents",
-    });
+  it("hides agent line for auto mode", () => {
+    printProxyBanner({ ...base, proxyFlag: "auto" });
     const output = lines.join("\n");
-    expect(output).toContain("not found");
-    expect(output).toContain("/Library/Agents");
-    expect(output).toContain("claude");
+    expect(output).not.toContain("Agent");
   });
 
-  it("hides agent line when no binary name", () => {
-    printProxyBanner(base);
+  it("hides agent line for openai provider", () => {
+    printProxyBanner({ ...base, proxyFlag: "openai" });
     const output = lines.join("\n");
     expect(output).not.toContain("Agent");
   });

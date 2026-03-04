@@ -1,10 +1,8 @@
 import { parsePort, parseLogLevel, parseIdleTimeout } from "copilot-sdk-proxy";
 import { providers, type ProxyName, type ProxyMode } from "./providers/index.js";
+import { PROVIDER_NAMES } from "./providers/names.js";
 
 export { parsePort, parseLogLevel, parseIdleTimeout };
-export type { ProxyName, ProxyMode };
-
-const VALID_PROXIES = Object.keys(providers) as ProxyName[];
 
 export function isProxyName(value: string): value is ProxyName {
   return value in providers;
@@ -13,7 +11,7 @@ export function isProxyName(value: string): value is ProxyName {
 export function parseProxy(value: string): ProxyName {
   if (!isProxyName(value)) {
     throw new Error(
-      `Invalid proxy "${value}". Valid: ${VALID_PROXIES.join(", ")}`,
+      `Invalid proxy "${value}". Valid: ${PROVIDER_NAMES.join(", ")}`,
     );
   }
   return value;

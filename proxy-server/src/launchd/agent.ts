@@ -1,7 +1,5 @@
 import { existsSync } from "node:fs";
 import { readFile, writeFile, unlink, mkdir } from "node:fs/promises";
-import { execFile as execFileCb } from "node:child_process";
-import { promisify } from "node:util";
 import { dirname, join, resolve } from "node:path";
 import { homedir } from "node:os";
 import { Command } from "commander";
@@ -10,23 +8,16 @@ import type { Logger } from "copilot-sdk-proxy";
 import type { ProxyMode } from "../providers/index.js";
 import { isProxyName } from "../cli-validators.js";
 import { patchSettings, restoreSettings } from "../settings-patcher/index.js";
-
-const execFileAsync = promisify(execFileCb);
-
-export type ExecFn = (cmd: string, args: string[]) => Promise<string>;
-
-async function defaultExec(cmd: string, args: string[]): Promise<string> {
-  const { stdout } = await execFileAsync(cmd, args);
-  return stdout;
-}
+import { defaultExec, type ExecFn } from "../utils/child-process.js";
+import { isRecord } from "../utils/type-guards.js";
 
 export const AGENT_LABEL = "com.xcode-copilot-server";
 
-export function defaultPlistPath(): string {
+function defaultPlistPath(): string {
   return join(homedir(), "Library/LaunchAgents", `${AGENT_LABEL}.plist`);
 }
 
-export function defaultLogPaths(): { out: string; err: string } {
+function defaultLogPaths(): { out: string; err: string } {
   const dir = join(homedir(), "Library/Logs");
   return {
     out: join(dir, "xcode-copilot-server.out.log"),
@@ -107,7 +98,7 @@ export function generatePlist(options: PlistOptions): string {
   return plist.build(obj) + "\n";
 }
 
-export interface ParsedPlistArgs {
+interface ParsedPlistArgs {
   proxy: ProxyMode | null;
   autoPatch: boolean;
 }
@@ -117,20 +108,20 @@ export function parsePlistArgs(plistContent: string): ParsedPlistArgs {
   try {
     raw = plist.parse(plistContent);
   } catch {
+    // Malformed plist, fall back to safe defaults
     return { proxy: null, autoPatch: false };
   }
 
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+  if (!isRecord(raw)) {
     return { proxy: null, autoPatch: false };
   }
 
-  const parsed = raw as Record<string, unknown>;
+  const parsed = raw;
   const args = parsed["ProgramArguments"];
   if (!Array.isArray(args)) {
     return { proxy: null, autoPatch: false };
   }
 
-  // First two entries are the node binary and entry point, everything after is flags
   const flagArgs = args.slice(2).filter((a): a is string => typeof a === "string");
 
   const cmd = new Command()
@@ -144,6 +135,7 @@ export function parsePlistArgs(plistContent: string): ParsedPlistArgs {
   try {
     cmd.parse(flagArgs, { from: "user" });
   } catch {
+    // Unparsable flags, fall back to safe defaults
     return { proxy: null, autoPatch: false };
   }
 
@@ -161,7 +153,7 @@ export function parsePlistArgs(plistContent: string): ParsedPlistArgs {
   return { proxy, autoPatch: opts.autoPatch === true || proxy === "auto" };
 }
 
-export interface InstallAgentOptions {
+interface InstallAgentOptions {
   port: number;
   proxy: ProxyMode;
   logLevel: string;
@@ -225,7 +217,7 @@ export async function installAgent(options: InstallAgentOptions): Promise<void> 
   logger.info(`  Logs: ${logPaths.out}`);
 }
 
-export interface UninstallAgentOptions {
+interface UninstallAgentOptions {
   logger: Logger;
   exec?: ExecFn | undefined;
   plistPath?: string | undefined;
@@ -257,7 +249,11 @@ export async function uninstallAgent(options: UninstallAgentOptions): Promise<vo
     logger.warn(`launchctl unload failed: ${String(err)}`);
   }
 
-  await unlink(plistPath);
+  try {
+    await unlink(plistPath);
+  } catch (err) {
+    logger.warn(`Failed to remove plist file: ${String(err)}`);
+  }
 
   if (parsed.autoPatch) {
     await restoreSettings(parsed.proxy, logger);
