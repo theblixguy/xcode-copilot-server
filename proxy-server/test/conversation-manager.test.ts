@@ -210,6 +210,54 @@ describe("ConversationManager", () => {
     });
   });
 
+  describe("subagent isolation", () => {
+    it("subagent request does not stomp on primary's pending tool calls", () => {
+      const manager = createManager();
+      const primary = manager.create({ isPrimary: true });
+      primary.session = { on: () => () => {} } as never;
+
+      primary.state.session.markSessionActive();
+      primary.state.toolRouter.registerExpected("toolu_task", "Task");
+      primary.state.toolRouter.registerExpected("toolu_fetch", "WebFetch");
+      primary.state.session.markSessionInactive();
+
+      let taskResolve: (r: string) => void = () => {};
+      let taskReject: (e: Error) => void = () => {};
+      primary.state.toolRouter.registerMCPRequest("Task", (r) => { taskResolve = () => r; }, (e) => { taskReject = () => e; });
+      primary.state.toolRouter.registerMCPRequest("WebFetch", () => {}, () => {});
+
+      const { conversation: subagent, isReuse } = manager.findForNewRequest();
+      expect(isReuse).toBe(false);
+      expect(subagent).not.toBe(primary);
+
+      expect(primary.state.toolRouter.hasPendingToolCall("toolu_task")).toBe(true);
+      expect(primary.state.toolRouter.hasPendingToolCall("toolu_fetch")).toBe(true);
+      expect(manager.findByContinuationIds(["toolu_task"])).toBe(primary);
+
+      void taskResolve;
+      void taskReject;
+    });
+
+    it("primary is reusable again after pending tool calls are resolved", () => {
+      const manager = createManager();
+      const primary = manager.create({ isPrimary: true });
+      primary.session = { on: () => () => {} } as never;
+
+      primary.state.session.markSessionActive();
+      primary.state.toolRouter.registerExpected("toolu_1", "Read");
+      primary.state.session.markSessionInactive();
+      primary.state.toolRouter.registerMCPRequest("Read", () => {}, () => {});
+
+      expect(manager.findForNewRequest().isReuse).toBe(false);
+
+      primary.state.toolRouter.resolveToolCall("toolu_1", "result");
+
+      const { conversation, isReuse } = manager.findForNewRequest();
+      expect(isReuse).toBe(true);
+      expect(conversation).toBe(primary);
+    });
+  });
+
   describe("primary session", () => {
     it("getPrimary returns undefined when no primary exists", () => {
       expect(createManager().getPrimary()).toBeUndefined();
@@ -278,6 +326,36 @@ describe("ConversationManager", () => {
       expect(conversation.isPrimary).toBe(false);
       expect(conversation).not.toBe(primary);
       expect(manager.getPrimary()).toBe(primary);
+    });
+
+    it("creates isolated conversation when primary has pending tool calls", () => {
+      const manager = createManager();
+      const primary = manager.create({ isPrimary: true });
+      primary.session = { on: () => () => {} } as never;
+
+      primary.state.session.markSessionActive();
+      primary.state.toolRouter.registerExpected("toolu_01abc", "Task");
+      primary.state.toolRouter.registerMCPRequest("Task", () => {}, () => {});
+      primary.state.session.markSessionInactive();
+
+      const { conversation, isReuse } = manager.findForNewRequest();
+      expect(isReuse).toBe(false);
+      expect(conversation).not.toBe(primary);
+      expect(conversation.isPrimary).toBe(false);
+    });
+
+    it("creates isolated conversation when primary has expected tool entries", () => {
+      const manager = createManager();
+      const primary = manager.create({ isPrimary: true });
+      primary.session = { on: () => () => {} } as never;
+
+      primary.state.session.markSessionActive();
+      primary.state.toolRouter.registerExpected("toolu_01abc", "Task");
+      primary.state.session.markSessionInactive();
+
+      const { conversation, isReuse } = manager.findForNewRequest();
+      expect(isReuse).toBe(false);
+      expect(conversation).not.toBe(primary);
     });
 
     it("creates isolated conversation when primary session is null (not yet created)", () => {

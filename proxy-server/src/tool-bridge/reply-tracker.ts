@@ -2,7 +2,7 @@ import type { FastifyReply } from "fastify";
 
 export class ReplyTracker {
   private reply: FastifyReply | null = null;
-  private streamingDone: (() => void) | null = null;
+  private streamingDoneCallbacks: (() => void)[] = [];
 
   get currentReply(): FastifyReply | null {
     return this.reply;
@@ -17,18 +17,14 @@ export class ReplyTracker {
   }
 
   notifyStreamingDone(): void {
-    if (this.streamingDone) {
-      this.streamingDone();
-      this.streamingDone = null;
-    }
+    const callbacks = this.streamingDoneCallbacks;
+    this.streamingDoneCallbacks = [];
+    for (const cb of callbacks) cb();
   }
 
   waitForStreamingDone(): Promise<void> {
-    if (this.streamingDone) {
-      throw new Error("Already waiting for streaming to complete");
-    }
     return new Promise<void>((resolve) => {
-      this.streamingDone = resolve;
+      this.streamingDoneCallbacks.push(resolve);
     });
   }
 }

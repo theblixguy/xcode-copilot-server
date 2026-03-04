@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createSessionConfig } from "../../src/providers/shared/session-config.js";
+import { createSessionConfig, createProviderSessionConfig } from "../../src/providers/shared/session-config.js";
 import { Logger } from "copilot-sdk-proxy";
 import { BYTES_PER_MIB, type ServerConfig, type MCPLocalServer } from "../../src/config-schema.js";
 import type { PermissionRequest } from "copilot-sdk-proxy";
@@ -419,6 +419,58 @@ describe("onUserInputRequest", () => {
     );
     expect(result.answer).toContain("not available");
     expect(result.wasFreeform).toBe(true);
+  });
+});
+
+describe("excludedTools", () => {
+  it("excludes SDK built-in tools when allowedCliTools is empty and bridge is inactive", () => {
+    const config = createSessionConfig({
+      ...baseOpts,
+      model: "gpt-4",
+      logger,
+      config: makeConfig({ allowedCliTools: [] }),
+      supportsReasoningEffort: false,
+    });
+    expect(config.excludedTools).toBeDefined();
+    expect(config.excludedTools).toContain("web_fetch");
+    expect(config.excludedTools).toContain("bash");
+    expect(config.excludedTools).toContain("glob");
+    expect(config.excludedTools).toContain("rg");
+  });
+
+  it("does not exclude SDK built-ins that are in allowedCliTools", () => {
+    const config = createSessionConfig({
+      ...baseOpts,
+      model: "gpt-4",
+      logger,
+      config: makeConfig({ allowedCliTools: ["bash", "glob"] }),
+      supportsReasoningEffort: false,
+    });
+    expect(config.excludedTools).not.toContain("bash");
+    expect(config.excludedTools).not.toContain("glob");
+    expect(config.excludedTools).toContain("web_fetch");
+    expect(config.excludedTools).toContain("rg");
+  });
+
+  it("does not exclude anything when allowedCliTools is wildcard", () => {
+    const config = createSessionConfig({
+      ...baseOpts,
+      model: "gpt-4",
+      logger,
+      config: makeConfig({ allowedCliTools: ["*"] }),
+      supportsReasoningEffort: false,
+    });
+    expect(config.excludedTools ?? []).toEqual([]);
+  });
+
+  it("subagent request (no tools, bridge enabled) still excludes SDK built-ins", () => {
+    const config = createProviderSessionConfig(
+      { model: "claude-haiku-4-5-20251001", logger, config: makeConfig({ toolBridge: true }), supportsReasoningEffort: false },
+      { conversationId: "sub-1", tools: [], config: makeConfig({ toolBridge: true }), logger, port: 8080 },
+    );
+    expect(config.excludedTools).toContain("web_fetch");
+    expect(config.excludedTools).toContain("bash");
+    expect(config.mcpServers?.["xcode-bridge"]).toBeUndefined();
   });
 });
 

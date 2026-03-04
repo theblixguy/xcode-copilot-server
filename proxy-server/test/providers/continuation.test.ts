@@ -66,6 +66,21 @@ describe("handleContinuation", () => {
     expect(conv.sentMessageCount).toBe(1);
   });
 
+  it("returns false when conversation is already actively streaming", async () => {
+    const conv = createMockConversation();
+    const reply = createMockReply();
+
+    conv.state.session.markSessionActive();
+
+    const result = await handleContinuation(conv, reply, logger, {
+      startStream: vi.fn(),
+      resolveResults: vi.fn(),
+      countMessages: () => 1,
+    });
+
+    expect(result).toBe(false);
+  });
+
   it("always returns true", async () => {
     const conv = createMockConversation();
     const reply = createMockReply();

@@ -30,13 +30,15 @@ describe("ReplyTracker", () => {
       expect(() => { tracker.notifyStreamingDone(); }).not.toThrow();
     });
 
-    it("throws when waitForStreamingDone is called while already waiting", () => {
+    it("supports multiple concurrent waiters", async () => {
       const tracker = new ReplyTracker();
-      void tracker.waitForStreamingDone();
+      const p1 = tracker.waitForStreamingDone();
+      const p2 = tracker.waitForStreamingDone();
 
-      expect(() => {
-        void tracker.waitForStreamingDone();
-      }).toThrow("Already waiting for streaming to complete");
+      tracker.notifyStreamingDone();
+
+      await expect(p1).resolves.toBeUndefined();
+      await expect(p2).resolves.toBeUndefined();
     });
   });
 });

@@ -89,7 +89,14 @@ export function createSessionConfig({
     cwd,
   });
 
-  if (!hasToolBridge) return base;
+  // Hide SDK built-ins so the model uses bridge tools (forwarded to Xcode).
+  const excludedTools = SDK_BUILT_IN_TOOLS.filter(
+    (t) => !config.allowedCliTools.includes("*") && !config.allowedCliTools.includes(t),
+  );
+
+  if (!hasToolBridge) {
+    return excludedTools.length > 0 ? { ...base, excludedTools } : base;
+  }
 
   const originalOnPreToolUse = base.hooks?.onPreToolUse;
 
@@ -108,10 +115,7 @@ export function createSessionConfig({
         tools: ["*"],
       },
     },
-    // Hide SDK built-ins so the model uses bridge tools (forwarded to Xcode).
-    excludedTools: SDK_BUILT_IN_TOOLS.filter(
-      (t) => !config.allowedCliTools.includes("*") && !config.allowedCliTools.includes(t),
-    ),
+    excludedTools,
     hooks: {
       ...base.hooks,
       onPreToolUse: (input, invocation) => {
