@@ -1,14 +1,3 @@
-/**
- * Strips fenced code blocks whose filename header matches any of the given
- * patterns (case-insensitive).  A fenced block looks like:
- *
- *   ```swift:MockHelper.swift
- *   class MockHelper {}
- *   ```
- *
- * If the filename portion ("MockHelper.swift") contains any pattern, the entire
- * block (including the surrounding newlines) is removed.
- */
 export function filterExcludedFiles(s: string, patterns: string[]): string {
   if (patterns.length === 0) return s;
 

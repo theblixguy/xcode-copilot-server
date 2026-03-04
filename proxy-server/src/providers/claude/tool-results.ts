@@ -17,7 +17,7 @@ export function resolveToolResults(
           ? block.content.map((b) => b.text).join("\n")
           : "";
       logger.debug(`Resolving tool result for ${block.tool_use_id}`);
-      if (!state.resolveToolCall(block.tool_use_id, resultText)) {
+      if (!state.toolRouter.resolveToolCall(block.tool_use_id, resultText)) {
         logger.warn(`No pending MCP request for tool_use_id ${block.tool_use_id}`);
       }
     }

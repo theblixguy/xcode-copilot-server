@@ -53,24 +53,31 @@ class BridgeAnthropicProtocol extends AnthropicProtocol implements BridgeStreamP
     this.sendEpilogue(r, "tool_use");
   }
 
+  override teardown(): void {
+    // Nothing to clean up (unlike ResponsesProtocol), but required by BridgeStreamProtocol.
+  }
+
   reset(): void {
     this.textBlockStarted = false;
   }
 }
 
-export async function handleAnthropicStreaming(
-  state: ToolBridgeState,
-  session: CopilotSession,
-  prompt: string,
-  model: string,
-  logger: Logger,
-  hasBridge: boolean,
-  stats: Stats,
-): Promise<void> {
-  const reply = state.currentReply;
+interface AnthropicStreamingOptions {
+  state: ToolBridgeState;
+  session: CopilotSession;
+  prompt: string;
+  model: string;
+  logger: Logger;
+  hasBridge: boolean;
+  stats: Stats;
+}
+
+export function handleAnthropicStreaming(opts: AnthropicStreamingOptions): Promise<void> {
+  const { state, session, prompt, model, logger, hasBridge, stats } = opts;
+  const reply = state.replies.currentReply;
   if (!reply) throw new Error("No reply set on bridge state");
   startReply(reply, model);
 
   const protocol = new BridgeAnthropicProtocol();
-  return runSessionStreaming(state, session, prompt, logger, hasBridge, protocol, reply, stats);
+  return runSessionStreaming({ state, session, prompt, logger, hasBridge, protocol, initialReply: reply, stats });
 }

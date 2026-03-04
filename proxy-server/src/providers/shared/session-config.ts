@@ -1,7 +1,7 @@
-import type { SessionConfig, Logger } from "copilot-sdk-proxy";
+import type { SessionConfig, Logger, SessionConfigOptions as BaseSessionConfigOptions } from "copilot-sdk-proxy";
 import { createSessionConfig as createBaseSessionConfig } from "copilot-sdk-proxy";
-import type { ServerConfig } from "../../config.js";
-import { BRIDGE_SERVER_NAME, BRIDGE_TOOL_PREFIX } from "../../tool-bridge/index.js";
+import type { ServerConfig } from "../../config-schema.js";
+import { BRIDGE_SERVER_NAME, BRIDGE_TOOL_PREFIX } from "../../bridge-constants.js";
 
 const SDK_BUILT_IN_TOOLS: string[] = [
   // shell
@@ -18,7 +18,7 @@ const SDK_BUILT_IN_TOOLS: string[] = [
   "skill", "web_fetch", "fetch_copilot_cli_documentation",
 ];
 
-export interface SessionConfigOptions {
+interface SessionConfigOptions {
   model: string;
   systemMessage?: string | undefined;
   logger: Logger;
@@ -28,6 +28,45 @@ export interface SessionConfigOptions {
   hasToolBridge?: boolean | undefined;
   port: number;
   conversationId: string;
+}
+
+interface ToolBridgeContext {
+  tools: unknown[] | undefined;
+  config: ServerConfig;
+  logger: Logger;
+}
+
+function resolveToolBridge({ tools, config, logger }: ToolBridgeContext): boolean {
+  if (tools) {
+    logger.debug(`Tools in request: ${String(tools.length)}`);
+  }
+  const hasBridge = !!tools?.length && config.toolBridge;
+  if (hasBridge) {
+    logger.info("Tool bridge active (in-process MCP)");
+  }
+  return hasBridge;
+}
+
+interface ProviderContext {
+  conversationId: string;
+  tools: unknown[] | undefined;
+  config: ServerConfig;
+  logger: Logger;
+  port: number;
+}
+
+export function createProviderSessionConfig(
+  baseOptions: BaseSessionConfigOptions,
+  ctx: ProviderContext,
+): SessionConfig {
+  const hasBridge = resolveToolBridge({ tools: ctx.tools, config: ctx.config, logger: ctx.logger });
+  return createSessionConfig({
+    ...baseOptions,
+    config: ctx.config,
+    hasToolBridge: hasBridge,
+    port: ctx.port,
+    conversationId: ctx.conversationId,
+  });
 }
 
 export function createSessionConfig({
@@ -52,12 +91,10 @@ export function createSessionConfig({
 
   if (!hasToolBridge) return base;
 
-  // Layer bridge-specific config on top of what core already provides.
   const originalOnPreToolUse = base.hooks?.onPreToolUse;
 
-  // Strip availableTools so the bridge controls tool visibility instead.
-  // With exactOptionalPropertyTypes we can't assign undefined, so we
-  // destructure it out.
+  // Bridge controls tool visibility, so remove availableTools.
+  // Can't assign undefined with exactOptionalPropertyTypes, so destructure.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { availableTools, ...baseWithoutAvailableTools } = base;
 
@@ -71,8 +108,7 @@ export function createSessionConfig({
         tools: ["*"],
       },
     },
-    // Hide SDK built-in tools so the model uses bridge tools instead,
-    // which get forwarded to Xcode for execution.
+    // Hide SDK built-ins so the model uses bridge tools (forwarded to Xcode).
     excludedTools: SDK_BUILT_IN_TOOLS.filter(
       (t) => !config.allowedCliTools.includes("*") && !config.allowedCliTools.includes(t),
     ),
