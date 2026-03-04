@@ -16,8 +16,7 @@
   },
   "files": [
     "dist/",
-    "config.json5",
-    "scripts/"
+    "config.json5"
   ],
   "scripts": {
     "build": "tsc",

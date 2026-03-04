@@ -13,12 +13,10 @@
     toolBridge: false,
 
     mcpServers: {
-      // Proxies Apple's xcrun mcpbridge (Xcode 26.3+). The script exits
-      // gracefully if mcpbridge isn't installed, so safe to leave enabled.
       xcode: {
         type: "local",
-        command: "node",
-        args: ["./scripts/mcpbridge-proxy.mjs"],
+        command: "xcrun",
+        args: ["mcpbridge"],
         allowedTools: ["*"],
       },
     },

@@ -112,11 +112,10 @@ The config file uses [JSON5](https://json5.org/) format, which supports comments
     toolBridge: false,
 
     mcpServers: {
-      // Proxies Apple's xcrun mcpbridge (Xcode 26.3+).
       xcode: {
         type: "local",
-        command: "node",
-        args: ["./scripts/mcpbridge-proxy.mjs"],
+        command: "xcrun",
+        args: ["mcpbridge"],
         allowedTools: ["*"],
       },
     },
