@@ -7,28 +7,28 @@
 
 import { existsSync } from "node:fs";
 import { readFile, writeFile, unlink, mkdir } from "node:fs/promises";
-import { execFile as execFileCb } from "node:child_process";
-import { promisify } from "node:util";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import type { Logger } from "copilot-sdk-proxy";
-import type { PatchResult } from "./types.js";
-
-const execFileAsync = promisify(execFileCb);
-
-export type ExecFn = (cmd: string, args: string[]) => Promise<string>;
-
-async function defaultExec(cmd: string, args: string[]): Promise<string> {
-  const { stdout } = await execFileAsync(cmd, args);
-  return stdout;
-}
+import type { PatchResult, CodexPatchOptions, CodexRestoreOptions, CodexDetectOptions } from "./types.js";
+import { extractLocalhostPort } from "./url-utils.js";
+import { defaultExec, type ExecFn } from "../utils/child-process.js";
+import { isRecord } from "../utils/type-guards.js";
 
 interface EnvBackup {
   OPENAI_BASE_URL: string | null;
   OPENAI_API_KEY: string | null;
 }
 
-export function defaultCodexBackupPath(): string {
+function isEnvBackup(value: unknown): value is EnvBackup {
+  if (!isRecord(value)) return false;
+  return (
+    ("OPENAI_BASE_URL" in value && (typeof value.OPENAI_BASE_URL === "string" || value.OPENAI_BASE_URL === null)) &&
+    ("OPENAI_API_KEY" in value && (typeof value.OPENAI_API_KEY === "string" || value.OPENAI_API_KEY === null))
+  );
+}
+
+function defaultCodexBackupPath(): string {
   return join(
     homedir(),
     "Library/Developer/Xcode/CodingAssistant/codex",
@@ -41,27 +41,9 @@ async function launchctlGetenv(exec: ExecFn, name: string): Promise<string | nul
     const value = (await exec("launchctl", ["getenv", name])).trim();
     return value || null;
   } catch {
+    // launchctl exits non-zero when the env var is unset, that's expected
     return null;
   }
-}
-
-export interface CodexPatchOptions {
-  port: number;
-  logger: Logger;
-  exec?: ExecFn;
-  backupFile?: string;
-}
-
-export interface CodexRestoreOptions {
-  logger: Logger;
-  exec?: ExecFn;
-  backupFile?: string;
-}
-
-export interface CodexDetectOptions {
-  logger: Logger;
-  exec?: ExecFn;
-  backupFile?: string;
 }
 
 export async function detectCodexPatchState(options: CodexDetectOptions): Promise<PatchResult> {
@@ -76,15 +58,16 @@ export async function detectCodexPatchState(options: CodexDetectOptions): Promis
   try {
     const url = await launchctlGetenv(exec, "OPENAI_BASE_URL");
     if (url) {
-      const match = /localhost:(\d+)/.exec(url);
-      if (match?.[1]) {
-        return { patched: true, port: parseInt(match[1], 10) };
+      const port = extractLocalhostPort(url);
+      if (port !== undefined) {
+        return { patched: true, port };
       }
     }
   } catch (err) {
     logger.warn(`Could not read OPENAI_BASE_URL: ${String(err)}`);
   }
 
+  // Backup exists, so a restore is needed even if we can't read the current port.
   return { patched: true };
 }
 
@@ -106,8 +89,36 @@ export async function patchCodexSettings(options: CodexPatchOptions): Promise<vo
     await writeFile(backupFile, JSON.stringify(backup, null, 2) + "\n", "utf-8");
   }
 
+  // Let exec errors propagate. The caller (patchSettings) decides how to handle them.
   await exec("launchctl", ["setenv", "OPENAI_BASE_URL", baseUrl]);
   await exec("launchctl", ["setenv", "OPENAI_API_KEY", "xcode-copilot"]);
+}
+
+async function unsetEnvVars(exec: ExecFn, logger: Logger): Promise<void> {
+  try {
+    await exec("launchctl", ["unsetenv", "OPENAI_BASE_URL"]);
+    await exec("launchctl", ["unsetenv", "OPENAI_API_KEY"]);
+  } catch (err) {
+    logger.warn(`Failed to unset env vars: ${String(err)}`);
+  }
+}
+
+async function readEnvBackup(backupFile: string, logger: Logger): Promise<EnvBackup | null> {
+  if (!existsSync(backupFile)) return null;
+
+  const raw = await readFile(backupFile, "utf-8");
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    logger.warn("Backup file contains invalid JSON, unsetting env vars");
+    return null;
+  }
+  if (!isEnvBackup(parsed)) {
+    logger.warn("Backup file has unexpected shape, unsetting env vars");
+    return null;
+  }
+  return parsed;
 }
 
 export async function restoreCodexSettings(options: CodexRestoreOptions): Promise<void> {
@@ -115,43 +126,37 @@ export async function restoreCodexSettings(options: CodexRestoreOptions): Promis
   const exec = options.exec ?? defaultExec;
   const backupFile = options.backupFile ?? defaultCodexBackupPath();
 
-  if (!existsSync(backupFile)) {
-    // No backup found, just unset to be safe
-    try {
-      await exec("launchctl", ["unsetenv", "OPENAI_BASE_URL"]);
-      await exec("launchctl", ["unsetenv", "OPENAI_API_KEY"]);
-    } catch (err) {
-      logger.warn(`Failed to unset env vars: ${String(err)}`);
-    }
+  const backup = await readEnvBackup(backupFile, logger);
+  if (!backup) {
+    await unsetEnvVars(exec, logger);
     return;
   }
 
+  // Best-effort: restore as many env vars as possible.
   try {
-    const raw = await readFile(backupFile, "utf-8");
-    const backup = JSON.parse(raw) as EnvBackup;
-
     if (backup.OPENAI_BASE_URL != null) {
       await exec("launchctl", ["setenv", "OPENAI_BASE_URL", backup.OPENAI_BASE_URL]);
     } else {
       await exec("launchctl", ["unsetenv", "OPENAI_BASE_URL"]);
     }
+  } catch (err) {
+    logger.warn(`Failed to restore OPENAI_BASE_URL: ${String(err)}`);
+  }
 
+  try {
     if (backup.OPENAI_API_KEY != null) {
       await exec("launchctl", ["setenv", "OPENAI_API_KEY", backup.OPENAI_API_KEY]);
     } else {
       await exec("launchctl", ["unsetenv", "OPENAI_API_KEY"]);
     }
-
-    await unlink(backupFile);
-    logger.info("Restored env vars from backup");
   } catch (err) {
-    logger.warn(`Failed to restore env vars: ${String(err)}`);
-    // Restore failed, just try to unset both
-    try {
-      await exec("launchctl", ["unsetenv", "OPENAI_BASE_URL"]);
-      await exec("launchctl", ["unsetenv", "OPENAI_API_KEY"]);
-    } catch (unsetErr) {
-      logger.warn(`Failed to unset env vars during recovery: ${String(unsetErr)}`);
-    }
+    logger.warn(`Failed to restore OPENAI_API_KEY: ${String(err)}`);
   }
+
+  try {
+    await unlink(backupFile);
+  } catch (err) {
+    logger.warn(`Failed to remove backup file: ${String(err)}`);
+  }
+  logger.info("Restored env vars from backup");
 }

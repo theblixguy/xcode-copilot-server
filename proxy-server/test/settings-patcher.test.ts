@@ -10,20 +10,23 @@ import {
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { Logger } from "copilot-sdk-proxy";
-import {
-  patchClaudeSettings,
-  restoreClaudeSettings,
-  detectPatchState,
-  patchCodexSettings,
-  restoreCodexSettings,
-  detectCodexPatchState,
-  patcherByProxy,
-  type Settings,
-  type SettingsPaths,
-  type ExecFn,
-} from "../src/settings-patcher/index.js";
+import { patcherByProxy } from "../src/settings-patcher/index.js";
+import { patchClaudeSettings, restoreClaudeSettings, detectPatchState } from "../src/settings-patcher/claude.js";
+import { patchCodexSettings, restoreCodexSettings, detectCodexPatchState } from "../src/settings-patcher/codex.js";
+import type { Settings, SettingsPaths } from "../src/settings-patcher/types.js";
+import type { ExecFn } from "../src/utils/child-process.js";
 
 const logger = new Logger("none");
+
+function claudeBaseUrl(port: number): string {
+  return `http://localhost:${String(port)}`;
+}
+
+function codexBaseUrl(port: number): string {
+  return `http://localhost:${String(port)}/v1`;
+}
+
+const ORIGINAL_ANTHROPIC_URL = "https://api.anthropic.com";
 
 let tempDir: string;
 let paths: SettingsPaths;
@@ -57,15 +60,21 @@ function readBackup(): Settings {
 
 describe("patcherByProxy", () => {
   it("has a patcher for claude", () => {
-    expect(patcherByProxy.claude).toBeDefined();
-    expect(patcherByProxy.claude!.patch).toBe(patchClaudeSettings);
-    expect(patcherByProxy.claude!.restore).toBe(restoreClaudeSettings);
+    const claude = patcherByProxy.claude;
+    expect(claude).toBeDefined();
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(claude?.patch).toBe(patchClaudeSettings);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(claude?.restore).toBe(restoreClaudeSettings);
   });
 
   it("has a patcher for codex", () => {
-    expect(patcherByProxy.codex).toBeDefined();
-    expect(patcherByProxy.codex!.patch).toBe(patchCodexSettings);
-    expect(patcherByProxy.codex!.restore).toBe(restoreCodexSettings);
+    const codex = patcherByProxy.codex;
+    expect(codex).toBeDefined();
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(codex?.patch).toBe(patchCodexSettings);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(codex?.restore).toBe(restoreCodexSettings);
   });
 
   it("has no patcher for openai", () => {
@@ -81,13 +90,13 @@ describe("patchClaudeSettings", () => {
     expect(existsSync(paths.backup)).toBe(false);
 
     const settings = readSettings();
-    expect(settings.env?.ANTHROPIC_BASE_URL).toBe("http://localhost:8080");
-    expect(settings.env?.ANTHROPIC_AUTH_TOKEN).toBe("12345");
+    expect(settings.env?.ANTHROPIC_BASE_URL).toBe(claudeBaseUrl(8080));
+    expect(settings.env?.ANTHROPIC_AUTH_TOKEN).toBe("xcode-copilot");
   });
 
   it("backs up existing settings.json before patching", async () => {
     const original: Settings = {
-      env: { ANTHROPIC_BASE_URL: "https://api.anthropic.com" },
+      env: { ANTHROPIC_BASE_URL: ORIGINAL_ANTHROPIC_URL },
       mcpServers: { fs: { command: "node" } },
     };
     writeSettings(original);
@@ -97,7 +106,7 @@ describe("patchClaudeSettings", () => {
     expect(readBackup()).toEqual(original);
 
     const settings = readSettings();
-    expect(settings.env?.ANTHROPIC_BASE_URL).toBe("http://localhost:3000");
+    expect(settings.env?.ANTHROPIC_BASE_URL).toBe(claudeBaseUrl(3000));
     expect(settings.mcpServers).toEqual(original.mcpServers);
   });
 
@@ -112,7 +121,7 @@ describe("patchClaudeSettings", () => {
     await patchClaudeSettings({ port: 8080, logger, paths });
 
     const settings = readSettings();
-    expect(settings.env?.ANTHROPIC_AUTH_TOKEN).toBe("12345");
+    expect(settings.env?.ANTHROPIC_AUTH_TOKEN).toBe("xcode-copilot");
   });
 
   it("creates directory structure if needed", async () => {
@@ -132,7 +141,7 @@ describe("patchClaudeSettings", () => {
     await patchClaudeSettings({ port: 8080, logger, paths });
 
     const settings = readSettings();
-    expect(settings.env?.ANTHROPIC_BASE_URL).toBe("http://localhost:8080");
+    expect(settings.env?.ANTHROPIC_BASE_URL).toBe(claudeBaseUrl(8080));
     expect(settings.env?.CUSTOM_VAR).toBe("keep");
     expect(settings.mcpServers).toEqual({ fs: { command: "node" } });
     expect(settings.customKey).toBe("preserved");
@@ -142,7 +151,7 @@ describe("patchClaudeSettings", () => {
 describe("restoreClaudeSettings", () => {
   it("restores from backup", async () => {
     const original: Settings = {
-      env: { ANTHROPIC_BASE_URL: "https://api.anthropic.com" },
+      env: { ANTHROPIC_BASE_URL: ORIGINAL_ANTHROPIC_URL },
     };
     writeSettings(original);
 
@@ -181,7 +190,7 @@ describe("detectPatchState", () => {
   });
 
   it("returns patched with port when backup exists", async () => {
-    writeSettings({ env: { ANTHROPIC_BASE_URL: "https://api.anthropic.com" } });
+    writeSettings({ env: { ANTHROPIC_BASE_URL: ORIGINAL_ANTHROPIC_URL } });
     await patchClaudeSettings({ port: 8080, logger, paths });
 
     const result = await detectPatchState({ logger, paths });
@@ -202,7 +211,7 @@ describe("detectPatchState", () => {
 describe("full lifecycle", () => {
   it("patch then restore round-trips cleanly", async () => {
     const original: Settings = {
-      env: { ANTHROPIC_BASE_URL: "https://api.anthropic.com", CUSTOM: "keep" },
+      env: { ANTHROPIC_BASE_URL: ORIGINAL_ANTHROPIC_URL, CUSTOM: "keep" },
       mcpServers: { fs: { command: "node" } },
     };
     writeSettings(original);
@@ -224,7 +233,7 @@ describe("full lifecycle", () => {
 
   it("crash recovery where patch then crash then patch then restore preserves original", async () => {
     const original: Settings = {
-      env: { ANTHROPIC_BASE_URL: "https://api.anthropic.com" },
+      env: { ANTHROPIC_BASE_URL: ORIGINAL_ANTHROPIC_URL },
       mcpServers: { fs: { command: "node" } },
     };
     writeSettings(original);
@@ -235,21 +244,21 @@ describe("full lifecycle", () => {
     expect(readBackup()).toEqual(original);
 
     const settings = readSettings();
-    expect(settings.env?.ANTHROPIC_BASE_URL).toBe("http://localhost:9090");
+    expect(settings.env?.ANTHROPIC_BASE_URL).toBe(claudeBaseUrl(9090));
 
     await restoreClaudeSettings({ logger, paths });
     expect(readSettings()).toEqual(original);
   });
 
   it("user edits between sessions are preserved", async () => {
-    const original: Settings = { env: { ANTHROPIC_BASE_URL: "https://api.anthropic.com" } };
+    const original: Settings = { env: { ANTHROPIC_BASE_URL: ORIGINAL_ANTHROPIC_URL } };
     writeSettings(original);
 
     await patchClaudeSettings({ port: 8080, logger, paths });
     await restoreClaudeSettings({ logger, paths });
 
     const updated: Settings = {
-      env: { ANTHROPIC_BASE_URL: "https://api.anthropic.com" },
+      env: { ANTHROPIC_BASE_URL: ORIGINAL_ANTHROPIC_URL },
       mcpServers: { fs: { command: "node" } },
     };
     writeFileSync(paths.file, JSON.stringify(updated, null, 2) + "\n");
@@ -302,7 +311,7 @@ describe("patchCodexSettings", () => {
   it("sets OPENAI_BASE_URL and OPENAI_API_KEY", async () => {
     await patchCodexSettings({ port: 8080, logger, exec: mock.exec, backupFile });
 
-    expect(mock.env.get("OPENAI_BASE_URL")).toBe("http://localhost:8080/v1");
+    expect(mock.env.get("OPENAI_BASE_URL")).toBe(codexBaseUrl(8080));
     expect(mock.env.get("OPENAI_API_KEY")).toBe("xcode-copilot");
   });
 
@@ -326,7 +335,7 @@ describe("patchCodexSettings", () => {
     expect(backup.OPENAI_API_KEY).toBe("sk-real-key");
 
     // Verify new values were set
-    expect(mock.env.get("OPENAI_BASE_URL")).toBe("http://localhost:3000/v1");
+    expect(mock.env.get("OPENAI_BASE_URL")).toBe(codexBaseUrl(3000));
     expect(mock.env.get("OPENAI_API_KEY")).toBe("xcode-copilot");
   });
 
@@ -346,7 +355,7 @@ describe("patchCodexSettings", () => {
     expect(JSON.parse(secondBackup).OPENAI_API_KEY).toBe("sk-original");
 
     // But env was updated to new port
-    expect(mock.env.get("OPENAI_BASE_URL")).toBe("http://localhost:9090/v1");
+    expect(mock.env.get("OPENAI_BASE_URL")).toBe(codexBaseUrl(9090));
   });
 });
 
@@ -385,7 +394,7 @@ describe("restoreCodexSettings", () => {
   });
 
   it("unsets env vars when no backup file exists", async () => {
-    mock.env.set("OPENAI_BASE_URL", "http://localhost:8080/v1");
+    mock.env.set("OPENAI_BASE_URL", codexBaseUrl(8080));
 
     await restoreCodexSettings({ logger, exec: mock.exec, backupFile });
 
