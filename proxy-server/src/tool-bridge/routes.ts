@@ -1,8 +1,15 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
-import type { ConversationManager } from "../conversation-manager.js";
+import type { ToolStateProvider } from "../conversation-manager.js";
 import type { Logger } from "copilot-sdk-proxy";
-import { BRIDGE_SERVER_NAME } from "./constants.js";
+import { BRIDGE_SERVER_NAME } from "../bridge-constants.js";
+import { isRecord } from "../utils/type-guards.js";
+import {
+  JSONRPC_PARSE_ERROR,
+  JSONRPC_INVALID_PARAMS,
+  JSONRPC_METHOD_NOT_FOUND,
+  JSONRPC_INTERNAL_ERROR,
+} from "./constants.js";
 
 const JsonRpcRequestSchema = z.object({
   jsonrpc: z.literal("2.0"),
@@ -15,17 +22,15 @@ function jsonRpcResult(id: number | string, result: unknown) {
   return { jsonrpc: "2.0" as const, id, result };
 }
 
-function jsonRpcError(id: number | string, code: number, message: string) {
+function jsonRpcError(id: number | string | null, code: number, message: string) {
   return { jsonrpc: "2.0" as const, id, error: { code, message } };
 }
 
 // Pinned to the version the Copilot SDK's MCP client actually speaks
 const PROTOCOL_VERSION = "2024-11-05";
 
-// Xcode tools arrive with names like "mcp__xcode-tools__XcodeRead" but
-// we need to strip that prefix, otherwise the CLI would expose them to
-// the model as "xcode-bridge-mcp__xcode-tools__XcodeRead" which is ugly
-// and wastes tokens.
+// Strip Xcode's MCP prefix so the model sees clean tool names instead of
+// double-prefixed ones like "xcode-bridge-mcp__xcode-tools__XcodeRead".
 const MCP_TOOL_PREFIX = /^mcp__[^_]+__/;
 function stripMCPToolPrefix(name: string): string {
   return name.replace(MCP_TOOL_PREFIX, "");
@@ -33,11 +38,10 @@ function stripMCPToolPrefix(name: string): string {
 
 export function registerRoutes(
   app: FastifyInstance,
-  manager: ConversationManager,
+  stateProvider: ToolStateProvider,
   logger: Logger,
 ): void {
-  // The SDK opens a GET SSE stream after initialize expecting server-initiated
-  // messages. We don't push anything, so we just keep it open.
+  // The SDK opens this SSE stream after initialize. We don't push anything, just keep it open.
   app.get(
     "/mcp/:convId",
     (
@@ -68,14 +72,14 @@ export function registerRoutes(
       const { convId } = request.params;
       const parsed = JsonRpcRequestSchema.safeParse(request.body);
       if (!parsed.success) {
-        return reply.send(jsonRpcError(0, -32700, "Parse error"));
+        return reply.send(jsonRpcError(null, JSONRPC_PARSE_ERROR, "Parse error"));
       }
       const msg = parsed.data;
 
       logger.debug(`MCP ${convId}: method="${msg.method}", id=${String(msg.id)}`);
 
-      // JSON-RPC notifications have no id, so there's nothing to respond to
       if (msg.id === undefined) {
+        logger.debug(`MCP ${convId}: notification method="${msg.method}", ignoring`);
         return reply.status(202).send();
       }
 
@@ -92,12 +96,12 @@ export function registerRoutes(
           );
 
         case "tools/list": {
-          const state = manager.getState(convId);
+          const state = stateProvider.getState(convId);
           if (!state) {
             logger.warn(`MCP ${convId} tools/list: conversation not found`);
-            return reply.send(jsonRpcError(id, -32603, "Conversation not found"));
+            return reply.send(jsonRpcError(id, JSONRPC_INTERNAL_ERROR, "Conversation not found"));
           }
-          const tools = state.getCachedTools().map((t) => ({
+          const tools = state.toolCache.getCachedTools().map((t) => ({
             name: stripMCPToolPrefix(t.name),
             description: t.description,
             inputSchema: t.input_schema,
@@ -107,20 +111,22 @@ export function registerRoutes(
         }
 
         case "tools/call": {
-          const state = manager.getState(convId);
+          const state = stateProvider.getState(convId);
           if (!state) {
             logger.warn(`MCP ${convId} tools/call: conversation not found`);
-            return reply.send(jsonRpcError(id, -32603, "Conversation not found"));
+            return reply.send(jsonRpcError(id, JSONRPC_INTERNAL_ERROR, "Conversation not found"));
           }
 
-          const name = params?.["name"] as string | undefined;
-          const args = (params?.["arguments"] ?? {}) as Record<string, unknown>;
+          const rawName = params?.["name"];
+          const name = typeof rawName === "string" ? rawName : undefined;
+          const rawArgs = params?.["arguments"];
+          const args: Record<string, unknown> = isRecord(rawArgs) ? rawArgs : {};
 
           if (!name) {
-            return reply.send(jsonRpcError(id, -32602, "Missing tool name"));
+            return reply.send(jsonRpcError(id, JSONRPC_INVALID_PARAMS, "Missing tool name"));
           }
 
-          const resolved = state.resolveToolName(name);
+          const resolved = state.toolCache.resolveToolName(name);
           if (resolved !== name) {
             logger.info(`MCP ${convId} tools/call: name="${name}" resolved to "${resolved}", args=${JSON.stringify(args)}`);
           } else {
@@ -129,7 +135,7 @@ export function registerRoutes(
 
           try {
             const result = await new Promise<string>((resolve, reject) => {
-              state.registerMCPRequest(resolved, resolve, reject);
+              state.toolRouter.registerMCPRequest(resolved, resolve, reject);
             });
 
             logger.info(`MCP ${convId} tools/call resolved: name="${name}"`);
@@ -139,14 +145,15 @@ export function registerRoutes(
               }),
             );
           } catch (err) {
+            logger.debug(`MCP ${convId} tools/call error details:`, err);
             const message = err instanceof Error ? err.message : String(err);
             logger.error(`MCP ${convId} tools/call error: ${message}`);
-            return reply.send(jsonRpcError(id, -32603, message));
+            return reply.send(jsonRpcError(id, JSONRPC_INTERNAL_ERROR, message));
           }
         }
 
         default:
-          return reply.send(jsonRpcError(id, -32601, `Method not found: ${method}`));
+          return reply.send(jsonRpcError(id, JSONRPC_METHOD_NOT_FOUND, `Method not found: ${method}`));
       }
     },
   );

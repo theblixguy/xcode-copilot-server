@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import Fastify from "fastify";
 import type { FastifyInstance } from "fastify";
 import { registerRoutes } from "../../src/tool-bridge/routes.js";
+import { JSONRPC_INTERNAL_ERROR, JSONRPC_INVALID_PARAMS, JSONRPC_METHOD_NOT_FOUND } from "../../src/tool-bridge/constants.js";
 import { ConversationManager } from "../../src/conversation-manager.js";
 import { Logger } from "copilot-sdk-proxy";
 
@@ -56,7 +57,7 @@ describe("POST /mcp/:convId — notifications", () => {
 describe("POST /mcp/:convId — tools/list", () => {
   it("returns cached tools for existing conversation", async () => {
     const conv = manager.create();
-    conv.state.cacheTools([
+    conv.state.toolCache.cacheTools([
       { name: "mcp__xcode-tools__XcodeRead", description: "Read a file", input_schema: { type: "object", properties: {} } },
       { name: "mcp__xcode-tools__XcodeWrite", description: "Write a file", input_schema: { type: "object", properties: {} } },
     ]);
@@ -77,7 +78,7 @@ describe("POST /mcp/:convId — tools/list", () => {
 
   it("strips mcp__{server}__ prefix from tool names", async () => {
     const conv = manager.create();
-    conv.state.cacheTools([
+    conv.state.toolCache.cacheTools([
       { name: "mcp__xcode-tools__XcodeRead", description: "Read", input_schema: { type: "object", properties: {} } },
       { name: "mcp__xcode-tools__XcodeWrite", description: "Write", input_schema: { type: "object", properties: {} } },
       { name: "Glob", description: "Glob", input_schema: { type: "object", properties: {} } },
@@ -104,7 +105,7 @@ describe("POST /mcp/:convId — tools/list", () => {
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.id).toBe(3);
-    expect(body.error.code).toBe(-32603);
+    expect(body.error.code).toBe(JSONRPC_INTERNAL_ERROR);
     expect(body.error.message).toContain("not found");
   });
 });
@@ -112,11 +113,11 @@ describe("POST /mcp/:convId — tools/list", () => {
 describe("POST /mcp/:convId — tools/call", () => {
   it("calls registerMCPRequest and returns result", async () => {
     const conv = manager.create();
-    conv.state.cacheTools([
+    conv.state.toolCache.cacheTools([
       { name: "Read", description: "Read a file", input_schema: { type: "object", properties: {} } },
     ]);
 
-    vi.spyOn(conv.state, "registerMCPRequest").mockImplementation(
+    vi.spyOn(conv.state.toolRouter, "registerMCPRequest").mockImplementation(
       (_name, resolve) => {
         resolve("file contents here");
       },
@@ -135,11 +136,11 @@ describe("POST /mcp/:convId — tools/call", () => {
 
   it("returns error when registerMCPRequest rejects", async () => {
     const conv = manager.create();
-    conv.state.cacheTools([
+    conv.state.toolCache.cacheTools([
       { name: "Read", description: "Read a file", input_schema: { type: "object", properties: {} } },
     ]);
 
-    vi.spyOn(conv.state, "registerMCPRequest").mockImplementation(
+    vi.spyOn(conv.state.toolRouter, "registerMCPRequest").mockImplementation(
       (_name, _resolve, reject) => {
         reject(new Error("Tool timed out"));
       },
@@ -153,7 +154,7 @@ describe("POST /mcp/:convId — tools/call", () => {
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.id).toBe(5);
-    expect(body.error.code).toBe(-32603);
+    expect(body.error.code).toBe(JSONRPC_INTERNAL_ERROR);
     expect(body.error.message).toBe("Tool timed out");
   });
 
@@ -167,7 +168,7 @@ describe("POST /mcp/:convId — tools/call", () => {
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.id).toBe(6);
-    expect(body.error.code).toBe(-32602);
+    expect(body.error.code).toBe(JSONRPC_INVALID_PARAMS);
     expect(body.error.message).toContain("Missing tool name");
   });
 
@@ -180,16 +181,16 @@ describe("POST /mcp/:convId — tools/call", () => {
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.id).toBe(7);
-    expect(body.error.code).toBe(-32603);
+    expect(body.error.code).toBe(JSONRPC_INTERNAL_ERROR);
   });
 
   it("resolves hallucinated tool names", async () => {
     const conv = manager.create();
-    conv.state.cacheTools([
+    conv.state.toolCache.cacheTools([
       { name: "mcp__xcode-tools__XcodeRead", description: "Read", input_schema: { type: "object", properties: {} } },
     ]);
 
-    vi.spyOn(conv.state, "registerMCPRequest").mockImplementation(
+    vi.spyOn(conv.state.toolRouter, "registerMCPRequest").mockImplementation(
       (name, resolve) => {
         resolve(`called: ${name}`);
       },
@@ -226,7 +227,7 @@ describe("POST /mcp/:convId — unknown method", () => {
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.id).toBe(99);
-    expect(body.error.code).toBe(-32601);
+    expect(body.error.code).toBe(JSONRPC_METHOD_NOT_FOUND);
     expect(body.error.message).toContain("Method not found");
   });
 });

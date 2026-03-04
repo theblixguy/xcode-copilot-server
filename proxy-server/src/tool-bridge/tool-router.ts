@@ -1,4 +1,5 @@
-const TOOL_TIMEOUT_MS = 5 * 60 * 1000;
+const MINUTES = 60_000;
+const TOOL_TIMEOUT_MS = 5 * MINUTES;
 
 interface PendingMCPRequest {
   toolCallId: string;
@@ -7,16 +8,17 @@ interface PendingMCPRequest {
   timeout: ReturnType<typeof setTimeout>;
 }
 
+// streaming-core registers expected entries when the model emits tool requests.
+// MCP route handlers promote them to pending when the SDK connects. Ordering is
+// guaranteed: the client sees the tool_use block before it can POST to /mcp/:convId.
 export class ToolRouter {
   private readonly expectedByName = new Map<string, string[]>();
+  // Reverse lookup: toolCallId to toolName for O(1) expected-entry removal
+  private readonly expectedByCallId = new Map<string, string>();
   private readonly pendingByCallId = new Map<string, PendingMCPRequest>();
 
   hasPendingToolCall(toolCallId: string): boolean {
-    if (this.pendingByCallId.has(toolCallId)) return true;
-    for (const [, queue] of this.expectedByName) {
-      if (queue.includes(toolCallId)) return true;
-    }
-    return false;
+    return this.pendingByCallId.has(toolCallId) || this.expectedByCallId.has(toolCallId);
   }
 
   hasExpectedTool(name: string): boolean {
@@ -31,6 +33,7 @@ export class ToolRouter {
     } else {
       this.expectedByName.set(toolName, [toolCallId]);
     }
+    this.expectedByCallId.set(toolCallId, toolName);
   }
 
   registerMCPRequest(
@@ -45,7 +48,11 @@ export class ToolRouter {
     }
     const toolCallId = queue.shift();
     if (queue.length === 0) this.expectedByName.delete(name);
-    if (!toolCallId) return;
+    if (!toolCallId) {
+      reject(new Error(`Internal: expected toolCallId was falsy for "${name}"`));
+      return;
+    }
+    this.expectedByCallId.delete(toolCallId);
     this.addPending(toolCallId, resolve, reject);
   }
 
@@ -58,17 +65,18 @@ export class ToolRouter {
       return true;
     }
 
-    // The CLI may resolve a tool without going through the MCP endpoint (e.g. if
-    // the tool name wasn't in our tools/list response and the CLI failed it
-    // immediately). Clean up the stale expected entry so it doesn't poison
-    // future registerMCPRequest calls for the same tool name.
-    for (const [name, queue] of this.expectedByName) {
-      const idx = queue.indexOf(toolCallId);
-      if (idx !== -1) {
-        queue.splice(idx, 1);
-        if (queue.length === 0) this.expectedByName.delete(name);
-        return true;
+    // The CLI can resolve a tool without hitting the MCP endpoint (e.g. the tool
+    // name wasn't in tools/list). Clean up the stale expected entry.
+    const expectedName = this.expectedByCallId.get(toolCallId);
+    if (expectedName !== undefined) {
+      this.expectedByCallId.delete(toolCallId);
+      const queue = this.expectedByName.get(expectedName);
+      if (queue) {
+        const idx = queue.indexOf(toolCallId);
+        if (idx !== -1) queue.splice(idx, 1);
+        if (queue.length === 0) this.expectedByName.delete(expectedName);
       }
+      return true;
     }
 
     return false;
@@ -80,6 +88,7 @@ export class ToolRouter {
 
   rejectAll(reason: string): void {
     this.expectedByName.clear();
+    this.expectedByCallId.clear();
     for (const [, pending] of this.pendingByCallId) {
       clearTimeout(pending.timeout);
       pending.reject(new Error(reason));

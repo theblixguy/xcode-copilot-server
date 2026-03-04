@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { createServer, Logger, Stats } from "copilot-sdk-proxy";
 import { claudeProvider } from "../../src/providers/claude/provider.js";
 import type { AppContext } from "../../src/context.js";
-import type { ServerConfig } from "../../src/config.js";
+import { BYTES_PER_MIB, type ServerConfig } from "../../src/config-schema.js";
 import type { FastifyInstance } from "fastify";
 
 const logger = new Logger("none");
@@ -12,7 +12,7 @@ const config: ServerConfig = {
   mcpServers: {},
   allowedCliTools: [],
   excludedFilePatterns: [],
-  bodyLimit: 4 * 1024 * 1024,
+  bodyLimit: 4 * BYTES_PER_MIB,
   autoApprovePermissions: true,
 };
 

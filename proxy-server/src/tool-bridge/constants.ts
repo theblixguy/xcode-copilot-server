@@ -1,2 +1,4 @@
-export const BRIDGE_SERVER_NAME = "xcode-bridge";
-export const BRIDGE_TOOL_PREFIX = `${BRIDGE_SERVER_NAME}-`;
+export const JSONRPC_PARSE_ERROR = -32700;
+export const JSONRPC_INVALID_PARAMS = -32602;
+export const JSONRPC_METHOD_NOT_FOUND = -32601;
+export const JSONRPC_INTERNAL_ERROR = -32603;

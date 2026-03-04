@@ -1,12 +1,27 @@
 import { randomUUID } from "node:crypto";
 import { ToolBridgeState } from "./tool-bridge/state.js";
-import type { Conversation as CoreConversation, AnthropicMessage, Logger } from "copilot-sdk-proxy";
+import type { Conversation as CoreConversation, Logger } from "copilot-sdk-proxy";
 
 export interface Conversation extends CoreConversation {
   state: ToolBridgeState;
 }
 
-export class ConversationManager {
+// Used by MCP routes for state lookups without full ConversationManager access.
+export interface ToolStateProvider {
+  getState(convId: string): ToolBridgeState | undefined;
+  findByExpectedTool(name: string): ToolBridgeState | undefined;
+}
+
+function isConversation(conv: CoreConversation): conv is Conversation {
+  return "state" in conv && (conv as { state: unknown }).state instanceof ToolBridgeState;
+}
+
+export function asConversation(conv: CoreConversation): Conversation {
+  if (!isConversation(conv)) throw new Error("Expected extended Conversation with state");
+  return conv;
+}
+
+export class ConversationManager implements ToolStateProvider {
   private readonly conversations = new Map<string, Conversation>();
   private readonly logger: Logger;
   private primaryId: string | null = null;
@@ -26,64 +41,68 @@ export class ConversationManager {
       sentMessageCount: 0,
       isPrimary,
       model: null,
-      get sessionActive() { return state.sessionActive; },
+      get sessionActive() { return state.session.sessionActive; },
       set sessionActive(active: boolean) {
-        if (active) { state.markSessionActive(); } else { state.markSessionInactive(); }
+        if (active) { state.session.markSessionActive(); } else { state.session.markSessionInactive(); }
       },
-      get hadError() { return state.hadError; },
-      set hadError(_: boolean) { state.markSessionErrored(); },
+      get hadError() { return state.session.hadError; },
+      set hadError(errored: boolean) { if (errored) state.session.markSessionErrored(); },
     };
     this.conversations.set(id, conversation);
 
-    if (!isPrimary) {
-      state.onSessionEnd(() => {
+    if (isPrimary) {
+      this.primaryId = id;
+    } else {
+      state.session.onSessionEnd(() => {
         this.logger.debug(`Conversation ${id} session ended, removing`);
         this.conversations.delete(id);
       });
     }
 
-    if (isPrimary) {
-      this.primaryId = id;
-    }
-
-    this.logger.debug(`Created conversation ${id} (primary=${String(isPrimary)}, active: ${String(this.conversations.size)})`);
+    this.logger.debug(`Created conversation ${id} (primary=${String(isPrimary)})`);
     return conversation;
   }
 
-  getPrimary(): Conversation | null {
-    if (!this.primaryId) return null;
-    return this.conversations.get(this.primaryId) ?? null;
+  getPrimary(): Conversation | undefined {
+    if (!this.primaryId) return undefined;
+    return this.conversations.get(this.primaryId);
   }
 
   clearPrimary(): void {
     if (this.primaryId) {
       const conv = this.conversations.get(this.primaryId);
       if (conv) {
-        conv.state.cleanup();
+        conv.state.session.cleanup();
         this.conversations.delete(this.primaryId);
-        this.logger.debug(`Cleared primary conversation ${this.primaryId} (active: ${String(this.conversations.size)})`);
+        this.logger.debug(`Cleared primary conversation ${this.primaryId}`);
       }
       this.primaryId = null;
     }
   }
 
-  findForNewRequest(): { conversation: Conversation; isReuse: boolean } {
-    // Isolated conversations pile up when the primary is busy, so clean
-    // up any that finished before we allocate more (the onSessionEnd
-    // callback usually handles this, but this catches edge cases where
-    // the callback never fired)
+  private evictStale(): void {
     for (const [id, conv] of this.conversations) {
-      if (!conv.isPrimary && !conv.state.sessionActive) {
-        conv.state.cleanup();
+      if (!conv.isPrimary && !conv.state.session.sessionActive) {
+        conv.state.session.cleanup();
         this.conversations.delete(id);
-        this.logger.debug(`Evicted stale conversation ${id} (active: ${String(this.conversations.size)})`);
+        this.logger.debug(`Evicted stale conversation ${id}`);
       }
     }
+  }
+
+  findForNewRequest(): { conversation: Conversation; isReuse: boolean } {
+    this.evictStale();
 
     const primary = this.getPrimary();
     if (primary) {
-      if (primary.state.sessionActive || !primary.session) {
-        this.logger.debug(`Primary ${primary.id} is unavailable, creating isolated conversation`);
+      if (primary.state.session.sessionActive) {
+        this.logger.debug(`Primary ${primary.id} is busy, creating isolated conversation`);
+        return { conversation: this.create(), isReuse: false };
+      }
+      if (!primary.session) {
+        // No SDK session yet. Create an isolated conversation so the primary
+        // stays available for the first real request.
+        this.logger.debug(`Primary ${primary.id} has no session, creating isolated conversation`);
         return { conversation: this.create(), isReuse: false };
       }
       this.logger.debug(`Reusing primary conversation ${primary.id}`);
@@ -92,48 +111,12 @@ export class ConversationManager {
     return { conversation: this.create({ isPrimary: true }), isReuse: false };
   }
 
-  findByContinuation(messages: AnthropicMessage[]): Conversation | undefined {
-    const lastMsg = messages[messages.length - 1];
-    if (!lastMsg || lastMsg.role !== "user" || typeof lastMsg.content === "string") {
-      return undefined;
-    }
-
-    const toolUseIds: string[] = [];
-    for (const block of lastMsg.content) {
-      if (block.type === "tool_result") {
-        toolUseIds.push(block.tool_use_id);
-      }
-    }
-
-    if (toolUseIds.length === 0) return undefined;
-
-    for (const [, conv] of this.conversations) {
-      for (const toolUseId of toolUseIds) {
-        if (conv.state.hasPendingToolCall(toolUseId)) {
-          this.logger.debug(`Continuation matched conversation ${conv.id} via tool_use_id ${toolUseId}`);
-          return conv;
-        }
-      }
-    }
-
-    // The model sometimes retries a tool after an internal failure so the
-    // tool_use_id won't match anything, but we can still route by session
-    for (const [, conv] of this.conversations) {
-      if (conv.state.sessionActive) {
-        this.logger.debug(`Continuation matched conversation ${conv.id} via sessionActive fallback`);
-        return conv;
-      }
-    }
-
-    return undefined;
-  }
-
   findByContinuationIds(callIds: string[]): Conversation | undefined {
     if (callIds.length === 0) return undefined;
 
     for (const [, conv] of this.conversations) {
       for (const callId of callIds) {
-        if (conv.state.hasPendingToolCall(callId)) {
+        if (conv.state.toolRouter.hasPendingToolCall(callId)) {
           this.logger.debug(`Continuation matched conversation ${conv.id} via call_id ${callId}`);
           return conv;
         }
@@ -141,7 +124,7 @@ export class ConversationManager {
     }
 
     for (const [, conv] of this.conversations) {
-      if (conv.state.sessionActive) {
+      if (conv.state.session.sessionActive) {
         this.logger.debug(`Continuation matched conversation ${conv.id} via sessionActive fallback`);
         return conv;
       }
@@ -152,7 +135,7 @@ export class ConversationManager {
 
   findByExpectedTool(name: string): ToolBridgeState | undefined {
     for (const [, conv] of this.conversations) {
-      if (conv.state.hasExpectedTool(name)) {
+      if (conv.state.toolRouter.hasExpectedTool(name)) {
         return conv.state;
       }
     }
@@ -166,12 +149,12 @@ export class ConversationManager {
   remove(convId: string): void {
     const conv = this.conversations.get(convId);
     if (conv) {
-      conv.state.cleanup();
+      conv.state.session.cleanup();
       this.conversations.delete(convId);
       if (convId === this.primaryId) {
         this.primaryId = null;
       }
-      this.logger.debug(`Removed conversation ${convId} (active: ${String(this.conversations.size)})`);
+      this.logger.debug(`Removed conversation ${convId}`);
     }
   }
 
