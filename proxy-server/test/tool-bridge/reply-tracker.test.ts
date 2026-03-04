@@ -29,5 +29,14 @@ describe("ReplyTracker", () => {
       const tracker = new ReplyTracker();
       expect(() => { tracker.notifyStreamingDone(); }).not.toThrow();
     });
+
+    it("throws when waitForStreamingDone is called while already waiting", () => {
+      const tracker = new ReplyTracker();
+      void tracker.waitForStreamingDone();
+
+      expect(() => {
+        void tracker.waitForStreamingDone();
+      }).toThrow("Already waiting for streaming to complete");
+    });
   });
 });

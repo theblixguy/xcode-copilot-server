@@ -19,6 +19,9 @@ export class SessionLifecycle {
   }
 
   markSessionActive(): void {
+    // Clear leftover entries from abandoned tool cycles so they don't
+    // sit at the front of the FIFO queue and bind to wrong call IDs.
+    this.toolRouter.rejectAll("New session cycle");
     this._sessionActive = true;
   }
 
@@ -32,11 +35,9 @@ export class SessionLifecycle {
 
   markSessionInactive(): void {
     this._sessionActive = false;
-
-    // Stale entries from tool calls that never went through the bridge
-    // (denied or handled internally) would hang the next continuation
-    this.toolRouter.rejectAll("Session ended");
-
+    // Don't reject expected entries here. handler-core's finally block
+    // calls this before the MCP tools/call request arrives, so rejecting
+    // would wipe entries the bridge still needs. cleanup() handles that.
     this.fireSessionEnd();
   }
 

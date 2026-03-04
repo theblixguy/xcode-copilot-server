@@ -27,28 +27,58 @@ describe("SessionLifecycle", () => {
     });
   });
 
-  describe("markSessionInactive", () => {
-    it("rejects all pending tool calls", async () => {
+  describe("markSessionActive", () => {
+    it("clears stale entries from a previous abandoned cycle", () => {
       const { router, session } = create();
-      router.registerExpected("tc-1", "Read");
-      const promise = new Promise<string>((resolve, reject) => {
-        router.registerMCPRequest("Read", resolve, reject);
-      });
-
       session.markSessionActive();
+      router.registerExpected("stale-tc", "Read");
       session.markSessionInactive();
 
-      await expect(promise).rejects.toThrow("Session ended");
+      session.markSessionActive();
+      expect(router.hasExpectedTool("Read")).toBe(false);
+      expect(router.hasPending).toBe(false);
     });
 
-    it("clears expected queue", () => {
+    it("stale cleanup prevents wrong FIFO binding on reuse", () => {
       const { router, session } = create();
+      session.markSessionActive();
+      router.registerExpected("stale-tc", "Read");
+      session.markSessionInactive();
+
+      session.markSessionActive();
+      router.registerExpected("new-tc", "Read");
+
+      const resolve = vi.fn();
+      router.registerMCPRequest("Read", resolve, vi.fn());
+      router.resolveToolCall("new-tc", "file contents");
+      expect(resolve).toHaveBeenCalledWith("file contents");
+    });
+  });
+
+  describe("markSessionInactive", () => {
+    it("does not reject pending tool calls", () => {
+      const { router, session } = create();
+      session.markSessionActive();
+      router.registerExpected("tc-1", "Read");
+      const resolve = vi.fn();
+      router.registerMCPRequest("Read", resolve, vi.fn());
+
+      session.markSessionInactive();
+
+      expect(router.hasPendingToolCall("tc-1")).toBe(true);
+      router.resolveToolCall("tc-1", "ok");
+      expect(resolve).toHaveBeenCalledWith("ok");
+    });
+
+    it("preserves expected queue", () => {
+      const { router, session } = create();
+      session.markSessionActive();
       router.registerExpected("tc-1", "Read");
       router.registerExpected("tc-2", "Write");
       session.markSessionInactive();
-      expect(router.hasExpectedTool("Read")).toBe(false);
-      expect(router.hasExpectedTool("Write")).toBe(false);
-      expect(router.hasPending).toBe(false);
+      expect(router.hasExpectedTool("Read")).toBe(true);
+      expect(router.hasExpectedTool("Write")).toBe(true);
+      expect(router.hasPending).toBe(true);
     });
   });
 
@@ -93,9 +123,9 @@ describe("SessionLifecycle", () => {
 
     it("clears all state", () => {
       const { router, session } = create();
+      session.markSessionActive();
       router.registerExpected("tc-1", "Read");
       router.registerExpected("tc-2", "Write");
-      session.markSessionActive();
 
       session.cleanup();
       expect(session.sessionActive).toBe(false);
