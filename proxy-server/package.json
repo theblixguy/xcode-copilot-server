@@ -39,7 +39,7 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
-    "@types/node": "25.3.3",
+    "@types/node": "25.3.5",
     "@types/plist": "3.0.5",
     "eslint": "10.0.2",
     "tsx": "4.21.0",
