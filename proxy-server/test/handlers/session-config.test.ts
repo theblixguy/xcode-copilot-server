@@ -157,7 +157,7 @@ describe("permission callbacks", () => {
       supportsReasoningEffort: false,
     });
     const result = await config.onPermissionRequest(permissionRequest("read"), invocation);
-    expect(result).toEqual({ kind: "denied-by-rules" });
+    expect(result).toEqual({ kind: "denied-by-rules", rules: [] });
   });
 
   it("approves matching permission from string array", async () => {
@@ -181,7 +181,7 @@ describe("permission callbacks", () => {
       supportsReasoningEffort: false,
     });
     const result = await config.onPermissionRequest(permissionRequest("shell"), invocation);
-    expect(result).toEqual({ kind: "denied-by-rules" });
+    expect(result).toEqual({ kind: "denied-by-rules", rules: [] });
   });
 });
 
