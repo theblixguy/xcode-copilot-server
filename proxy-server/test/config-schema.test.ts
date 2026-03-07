@@ -8,7 +8,7 @@ describe("ServerConfigSchema", () => {
     expect(result.claude.toolBridge).toBe(false);
     expect(result.codex.toolBridge).toBe(false);
     expect(result.allowedCliTools).toEqual([]);
-    expect(result.bodyLimitMiB).toBe(10);
+    expect(result.bodyLimit).toBe(10);
   });
 
   it("accepts valid provider config", () => {
@@ -60,12 +60,12 @@ describe("ServerConfigSchema", () => {
     ).toThrow();
   });
 
-  it("rejects negative bodyLimitMiB", () => {
-    expect(() => ServerConfigSchema.parse({ bodyLimitMiB: -1 })).toThrow();
+  it("rejects negative bodyLimit", () => {
+    expect(() => ServerConfigSchema.parse({ bodyLimit: -1 })).toThrow();
   });
 
-  it("rejects bodyLimitMiB over 100", () => {
-    expect(() => ServerConfigSchema.parse({ bodyLimitMiB: 200 })).toThrow();
+  it("rejects bodyLimit over 100", () => {
+    expect(() => ServerConfigSchema.parse({ bodyLimit: 200 })).toThrow();
   });
 
   it("rejects invalid reasoningEffort", () => {
@@ -102,6 +102,46 @@ describe("ServerConfigSchema", () => {
     const result = ServerConfigSchema.parse({ autoApprovePermissions: true });
     expect(result.autoApprovePermissions).toBe(true);
   });
+
+  it("defaults requestTimeout to 0", () => {
+    const result = ServerConfigSchema.parse({});
+    expect(result.requestTimeout).toBe(0);
+  });
+
+  it("accepts valid requestTimeout in minutes", () => {
+    const result = ServerConfigSchema.parse({ requestTimeout: 5 });
+    expect(result.requestTimeout).toBe(5);
+  });
+
+  it("accepts fractional requestTimeout", () => {
+    const result = ServerConfigSchema.parse({ requestTimeout: 0.5 });
+    expect(result.requestTimeout).toBe(0.5);
+  });
+
+  it("rejects negative requestTimeout", () => {
+    expect(() => ServerConfigSchema.parse({ requestTimeout: -1 })).toThrow();
+  });
+
+  it("defaults toolBridgeTimeout to 0 per provider", () => {
+    const result = ServerConfigSchema.parse({});
+    expect(result.openai.toolBridgeTimeout).toBe(0);
+    expect(result.claude.toolBridgeTimeout).toBe(0);
+    expect(result.codex.toolBridgeTimeout).toBe(0);
+  });
+
+  it("accepts valid toolBridgeTimeout per provider in minutes", () => {
+    const result = ServerConfigSchema.parse({
+      claude: { toolBridgeTimeout: 10 },
+    });
+    expect(result.claude.toolBridgeTimeout).toBe(10);
+    expect(result.openai.toolBridgeTimeout).toBe(0);
+  });
+
+  it("rejects negative toolBridgeTimeout", () => {
+    expect(() =>
+      ServerConfigSchema.parse({ claude: { toolBridgeTimeout: -1 } }),
+    ).toThrow();
+  });
 });
 
 describe("BYTES_PER_MIB", () => {
@@ -113,9 +153,11 @@ describe("BYTES_PER_MIB", () => {
 describe("DEFAULT_CONFIG", () => {
   it("has expected shape", () => {
     expect(DEFAULT_CONFIG.toolBridge).toBe(false);
+    expect(DEFAULT_CONFIG.toolBridgeTimeoutMs).toBe(0);
     expect(DEFAULT_CONFIG.mcpServers).toEqual({});
     expect(DEFAULT_CONFIG.allowedCliTools).toEqual([]);
     expect(DEFAULT_CONFIG.bodyLimit).toBe(10 * BYTES_PER_MIB);
+    expect(DEFAULT_CONFIG.requestTimeoutMs).toBe(0);
     expect(DEFAULT_CONFIG.autoApprovePermissions).toEqual(["read", "mcp"]);
   });
 });

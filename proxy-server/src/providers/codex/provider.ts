@@ -23,7 +23,7 @@ export const codexProvider = {
   register(app, ctx) {
     addUserAgentGuard(app, UA_PREFIXES.codex, ctx.logger);
 
-    const manager = resolveToolBridgeManager(app, ctx.toolBridgeManager, ctx.logger);
+    const manager = resolveToolBridgeManager(app, ctx.toolBridgeManager, ctx.logger, ctx.config.toolBridgeTimeoutMs);
     const { logger, config, port, stats } = ctx;
 
     app.post("/v1/responses", createResponsesHandler(ctx, manager, {

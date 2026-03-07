@@ -1,21 +1,23 @@
-const MINUTES = 60_000;
-const TOOL_TIMEOUT_MS = 5 * MINUTES;
-
 interface PendingMCPRequest {
   toolCallId: string;
   resolve: (result: string) => void;
   reject: (err: Error) => void;
-  timeout: ReturnType<typeof setTimeout>;
+  timeout: ReturnType<typeof setTimeout> | undefined;
 }
 
 // streaming-core registers expected entries when the model emits tool requests.
 // MCP route handlers promote them to pending when the SDK connects. Ordering is
 // guaranteed: the client sees the tool_use block before it can POST to /mcp/:convId.
 export class ToolRouter {
+  private readonly timeoutMs: number;
   private readonly expectedByName = new Map<string, string[]>();
   // Reverse lookup: toolCallId to toolName for O(1) expected-entry removal
   private readonly expectedByCallId = new Map<string, string>();
   private readonly pendingByCallId = new Map<string, PendingMCPRequest>();
+
+  constructor(timeoutMs = 0) {
+    this.timeoutMs = timeoutMs;
+  }
 
   hasPendingToolCall(toolCallId: string): boolean {
     return this.pendingByCallId.has(toolCallId) || this.expectedByCallId.has(toolCallId);
@@ -59,7 +61,7 @@ export class ToolRouter {
   resolveToolCall(toolCallId: string, result: string): boolean {
     const pending = this.pendingByCallId.get(toolCallId);
     if (pending) {
-      clearTimeout(pending.timeout);
+      if (pending.timeout !== undefined) clearTimeout(pending.timeout);
       this.pendingByCallId.delete(toolCallId);
       pending.resolve(result);
       return true;
@@ -90,7 +92,7 @@ export class ToolRouter {
     this.expectedByName.clear();
     this.expectedByCallId.clear();
     for (const [, pending] of this.pendingByCallId) {
-      clearTimeout(pending.timeout);
+      if (pending.timeout !== undefined) clearTimeout(pending.timeout);
       pending.reject(new Error(reason));
     }
     this.pendingByCallId.clear();
@@ -101,10 +103,12 @@ export class ToolRouter {
     resolve: (result: string) => void,
     reject: (err: Error) => void,
   ): void {
-    const timeout = setTimeout(() => {
-      this.pendingByCallId.delete(toolCallId);
-      reject(new Error(`Tool call ${toolCallId} timed out`));
-    }, TOOL_TIMEOUT_MS);
+    const timeout = this.timeoutMs > 0
+      ? setTimeout(() => {
+          this.pendingByCallId.delete(toolCallId);
+          reject(new Error(`Tool call ${toolCallId} timed out after ${this.timeoutMs}ms`));
+        }, this.timeoutMs)
+      : undefined;
 
     this.pendingByCallId.set(toolCallId, { toolCallId, resolve, reject, timeout });
   }

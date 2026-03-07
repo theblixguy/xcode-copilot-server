@@ -36,7 +36,7 @@ export const claudeProvider = {
   register(app, ctx) {
     addUserAgentGuard(app, UA_PREFIXES.claude, ctx.logger);
 
-    const manager = resolveToolBridgeManager(app, ctx.toolBridgeManager, ctx.logger);
+    const manager = resolveToolBridgeManager(app, ctx.toolBridgeManager, ctx.logger, ctx.config.toolBridgeTimeoutMs);
     const { logger, config, port, stats } = ctx;
 
     app.post("/v1/messages", createMessagesHandler(ctx, manager, {

@@ -5,8 +5,8 @@ import { registerRoutes } from "./routes.js";
 
 export { BRIDGE_SERVER_NAME, BRIDGE_TOOL_PREFIX } from "../bridge-constants.js";
 
-export function registerToolBridge(app: FastifyInstance, logger: Logger): ConversationManager {
-  const manager = new ConversationManager(logger);
+export function registerToolBridge(app: FastifyInstance, logger: Logger, toolBridgeTimeoutMs = 0): ConversationManager {
+  const manager = new ConversationManager(logger, toolBridgeTimeoutMs);
   registerRoutes(app, manager, logger);
   return manager;
 }
@@ -16,6 +16,7 @@ export function resolveToolBridgeManager(
   app: FastifyInstance,
   existing: ConversationManager | undefined,
   logger: Logger,
+  toolBridgeTimeoutMs = 0,
 ): ConversationManager {
-  return existing ?? registerToolBridge(app, logger);
+  return existing ?? registerToolBridge(app, logger, toolBridgeTimeoutMs);
 }

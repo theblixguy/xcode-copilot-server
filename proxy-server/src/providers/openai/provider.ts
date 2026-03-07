@@ -12,7 +12,7 @@ export const openaiProvider = {
   register(app, ctx) {
     addUserAgentGuard(app, UA_PREFIXES.openai, ctx.logger);
 
-    const manager = resolveToolBridgeManager(app, ctx.toolBridgeManager, ctx.logger);
+    const manager = resolveToolBridgeManager(app, ctx.toolBridgeManager, ctx.logger, ctx.config.toolBridgeTimeoutMs);
     app.get("/v1/models", createModelsHandler(ctx));
     app.post("/v1/chat/completions", createCompletionsHandler(ctx, manager, {
       transformPrompt: (prompt) => filterExcludedFiles(prompt, ctx.config.excludedFilePatterns),

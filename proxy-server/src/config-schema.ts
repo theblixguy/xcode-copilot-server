@@ -4,6 +4,7 @@ import type { MCPServer } from "copilot-sdk-proxy";
 export type { MCPLocalServer } from "copilot-sdk-proxy";
 
 export const BYTES_PER_MIB = 1024 * 1024;
+export const MS_PER_MINUTE = 60_000;
 
 const MCPLocalServerSchema = z.object({
   type: z.union([z.literal("local"), z.literal("stdio")]),
@@ -36,23 +37,31 @@ const ReasoningEffortSchema = z.enum(VALID_REASONING_EFFORTS);
 
 const ProviderConfigSchema = z.object({
   toolBridge: z.boolean().optional().default(false),
+  toolBridgeTimeout: z
+    .number()
+    .min(0, "toolBridgeTimeout must be >= 0")
+    .default(0),
   mcpServers: z.record(z.string(), MCPServerSchema).default({}),
 });
 
 export const ServerConfigSchema = z.object({
-  openai: ProviderConfigSchema.default({ toolBridge: false, mcpServers: {} }),
-  claude: ProviderConfigSchema.default({ toolBridge: false, mcpServers: {} }),
-  codex: ProviderConfigSchema.default({ toolBridge: false, mcpServers: {} }),
+  openai: ProviderConfigSchema.default({ toolBridge: false, toolBridgeTimeout: 0, mcpServers: {} }),
+  claude: ProviderConfigSchema.default({ toolBridge: false, toolBridgeTimeout: 0, mcpServers: {} }),
+  codex: ProviderConfigSchema.default({ toolBridge: false, toolBridgeTimeout: 0, mcpServers: {} }),
   allowedCliTools: z.array(z.string()).refine(
     (arr) => !arr.includes("*") || arr.length === 1,
     'allowedCliTools: use ["*"] alone to allow all tools, don\'t mix with other entries',
   ).default([]),
   excludedFilePatterns: z.array(z.string()).default([]),
-  bodyLimitMiB: z
+  bodyLimit: z
     .number()
     .positive()
-    .max(100, "bodyLimitMiB cannot exceed 100")
+    .max(100, "bodyLimit cannot exceed 100")
     .default(10),
+  requestTimeout: z
+    .number()
+    .min(0, "requestTimeout must be >= 0")
+    .default(0),
   reasoningEffort: ReasoningEffortSchema.optional(),
   autoApprovePermissions: ApprovalRuleSchema.default(["read", "mcp"]),
 });
@@ -61,19 +70,23 @@ type ApprovalRule = z.infer<typeof ApprovalRuleSchema>;
 
 export type ServerConfig = {
   toolBridge: boolean;
+  toolBridgeTimeoutMs: number;
   mcpServers: Record<string, MCPServer>;
   allowedCliTools: string[];
   excludedFilePatterns: string[];
   bodyLimit: number;
+  requestTimeoutMs: number;
   autoApprovePermissions: ApprovalRule;
   reasoningEffort?: z.infer<typeof ReasoningEffortSchema> | undefined;
 };
 
 export const DEFAULT_CONFIG = {
   toolBridge: false,
+  toolBridgeTimeoutMs: 0,
   mcpServers: {},
   allowedCliTools: [],
   excludedFilePatterns: [],
   bodyLimit: 10 * BYTES_PER_MIB,
+  requestTimeoutMs: 0,
   autoApprovePermissions: ["read", "mcp"],
 } satisfies ServerConfig;
