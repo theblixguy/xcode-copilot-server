@@ -25,7 +25,8 @@ export function createAutoProvider(
     register(app, baseCtx) {
       // One shared manager + MCP route set so we don't hit
       // Fastify's duplicate-route error across scoped plugins
-      const sharedManager = registerToolBridge(app, baseCtx.logger);
+      const maxTimeout = Math.max(...PROVIDER_NAMES.map((n) => configs[n].toolBridgeTimeoutMs));
+      const sharedManager = registerToolBridge(app, baseCtx.logger, maxTimeout);
 
       for (const name of PROVIDER_NAMES) {
         const provider = providers[name];

@@ -24,16 +24,18 @@ export function asConversation(conv: CoreConversation): Conversation {
 export class ConversationManager implements ToolStateProvider {
   private readonly conversations = new Map<string, Conversation>();
   private readonly logger: Logger;
+  private readonly toolBridgeTimeoutMs: number;
   private primaryId: string | null = null;
 
-  constructor(logger: Logger) {
+  constructor(logger: Logger, toolBridgeTimeoutMs = 0) {
     this.logger = logger;
+    this.toolBridgeTimeoutMs = toolBridgeTimeoutMs;
   }
 
   create(options?: { isPrimary?: boolean }): Conversation {
     const id = randomUUID();
     const isPrimary = options?.isPrimary ?? false;
-    const state = new ToolBridgeState();
+    const state = new ToolBridgeState(this.toolBridgeTimeoutMs);
     const conversation: Conversation = {
       id,
       state,

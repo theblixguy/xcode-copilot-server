@@ -7,7 +7,7 @@ import JSON5 from "json5";
 import { z } from "zod";
 import type { Logger, MCPServer } from "copilot-sdk-proxy";
 import type { ProxyName } from "./providers/names.js";
-import { ServerConfigSchema, DEFAULT_CONFIG, BYTES_PER_MIB } from "./config-schema.js";
+import { ServerConfigSchema, DEFAULT_CONFIG, BYTES_PER_MIB, MS_PER_MINUTE } from "./config-schema.js";
 import type { ServerConfig } from "./config-schema.js";
 import { isErrnoException } from "./utils/type-guards.js";
 
@@ -113,8 +113,10 @@ function buildServerConfig(
     excludedFilePatterns: parsed.excludedFilePatterns,
     autoApprovePermissions: parsed.autoApprovePermissions,
     reasoningEffort: parsed.reasoningEffort,
-    bodyLimit: parsed.bodyLimitMiB * BYTES_PER_MIB,
+    bodyLimit: parsed.bodyLimit * BYTES_PER_MIB,
+    requestTimeoutMs: parsed.requestTimeout * MS_PER_MINUTE,
     toolBridge: provider.toolBridge,
+    toolBridgeTimeoutMs: provider.toolBridgeTimeout * MS_PER_MINUTE,
     mcpServers: resolveServerPaths(provider.mcpServers, configDir),
   };
 }
@@ -151,8 +153,10 @@ export async function loadAllProviderConfigs(
         excludedFilePatterns: result.data.excludedFilePatterns,
         autoApprovePermissions: result.data.autoApprovePermissions,
         reasoningEffort: result.data.reasoningEffort,
-        bodyLimit: result.data.bodyLimitMiB * BYTES_PER_MIB,
+        bodyLimit: result.data.bodyLimit * BYTES_PER_MIB,
+        requestTimeoutMs: result.data.requestTimeout * MS_PER_MINUTE,
         toolBridge: false,
+        toolBridgeTimeoutMs: 0,
         mcpServers: {},
       }
     : DEFAULT_CONFIG;

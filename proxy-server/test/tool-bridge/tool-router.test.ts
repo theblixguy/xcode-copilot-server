@@ -172,6 +172,54 @@ describe("ToolRouter", () => {
     });
   });
 
+  describe("timeout behavior", () => {
+    it("does not create a timeout when timeoutMs is 0 (default)", () => {
+      vi.useFakeTimers();
+      const router = new ToolRouter(0);
+      router.registerExpected("tc-1", "Read");
+      const reject = vi.fn();
+      router.registerMCPRequest("Read", () => {}, reject);
+
+      vi.advanceTimersByTime(10 * 60_000); // 10 minutes
+      expect(reject).not.toHaveBeenCalled();
+      expect(router.hasPendingToolCall("tc-1")).toBe(true);
+      vi.useRealTimers();
+    });
+
+    it("rejects after configured timeout", () => {
+      vi.useFakeTimers();
+      const router = new ToolRouter(5000);
+      router.registerExpected("tc-1", "Read");
+      const reject = vi.fn();
+      router.registerMCPRequest("Read", () => {}, reject);
+
+      vi.advanceTimersByTime(4999);
+      expect(reject).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(1);
+      expect(reject).toHaveBeenCalledOnce();
+      expect((reject.mock.calls[0]?.[0] as Error).message).toContain("timed out");
+      expect(router.hasPendingToolCall("tc-1")).toBe(false);
+      vi.useRealTimers();
+    });
+
+    it("clears timeout when tool call is resolved before expiry", () => {
+      vi.useFakeTimers();
+      const router = new ToolRouter(5000);
+      router.registerExpected("tc-1", "Read");
+      const resolve = vi.fn();
+      const reject = vi.fn();
+      router.registerMCPRequest("Read", resolve, reject);
+
+      router.resolveToolCall("tc-1", "result");
+      vi.advanceTimersByTime(10_000);
+
+      expect(resolve).toHaveBeenCalledWith("result");
+      expect(reject).not.toHaveBeenCalled();
+      vi.useRealTimers();
+    });
+  });
+
   describe("rejectAll", () => {
     it("clears expected and rejects pending with given reason", async () => {
       const router = new ToolRouter();

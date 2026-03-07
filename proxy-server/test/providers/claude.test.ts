@@ -9,10 +9,12 @@ const logger = new Logger("none");
 
 const config: ServerConfig = {
   toolBridge: false,
+  toolBridgeTimeoutMs: 0,
   mcpServers: {},
   allowedCliTools: [],
   excludedFilePatterns: [],
   bodyLimit: 4 * BYTES_PER_MIB,
+  requestTimeoutMs: 0,
   autoApprovePermissions: ["read", "mcp"],
 };
 

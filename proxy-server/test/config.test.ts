@@ -50,7 +50,7 @@ describe("loadConfig", () => {
   it("merges provided fields with defaults", async () => {
     const path = writeConfig(
       "config.json5",
-      `{ allowedCliTools: ["search"], bodyLimitMiB: 1 }`,
+      `{ allowedCliTools: ["search"], bodyLimit: 1 }`,
     );
     const config = await loadConfig(path, logger, "openai");
     expect(config.allowedCliTools).toEqual(["search"]);
@@ -141,8 +141,8 @@ describe("loadConfig", () => {
     expect(config.allowedCliTools).toEqual(["search", "read_file"]);
   });
 
-  it("converts bodyLimitMiB to bytes", async () => {
-    const path = writeConfig("limit.json5", `{ bodyLimitMiB: 10 }`);
+  it("converts bodyLimit to bytes", async () => {
+    const path = writeConfig("limit.json5", `{ bodyLimit: 10 }`);
     const config = await loadConfig(path, logger, "openai");
     expect(config.bodyLimit).toBe(10 * BYTES_PER_MIB);
   });
@@ -214,13 +214,13 @@ describe("loadConfig", () => {
 });
 
 describe("config validation", () => {
-  it("rejects invalid bodyLimitMiB (negative)", async () => {
-    const path = writeConfig("bad.json5", `{ bodyLimitMiB: -1 }`);
-    await expect(loadConfig(path, logger, "openai")).rejects.toThrow(/bodyLimitMiB.*>0/i);
+  it("rejects invalid bodyLimit (negative)", async () => {
+    const path = writeConfig("bad.json5", `{ bodyLimit: -1 }`);
+    await expect(loadConfig(path, logger, "openai")).rejects.toThrow(/bodyLimit.*>0/i);
   });
 
-  it("rejects invalid bodyLimitMiB (too large)", async () => {
-    const path = writeConfig("bad.json5", `{ bodyLimitMiB: 200 }`);
+  it("rejects invalid bodyLimit (too large)", async () => {
+    const path = writeConfig("bad.json5", `{ bodyLimit: 200 }`);
     await expect(loadConfig(path, logger, "openai")).rejects.toThrow(/100/i);
   });
 

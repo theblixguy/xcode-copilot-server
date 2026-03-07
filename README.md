@@ -110,6 +110,8 @@ The config file uses [JSON5](https://json5.org/) format, which supports comments
   openai: {
     // No tool bridge needed, as Xcode drives tool execution directly.
     toolBridge: false,
+    // Tool bridge timeout in minutes. 0: disabled.
+    toolBridgeTimeout: 0,
 
     mcpServers: {
       xcode: {
@@ -125,6 +127,8 @@ The config file uses [JSON5](https://json5.org/) format, which supports comments
     // Intercepts tool calls and forwards them to Xcode so Claude Agent
     // drives tool execution through the IDE instead of the Copilot CLI.
     toolBridge: true,
+    // Tool bridge timeout in minutes. 0: disabled.
+    toolBridgeTimeout: 0,
 
     // No MCP servers needed, as Claude Agent handles tools natively.
     mcpServers: {},
@@ -134,6 +138,8 @@ The config file uses [JSON5](https://json5.org/) format, which supports comments
     // Same as Claude: intercepts tool calls and forwards them to Xcode
     // so Codex drives tool execution through the IDE.
     toolBridge: true,
+    // Tool bridge timeout in minutes. 0: disabled.
+    toolBridgeTimeout: 0,
 
     mcpServers: {},
   },
@@ -147,7 +153,10 @@ The config file uses [JSON5](https://json5.org/) format, which supports comments
   allowedCliTools: [],
 
   // Maximum request body size in MiB.
-  bodyLimitMiB: 10,
+  bodyLimit: 10,
+
+  // Server-level request timeout in minutes. 0: disabled.
+  requestTimeout: 0,
 
   // Filename patterns to filter out from search results in the prompt.
   //
