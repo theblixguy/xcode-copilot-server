@@ -6,10 +6,12 @@ import type { PermissionRequest } from "copilot-sdk-proxy";
 
 const baseConfig: ServerConfig = {
   toolBridge: false,
+  toolBridgeTimeoutMs: 0,
   mcpServers: {},
   allowedCliTools: [],
   excludedFilePatterns: [],
   bodyLimit: 4 * BYTES_PER_MIB,
+  requestTimeoutMs: 0,
   autoApprovePermissions: true,
 };
 
