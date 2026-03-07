@@ -16,15 +16,7 @@ class BridgeAnthropicProtocol extends AnthropicProtocol implements BridgeStreamP
     r: FastifyReply,
     toolRequests: StrippedToolRequest[],
   ): void {
-    let startIndex: number;
-    if (this.textBlockStarted) {
-      this.sendBlockStop(r);
-      startIndex = 1;
-    } else {
-      startIndex = 0;
-    }
-
-    let index = startIndex;
+    let index = this.closeOpenBlocks(r);
     for (const tr of toolRequests) {
       sendEvent(r, "content_block_start", {
         type: "content_block_start",
@@ -57,8 +49,8 @@ class BridgeAnthropicProtocol extends AnthropicProtocol implements BridgeStreamP
     // Nothing to clean up (unlike ResponsesProtocol), but required by BridgeStreamProtocol.
   }
 
-  reset(): void {
-    this.textBlockStarted = false;
+  override reset(): void {
+    super.reset();
   }
 }
 

@@ -4,5 +4,6 @@ export default defineConfig({
   test: {
     include: ["test/**/*.test.ts"],
     environment: "node",
+    setupFiles: ["test/fix-jsonrpc-import.ts"],
   },
 });
