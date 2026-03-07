@@ -106,7 +106,7 @@ export class ToolRouter {
     const timeout = this.timeoutMs > 0
       ? setTimeout(() => {
           this.pendingByCallId.delete(toolCallId);
-          reject(new Error(`Tool call ${toolCallId} timed out after ${this.timeoutMs}ms`));
+          reject(new Error(`Tool call ${toolCallId} timed out after ${String(this.timeoutMs)}ms`));
         }, this.timeoutMs)
       : undefined;
 
