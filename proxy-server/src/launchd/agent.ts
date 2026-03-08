@@ -5,8 +5,8 @@ import { homedir } from "node:os";
 import { Command } from "commander";
 import plist, { type PlistObject } from "plist";
 import type { Logger } from "copilot-sdk-proxy";
-import type { ProxyMode } from "../providers/index.js";
-import { isProxyName } from "../cli-validators.js";
+import type { ProviderMode } from "copilot-sdk-proxy";
+import { isProviderName } from "../cli-validators.js";
 import { patchSettings, restoreSettings } from "../settings-patcher/index.js";
 import { defaultExec, type ExecFn } from "../utils/child-process.js";
 import { isRecord } from "../utils/type-guards.js";
@@ -29,7 +29,7 @@ export interface PlistOptions {
   nodePath: string;
   entryPoint: string;
   port: number;
-  proxy: ProxyMode;
+  proxy: ProviderMode;
   logLevel: string;
   config?: string | undefined;
   cwd?: string | undefined;
@@ -99,7 +99,7 @@ export function generatePlist(options: PlistOptions): string {
 }
 
 interface ParsedPlistArgs {
-  proxy: ProxyMode | null;
+  proxy: ProviderMode | null;
   autoPatch: boolean;
 }
 
@@ -140,8 +140,8 @@ export function parsePlistArgs(plistContent: string): ParsedPlistArgs {
   }
 
   const opts = cmd.opts<{ proxy?: string; autoPatch?: true }>();
-  let proxy: ProxyMode | null;
-  if (opts.proxy && isProxyName(opts.proxy)) {
+  let proxy: ProviderMode | null;
+  if (opts.proxy && isProviderName(opts.proxy)) {
     proxy = opts.proxy;
   } else if (opts.proxy === undefined) {
     // Omitting --proxy is how auto mode plists are generated
@@ -155,7 +155,7 @@ export function parsePlistArgs(plistContent: string): ParsedPlistArgs {
 
 interface InstallAgentOptions {
   port: number;
-  proxy: ProxyMode;
+  proxy: ProviderMode;
   logLevel: string;
   logger: Logger;
   config?: string | undefined;
