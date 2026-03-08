@@ -1,15 +1,10 @@
-import { parsePort, parseLogLevel, parseIdleTimeout } from "copilot-sdk-proxy";
-import { providers, type ProxyName, type ProxyMode } from "./providers/index.js";
-import { PROVIDER_NAMES } from "./providers/names.js";
+import { parsePort, parseLogLevel, parseIdleTimeout, PROVIDER_NAMES, isProviderName } from "copilot-sdk-proxy";
+import type { ProviderName, ProviderMode } from "copilot-sdk-proxy";
 
-export { parsePort, parseLogLevel, parseIdleTimeout };
+export { parsePort, parseLogLevel, parseIdleTimeout, isProviderName };
 
-export function isProxyName(value: string): value is ProxyName {
-  return value in providers;
-}
-
-export function parseProxy(value: string): ProxyName {
-  if (!isProxyName(value)) {
+export function parseProvider(value: string): ProviderName {
+  if (!isProviderName(value)) {
     throw new Error(
       `Invalid proxy "${value}". Valid: ${PROVIDER_NAMES.join(", ")}`,
     );
@@ -17,14 +12,14 @@ export function parseProxy(value: string): ProxyName {
   return value;
 }
 
-export function parseProxyMode(value: string): ProxyMode {
+export function parseProviderMode(value: string): ProviderMode {
   if (value === "auto") return "auto";
-  return parseProxy(value);
+  return parseProvider(value);
 }
 
 const PATCHABLE_PROXIES: ReadonlySet<string> = new Set(["claude", "codex"]);
 
-export function validateAutoPatch(proxy: ProxyName, autoPatch: boolean): void {
+export function validateAutoPatch(proxy: ProviderName, autoPatch: boolean): void {
   if (autoPatch && !PATCHABLE_PROXIES.has(proxy)) {
     throw new Error(
       `--auto-patch is only supported for: ${[...PATCHABLE_PROXIES].join(", ")}`,

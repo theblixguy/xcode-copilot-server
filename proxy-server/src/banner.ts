@@ -3,19 +3,19 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import { dim } from "copilot-sdk-proxy";
 import type { Logger } from "copilot-sdk-proxy";
-import type { ProxyName, ProxyMode } from "./providers/index.js";
+import type { ProviderName, ProviderMode } from "copilot-sdk-proxy";
 
 const AGENTS_DIR = join(
   homedir(),
   "Library/Developer/Xcode/CodingAssistant/Agents/Versions",
 );
 
-const AGENT_BINARY_NAMES: Partial<Record<ProxyName, string>> = {
+const AGENT_BINARY_NAMES: Partial<Record<ProviderName, string>> = {
   claude: "claude",
   codex: "codex",
 };
 
-function findAgentBinary(proxy: ProxyName, logger?: Logger): string | null {
+function findAgentBinary(proxy: ProviderName, logger?: Logger): string | null {
   const binaryName = AGENT_BINARY_NAMES[proxy];
   if (!binaryName) return null;
 
@@ -38,7 +38,7 @@ function findAgentBinary(proxy: ProxyName, logger?: Logger): string | null {
 
 export interface ProxyBannerInfo {
   providerName: string;
-  proxyFlag: ProxyMode;
+  proxyFlag: ProviderMode;
   routes: string[];
   cwd: string;
   autoPatch?: boolean | undefined;

@@ -2,7 +2,7 @@ import type { CopilotService, Logger, Stats } from "copilot-sdk-proxy";
 import { printUsageSummary } from "copilot-sdk-proxy";
 import type { createServer } from "copilot-sdk-proxy";
 import { restoreSettings } from "./settings-patcher/index.js";
-import type { ProxyMode } from "./providers/names.js";
+import type { ProviderMode } from "copilot-sdk-proxy";
 
 interface ShutdownContext {
   app: Awaited<ReturnType<typeof createServer>>;
@@ -10,7 +10,7 @@ interface ShutdownContext {
   logger: Logger;
   stats: Stats;
   shouldPatch: boolean;
-  proxyMode: ProxyMode;
+  proxyMode: ProviderMode;
   quiet: boolean;
   lastActivityRef: () => number;
   idleTimeoutMinutes: number;

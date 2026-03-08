@@ -1,26 +1,26 @@
 import { describe, it, expect } from "vitest";
 import { Command } from "commander";
-import { parseProxy, validateAutoPatch } from "../src/cli-validators.js";
+import { parseProvider, validateAutoPatch } from "../src/cli-validators.js";
 
-describe("parseProxy", () => {
+describe("parseProvider", () => {
   it("accepts openai", () => {
-    expect(parseProxy("openai")).toBe("openai");
+    expect(parseProvider("openai")).toBe("openai");
   });
 
   it("accepts claude", () => {
-    expect(parseProxy("claude")).toBe("claude");
+    expect(parseProvider("claude")).toBe("claude");
   });
 
   it("accepts codex", () => {
-    expect(parseProxy("codex")).toBe("codex");
+    expect(parseProvider("codex")).toBe("codex");
   });
 
   it("throws on invalid proxy", () => {
-    expect(() => parseProxy("gemini")).toThrow('Invalid proxy "gemini"');
+    expect(() => parseProvider("gemini")).toThrow('Invalid proxy "gemini"');
   });
 
   it("throws on empty string", () => {
-    expect(() => parseProxy("")).toThrow('Invalid proxy ""');
+    expect(() => parseProvider("")).toThrow('Invalid proxy ""');
   });
 });
 

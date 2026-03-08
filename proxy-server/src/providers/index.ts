@@ -5,19 +5,19 @@ import type { Provider } from "./types.js";
 import type { AppContext } from "../context.js";
 import type { ServerConfig } from "../config-schema.js";
 import { registerToolBridge } from "../tool-bridge/index.js";
-import { PROVIDER_NAMES } from "./names.js";
-import type { ProxyName } from "./names.js";
+import { PROVIDER_NAMES } from "copilot-sdk-proxy";
+import type { ProviderName } from "copilot-sdk-proxy";
 
-export type { ProxyName, ProxyMode } from "./names.js";
+export type { ProviderName, ProviderMode } from "copilot-sdk-proxy";
 
-export const providers: Record<ProxyName, Provider> = {
+export const providers: Record<ProviderName, Provider> = {
   openai: openaiProvider,
   claude: claudeProvider,
   codex: codexProvider,
 };
 
 export function createAutoProvider(
-  configs: Record<ProxyName, ServerConfig>,
+  configs: Record<ProviderName, ServerConfig>,
 ): Provider {
   return {
     name: "Auto",
