@@ -1,6 +1,6 @@
 import type { FastifyReply } from "fastify";
-import type { CopilotSession, Logger, Stats } from "copilot-sdk-proxy";
-import { formatCompaction, recordUsageEvent } from "copilot-sdk-proxy";
+import type { CopilotSession, Logger, Stats, CommonEventHandler } from "copilot-sdk-proxy";
+import { createCommonEventHandler } from "copilot-sdk-proxy";
 import type { ToolBridgeState } from "../../tool-bridge/state.js";
 import { isRecord } from "../../utils/type-guards.js";
 import { BRIDGE_TOOL_PREFIX } from "../../bridge-constants.js";
@@ -41,10 +41,9 @@ export function runSessionStreaming(opts: SessionStreamingOptions): Promise<void
 }
 
 class StreamingHandler {
-  private pendingDeltas: string[] = [];
   private sessionDone = false;
-  private readonly toolNames = new Map<string, string>();
   private unsubscribe = (): void => {};
+  private readonly common: CommonEventHandler;
 
   private readonly state: ToolBridgeState;
   private readonly session: CopilotSession;
@@ -53,7 +52,6 @@ class StreamingHandler {
   private readonly hasBridge: boolean;
   private readonly protocol: BridgeStreamProtocol;
   private readonly initialReply: FastifyReply;
-  private readonly stats: Stats;
 
   constructor(opts: SessionStreamingOptions) {
     this.state = opts.state;
@@ -63,7 +61,12 @@ class StreamingHandler {
     this.hasBridge = opts.hasBridge;
     this.protocol = opts.protocol;
     this.initialReply = opts.initialReply;
-    this.stats = opts.stats;
+    this.common = createCommonEventHandler(
+      opts.protocol,
+      () => this.state.replies.currentReply,
+      opts.logger,
+      opts.stats,
+    );
   }
 
   run(): Promise<void> {
@@ -80,14 +83,6 @@ class StreamingHandler {
     return this.state.replies.currentReply;
   }
 
-  private flushToProtocol(): void {
-    if (this.pendingDeltas.length === 0) return;
-    const r = this.getReply();
-    if (!r) return;
-    this.protocol.flushDeltas(r, this.pendingDeltas);
-    this.pendingDeltas = [];
-  }
-
   private finishStream(reply: FastifyReply | null): void {
     if (reply) {
       reply.raw.end();
@@ -96,56 +91,27 @@ class StreamingHandler {
     this.state.replies.notifyStreamingDone();
   }
 
+  // Common events (reasoning, usage, compaction, message deltas, tool execution
+  // logging) are handled by the SDK proxy's CommonEventHandler. This handler
+  // only deals with events that need bridge-specific behavior.
   private subscribeToEvents(): () => void {
     return this.session.on((event) => {
+      if (this.common.handle(event)) return;
+
       switch (event.type) {
-        case "tool.execution_start":
-          this.onToolStart(event.data);
-          break;
-        case "tool.execution_complete":
-          this.onToolComplete(event.data);
-          break;
-        case "assistant.message_delta":
-          this.onDelta(event.data);
-          break;
         case "assistant.message":
           this.onMessage(event.data);
           break;
         case "session.idle":
           this.onIdle();
           break;
-        case "session.compaction_start":
-          this.logger.info("Compacting context...");
-          break;
-        case "session.compaction_complete":
-          this.logger.info(`Context compacted: ${formatCompaction(event.data)}`);
-          break;
         case "session.error":
           this.onError(event.data.message);
-          break;
-        case "assistant.usage":
-          recordUsageEvent(this.stats, this.logger, event.data);
           break;
         default:
           break;
       }
     });
-  }
-
-  private onToolStart(d: { toolCallId: string; toolName: string }): void {
-    this.toolNames.set(d.toolCallId, d.toolName);
-  }
-
-  private onToolComplete(d: { toolCallId: string; success: boolean; error?: { message: string } }): void {
-    const name = this.toolNames.get(d.toolCallId) ?? d.toolCallId;
-    this.toolNames.delete(d.toolCallId);
-    if (!d.success) {
-      this.logger.debug(`${name} failed: ${d.error?.message ?? "unknown"}`);
-    }
-  }
-
-  private onDelta(d: { deltaContent?: string }): void {
-    if (d.deltaContent) this.pendingDeltas.push(d.deltaContent);
   }
 
   private stripAndNormalize(
@@ -169,7 +135,7 @@ class StreamingHandler {
   private onMessage(data: { toolRequests?: { toolCallId: string; name: string; arguments?: unknown }[] }): void {
     if (!data.toolRequests || data.toolRequests.length === 0) {
       const r = this.getReply();
-      if (r) this.flushToProtocol();
+      if (r) this.common.flushDeltas();
       return;
     }
 
@@ -183,7 +149,7 @@ class StreamingHandler {
 
     const r = this.getReply();
     if (r) {
-      this.flushToProtocol();
+      this.common.flushDeltas();
       this.protocol.emitToolsAndFinish(r, stripped);
       this.protocol.reset();
       this.finishStream(r);
@@ -194,7 +160,7 @@ class StreamingHandler {
     this.logger.info("Done, wrapping up stream");
     this.sessionDone = true;
     this.state.session.markSessionInactive();
-    this.flushToProtocol();
+    this.common.flushDeltas();
     const r = this.getReply();
     if (r) {
       this.protocol.sendCompleted(r);
