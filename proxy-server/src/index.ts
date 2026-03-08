@@ -5,7 +5,7 @@ import { z } from "zod";
 import { Command } from "commander";
 import { Logger } from "copilot-sdk-proxy";
 import { patcherByProxy } from "./settings-patcher/index.js";
-import { parsePort, parseLogLevel, parseProxy, parseIdleTimeout, validateAutoPatch } from "./cli-validators.js";
+import { parsePort, parseLogLevel, parseProvider, parseIdleTimeout, validateAutoPatch } from "./cli-validators.js";
 import { startServer, type StartOptions } from "./startup.js";
 import { installAgent, uninstallAgent } from "./launchd/index.js";
 
@@ -42,7 +42,7 @@ async function patchSettingsCommand(options: PatchOptions): Promise<void> {
     return;
   }
 
-  const proxy = parseProxy(options.proxy);
+  const proxy = parseProvider(options.proxy);
   const patcher = patcherByProxy[proxy];
   if (!patcher) {
     throw new Error(`No settings patcher for --proxy ${proxy}`);
@@ -66,7 +66,7 @@ async function restoreSettingsCommand(options: RestoreOptions): Promise<void> {
     return;
   }
 
-  const proxy = parseProxy(options.proxy);
+  const proxy = parseProvider(options.proxy);
   const patcher = patcherByProxy[proxy];
   if (!patcher) {
     throw new Error(`No settings patcher for --proxy ${proxy}`);
@@ -90,7 +90,7 @@ async function installAgentCommand(options: InstallAgentCliOptions): Promise<voi
   const port = parsePort(options.port);
   const idleTimeout = parseIdleTimeout(options.idleTimeout);
 
-  const proxy = options.proxy ? parseProxy(options.proxy) : undefined;
+  const proxy = options.proxy ? parseProvider(options.proxy) : undefined;
   if (proxy && options.autoPatch) {
     validateAutoPatch(proxy, true);
   }
