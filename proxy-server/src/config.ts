@@ -6,7 +6,7 @@ import { resolve, dirname, isAbsolute } from "node:path";
 import JSON5 from "json5";
 import { z } from "zod";
 import type { Logger, MCPServer } from "copilot-sdk-proxy";
-import type { ProxyName } from "./providers/names.js";
+import type { ProviderName } from "copilot-sdk-proxy";
 import { ServerConfigSchema, DEFAULT_CONFIG, BYTES_PER_MIB, MS_PER_MINUTE } from "./config-schema.js";
 import type { ServerConfig } from "./config-schema.js";
 import { isErrnoException } from "./utils/type-guards.js";
@@ -105,7 +105,7 @@ async function parseConfigFile(
 function buildServerConfig(
   parsed: z.infer<typeof ServerConfigSchema>,
   configDir: string,
-  proxy: ProxyName,
+  proxy: ProviderName,
 ): ServerConfig {
   const provider = parsed[proxy];
   return {
@@ -124,7 +124,7 @@ function buildServerConfig(
 export async function loadConfig(
   configPath: string,
   logger: Logger,
-  proxy: ProxyName,
+  proxy: ProviderName,
 ): Promise<ServerConfig> {
   const result = await parseConfigFile(configPath, logger);
   if (!result) return DEFAULT_CONFIG;
@@ -132,7 +132,7 @@ export async function loadConfig(
 }
 
 export type AllProviderConfigs = {
-  providers: Record<ProxyName, ServerConfig>;
+  providers: Record<ProviderName, ServerConfig>;
   shared: ServerConfig;
 };
 
@@ -141,7 +141,7 @@ export async function loadAllProviderConfigs(
   logger: Logger,
 ): Promise<AllProviderConfigs> {
   const result = await parseConfigFile(configPath, logger);
-  const providers: Record<ProxyName, ServerConfig> = {
+  const providers: Record<ProviderName, ServerConfig> = {
     openai: result ? buildServerConfig(result.data, result.configDir, "openai") : DEFAULT_CONFIG,
     claude: result ? buildServerConfig(result.data, result.configDir, "claude") : DEFAULT_CONFIG,
     codex: result ? buildServerConfig(result.data, result.configDir, "codex") : DEFAULT_CONFIG,

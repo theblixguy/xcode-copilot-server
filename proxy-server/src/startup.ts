@@ -10,13 +10,14 @@ import type { AppContext } from "./context.js";
 import { loadConfig, loadAllProviderConfigs, resolveConfigPath } from "./config.js";
 import type { ServerConfig } from "./config-schema.js";
 import type { AllProviderConfigs } from "./config.js";
-import { providers, createAutoProvider, type ProxyMode } from "./providers/index.js";
+import type { ProviderMode } from "copilot-sdk-proxy";
+import { providers, createAutoProvider } from "./providers/index.js";
 import type { Provider } from "./providers/types.js";
 import { patchSettings } from "./settings-patcher/index.js";
 import {
   parsePort,
   parseLogLevel,
-  parseProxyMode,
+  parseProviderMode,
   parseIdleTimeout,
   validateAutoPatch,
 } from "./cli-validators.js";
@@ -39,7 +40,7 @@ export interface StartOptions {
 
 interface ParsedOptions {
   port: number;
-  proxyMode: ProxyMode;
+  proxyMode: ProviderMode;
   logLevel: LogLevel;
   logger: Logger;
   quiet: boolean;
@@ -54,7 +55,7 @@ function parseOptions(options: StartOptions): ParsedOptions {
   const logLevel = parseLogLevel(options.logLevel);
   const logger = new Logger(logLevel);
   const port = parsePort(options.port);
-  const proxyMode: ProxyMode = options.proxy ? parseProxyMode(options.proxy) : "auto";
+  const proxyMode: ProviderMode = options.proxy ? parseProviderMode(options.proxy) : "auto";
 
   const idleTimeoutMinutes = options.idleTimeout ? parseIdleTimeout(options.idleTimeout) : 0;
   const launchdMode = options.launchd === true;

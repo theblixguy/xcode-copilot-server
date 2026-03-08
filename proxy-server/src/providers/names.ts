@@ -1,9 +1,8 @@
-export const PROVIDER_NAMES = ["openai", "claude", "codex"] as const;
+import type { ProviderName, ProviderMode } from "copilot-sdk-proxy";
 
-export type ProxyName = (typeof PROVIDER_NAMES)[number];
-export type ProxyMode = ProxyName | "auto";
+export type { ProviderName, ProviderMode } from "copilot-sdk-proxy";
 
-export const UA_PREFIXES: Record<ProxyName, string> = {
+export const UA_PREFIXES: Record<ProviderName, string> = {
   openai: "Xcode/",
   claude: "claude-cli/",
   codex: "Xcode/",
