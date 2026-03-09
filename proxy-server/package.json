@@ -1,6 +1,6 @@
 {
   "name": "xcode-copilot-server",
-  "version": "4.0.3",
+  "version": "4.0.4",
   "description": "OpenAI-compatible proxy API server for Xcode, powered by GitHub Copilot",
   "type": "module",
   "license": "MIT",
@@ -12,9 +12,10 @@
     "node": "25.6.0"
   },
   "bin": {
-    "xcode-copilot-server": "dist/index.js"
+    "xcode-copilot-server": "bin/xcode-copilot-server.mjs"
   },
   "files": [
+    "bin/",
     "dist/",
     "config.json5"
   ],

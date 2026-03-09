@@ -28,6 +28,6 @@ export default defineConfig(
     },
   },
   {
-    ignores: ["dist/", "node_modules/", "scripts/", "config.json5", "eslint.config.js", "vitest.config.ts"],
+    ignores: ["bin/", "dist/", "node_modules/", "scripts/", "config.json5", "eslint.config.js", "vitest.config.ts"],
   },
 );
