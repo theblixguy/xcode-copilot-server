@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import "./fix-jsonrpc-import.js";
 import { join, dirname } from "node:path";
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
