@@ -1,0 +1,18 @@
+{
+  "plugins": ["typescript"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "rules": {
+    "no-unused-vars": [
+      "error",
+      {
+        "varsIgnorePattern": "^_",
+        "argsIgnorePattern": "^_"
+      }
+    ],
+    "typescript/no-explicit-any": "off"
+  },
+  "ignorePatterns": ["bin/", "dist/", "node_modules/", "scripts/"]
+}
