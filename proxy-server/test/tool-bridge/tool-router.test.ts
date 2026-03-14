@@ -74,8 +74,7 @@ describe("ToolRouter", () => {
       const reject = vi.fn();
       router.registerMCPRequest("Unknown", () => {}, reject);
       expect(reject).toHaveBeenCalledOnce();
-      expect(reject.mock.calls[0]?.[0]).toBeInstanceOf(Error);
-      expect((reject.mock.calls[0]?.[0] as Error).message).toContain("Unknown");
+      expect((reject.mock.calls[0]![0] as Error).message).toContain("Unknown");
     });
   });
 
@@ -198,7 +197,7 @@ describe("ToolRouter", () => {
 
       vi.advanceTimersByTime(1);
       expect(reject).toHaveBeenCalledOnce();
-      expect((reject.mock.calls[0]?.[0] as Error).message).toContain("timed out");
+      expect((reject.mock.calls[0]![0] as Error).message).toContain("timed out");
       expect(router.hasPendingToolCall("tc-1")).toBe(false);
       vi.useRealTimers();
     });
