@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { ToolStateProvider } from "../conversation-manager.js";
 import type { Logger } from "copilot-sdk-proxy";
 import { BRIDGE_SERVER_NAME } from "./bridge-constants.js";
-import { isRecord } from "../utils/type-guards.js";
+import { isRecord, errorMessage } from "../utils/type-guards.js";
 import {
   JSONRPC_PARSE_ERROR,
   JSONRPC_INVALID_PARAMS,
@@ -105,7 +105,7 @@ async function handleToolCall(
     });
   } catch (err) {
     logger.debug(`MCP ${convId} tools/call error details:`, err);
-    const message = err instanceof Error ? err.message : String(err);
+    const message = errorMessage(err);
     logger.error(`MCP ${convId} tools/call error: ${message}`);
     return jsonRpcError(id, JSONRPC_INTERNAL_ERROR, message);
   }
