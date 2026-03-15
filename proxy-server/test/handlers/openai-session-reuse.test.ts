@@ -18,7 +18,9 @@ const config: ServerConfig = {
   autoApprovePermissions: true,
 };
 
-const xcodeHeaders = { "user-agent": "Xcode/24577 CFNetwork/3860.300.31 Darwin/25.2.0" };
+const xcodeHeaders = {
+  "user-agent": "Xcode/24577 CFNetwork/3860.300.31 Darwin/25.2.0",
+};
 
 function makePayload(model = "copilot-chat") {
   return {
@@ -51,7 +53,10 @@ describe("OpenAI completions session reuse", () => {
     const mockService = {
       cwd: "/test",
       listModels: vi.fn().mockResolvedValue([
-        { id: "copilot-chat", capabilities: { supports: { reasoningEffort: false } } },
+        {
+          id: "copilot-chat",
+          capabilities: { supports: { reasoningEffort: false } },
+        },
       ]),
       createSession: createSessionSpy,
     };

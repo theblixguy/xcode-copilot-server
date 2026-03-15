@@ -44,8 +44,10 @@ export function generatePlist(options: PlistOptions): string {
     options.nodePath,
     options.entryPoint,
     "--launchd",
-    "--port", String(options.port),
-    "--log-level", options.logLevel,
+    "--port",
+    String(options.port),
+    "--log-level",
+    options.logLevel,
   ];
 
   if (options.proxy !== "auto") {
@@ -122,7 +124,9 @@ export function parsePlistArgs(plistContent: string): ParsedPlistArgs {
     return { proxy: null, autoPatch: false };
   }
 
-  const flagArgs = args.slice(2).filter((a): a is string => typeof a === "string");
+  const flagArgs = args
+    .slice(2)
+    .filter((a): a is string => typeof a === "string");
 
   const cmd = new Command()
     .exitOverride()
@@ -168,7 +172,9 @@ interface InstallAgentOptions {
   entryPoint?: string | undefined;
 }
 
-export async function installAgent(options: InstallAgentOptions): Promise<void> {
+export async function installAgent(
+  options: InstallAgentOptions,
+): Promise<void> {
   const {
     port,
     proxy,
@@ -180,7 +186,9 @@ export async function installAgent(options: InstallAgentOptions): Promise<void> 
   const plistPath = options.plistPath ?? defaultPlistPath();
   const nodePath = options.nodePath ?? process.execPath;
   // import.meta.dirname at runtime is dist/launchd/, so go up two levels to the package root
-  const entryPoint = options.entryPoint ?? resolve(dirname(dirname(import.meta.dirname)), "dist/index.js");
+  const entryPoint =
+    options.entryPoint ??
+    resolve(dirname(dirname(import.meta.dirname)), "dist/index.js");
 
   if (existsSync(plistPath)) {
     try {
@@ -223,7 +231,9 @@ interface UninstallAgentOptions {
   plistPath?: string | undefined;
 }
 
-export async function uninstallAgent(options: UninstallAgentOptions): Promise<void> {
+export async function uninstallAgent(
+  options: UninstallAgentOptions,
+): Promise<void> {
   const { logger } = options;
   const exec = options.exec ?? defaultExec;
   const plistPath = options.plistPath ?? defaultPlistPath();
@@ -239,7 +249,9 @@ export async function uninstallAgent(options: UninstallAgentOptions): Promise<vo
     const plistContent = await readFile(plistPath, "utf-8");
     parsed = parsePlistArgs(plistContent);
   } catch (err) {
-    logger.warn(`Could not read plist, skipping settings restore: ${String(err)}`);
+    logger.warn(
+      `Could not read plist, skipping settings restore: ${String(err)}`,
+    );
     parsed = { proxy: null, autoPatch: false };
   }
 

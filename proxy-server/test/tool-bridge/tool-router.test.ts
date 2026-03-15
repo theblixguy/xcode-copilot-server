@@ -10,7 +10,11 @@ describe("ToolRouter", () => {
     it("returns true when tool call is in pendingByCallId", () => {
       const router = new ToolRouter();
       router.registerExpected("tc-1", "Read");
-      router.registerMCPRequest("Read", () => {}, () => {});
+      router.registerMCPRequest(
+        "Read",
+        () => {},
+        () => {},
+      );
       expect(router.hasPendingToolCall("tc-1")).toBe(true);
     });
 
@@ -41,7 +45,11 @@ describe("ToolRouter", () => {
     it("returns false after queue is fully drained", () => {
       const router = new ToolRouter();
       router.registerExpected("tc-1", "Glob");
-      router.registerMCPRequest("Glob", () => {}, () => {});
+      router.registerMCPRequest(
+        "Glob",
+        () => {},
+        () => {},
+      );
       expect(router.hasExpectedTool("Glob")).toBe(false);
     });
 
@@ -58,11 +66,19 @@ describe("ToolRouter", () => {
       router.registerExpected("tc-first", "Read");
       router.registerExpected("tc-second", "Read");
 
-      router.registerMCPRequest("Read", () => {}, () => {});
+      router.registerMCPRequest(
+        "Read",
+        () => {},
+        () => {},
+      );
       expect(router.hasPendingToolCall("tc-first")).toBe(true);
       expect(router.hasPendingToolCall("tc-second")).toBe(true);
 
-      router.registerMCPRequest("Read", () => {}, () => {});
+      router.registerMCPRequest(
+        "Read",
+        () => {},
+        () => {},
+      );
       expect(router.hasPendingToolCall("tc-second")).toBe(true);
       expect(router.hasExpectedTool("Read")).toBe(false);
     });
@@ -145,7 +161,11 @@ describe("ToolRouter", () => {
     it("removes the tool call from pending after resolution", () => {
       const router = new ToolRouter();
       router.registerExpected("tc-1", "Read");
-      router.registerMCPRequest("Read", () => {}, () => {});
+      router.registerMCPRequest(
+        "Read",
+        () => {},
+        () => {},
+      );
       router.resolveToolCall("tc-1", "ok");
       expect(router.hasPendingToolCall("tc-1")).toBe(false);
       expect(router.hasPending).toBe(false);
@@ -166,7 +186,11 @@ describe("ToolRouter", () => {
     it("returns true with pending MCP requests only", () => {
       const router = new ToolRouter();
       router.registerExpected("tc-1", "Read");
-      router.registerMCPRequest("Read", () => {}, () => {});
+      router.registerMCPRequest(
+        "Read",
+        () => {},
+        () => {},
+      );
       expect(router.hasPending).toBe(true);
     });
   });
@@ -197,7 +221,9 @@ describe("ToolRouter", () => {
 
       vi.advanceTimersByTime(1);
       expect(reject).toHaveBeenCalledOnce();
-      expect((reject.mock.calls[0]![0] as Error).message).toContain("timed out");
+      expect((reject.mock.calls[0]![0] as Error).message).toContain(
+        "timed out",
+      );
       expect(router.hasPendingToolCall("tc-1")).toBe(false);
       vi.useRealTimers();
     });
@@ -237,7 +263,9 @@ describe("ToolRouter", () => {
 
     it("is safe to call on empty state", () => {
       const router = new ToolRouter();
-      expect(() => { router.rejectAll("noop"); }).not.toThrow();
+      expect(() => {
+        router.rejectAll("noop");
+      }).not.toThrow();
     });
   });
 });

@@ -19,7 +19,16 @@ interface ShutdownContext {
 const STOP_TIMEOUT_MS = 3000;
 
 export function registerShutdownHandlers(ctx: ShutdownContext): void {
-  const { app, service, logger, stats, shouldPatch, proxyMode, quiet, idleTimeoutMinutes } = ctx;
+  const {
+    app,
+    service,
+    logger,
+    stats,
+    shouldPatch,
+    proxyMode,
+    quiet,
+    idleTimeoutMinutes,
+  } = ctx;
 
   const shutdown = async (signal: string) => {
     process.on("uncaughtException", (err: NodeJS.ErrnoException) => {
@@ -62,8 +71,12 @@ export function registerShutdownHandlers(ctx: ShutdownContext): void {
       process.exit(1);
     });
   };
-  process.on("SIGINT", () => { onSignal("SIGINT"); });
-  process.on("SIGTERM", () => { onSignal("SIGTERM"); });
+  process.on("SIGINT", () => {
+    onSignal("SIGINT");
+  });
+  process.on("SIGTERM", () => {
+    onSignal("SIGTERM");
+  });
 
   if (idleTimeoutMinutes > 0) {
     const idleMs = idleTimeoutMinutes * 60_000;
@@ -71,7 +84,9 @@ export function registerShutdownHandlers(ctx: ShutdownContext): void {
     const timer = setInterval(() => {
       if (Date.now() - ctx.lastActivityRef() >= idleMs) {
         clearInterval(timer);
-        logger.info(`Idle for ${String(idleTimeoutMinutes)} minute(s), shutting down`);
+        logger.info(
+          `Idle for ${String(idleTimeoutMinutes)} minute(s), shutting down`,
+        );
         onSignal("idle-timeout");
       }
     }, checkInterval);

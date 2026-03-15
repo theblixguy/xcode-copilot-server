@@ -7,7 +7,12 @@ import JSON5 from "json5";
 import { z } from "zod";
 import type { Logger, MCPServer } from "copilot-sdk-proxy";
 import type { ProviderName } from "copilot-sdk-proxy";
-import { ServerConfigSchema, DEFAULT_CONFIG, BYTES_PER_MIB, MS_PER_MINUTE } from "./config-schema.js";
+import {
+  ServerConfigSchema,
+  DEFAULT_CONFIG,
+  BYTES_PER_MIB,
+  MS_PER_MINUTE,
+} from "./config-schema.js";
 import type { ServerConfig } from "./config-schema.js";
 import { isErrnoException } from "./utils/type-guards.js";
 
@@ -95,7 +100,7 @@ async function parseConfigFile(
     }
     const path = firstError.path.join(".");
     throw new Error(
-      `Invalid config${path ? ` at "${path}"` : ""}: ${firstError.message}`
+      `Invalid config${path ? ` at "${path}"` : ""}: ${firstError.message}`,
     );
   }
 
@@ -142,9 +147,15 @@ export async function loadAllProviderConfigs(
 ): Promise<AllProviderConfigs> {
   const result = await parseConfigFile(configPath, logger);
   const providers: Record<ProviderName, ServerConfig> = {
-    openai: result ? buildServerConfig(result.data, result.configDir, "openai") : DEFAULT_CONFIG,
-    claude: result ? buildServerConfig(result.data, result.configDir, "claude") : DEFAULT_CONFIG,
-    codex: result ? buildServerConfig(result.data, result.configDir, "codex") : DEFAULT_CONFIG,
+    openai: result
+      ? buildServerConfig(result.data, result.configDir, "openai")
+      : DEFAULT_CONFIG,
+    claude: result
+      ? buildServerConfig(result.data, result.configDir, "claude")
+      : DEFAULT_CONFIG,
+    codex: result
+      ? buildServerConfig(result.data, result.configDir, "codex")
+      : DEFAULT_CONFIG,
   };
   // Common fields only, no per-provider toolBridge / mcpServers.
   const shared: ServerConfig = result

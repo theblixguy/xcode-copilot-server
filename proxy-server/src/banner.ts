@@ -46,9 +46,8 @@ export interface ProxyBannerInfo {
 }
 
 export function printProxyBanner(info: ProxyBannerInfo): void {
-  const providerHint = info.proxyFlag === "auto"
-    ? ""
-    : ` ${dim(`(--proxy ${info.proxyFlag})`)}`;
+  const providerHint =
+    info.proxyFlag === "auto" ? "" : ` ${dim(`(--proxy ${info.proxyFlag})`)}`;
 
   const lines = [
     "",
@@ -65,9 +64,11 @@ export function printProxyBanner(info: ProxyBannerInfo): void {
     const binaryName = AGENT_BINARY_NAMES[info.proxyFlag];
     if (binaryName) {
       const agentPath = findAgentBinary(info.proxyFlag, info.logger);
-      lines.push(agentPath
-        ? `  ${dim("Agent")}      ${agentPath}`
-        : `  ${dim("Agent")}      ${dim(`not found (expected at ${AGENTS_DIR}/<version>/${binaryName})`)}`);
+      lines.push(
+        agentPath
+          ? `  ${dim("Agent")}      ${agentPath}`
+          : `  ${dim("Agent")}      ${dim(`not found (expected at ${AGENTS_DIR}/<version>/${binaryName})`)}`,
+      );
     }
   }
   lines.push("");

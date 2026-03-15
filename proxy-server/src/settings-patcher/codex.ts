@@ -10,7 +10,12 @@ import { readFile, writeFile, unlink, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import type { Logger } from "copilot-sdk-proxy";
-import type { PatchResult, CodexPatchOptions, CodexRestoreOptions, CodexDetectOptions } from "./types.js";
+import type {
+  PatchResult,
+  CodexPatchOptions,
+  CodexRestoreOptions,
+  CodexDetectOptions,
+} from "./types.js";
 import { extractLocalhostPort } from "./url-utils.js";
 import { defaultExec, type ExecFn } from "../utils/child-process.js";
 import { isRecord } from "../utils/type-guards.js";
@@ -23,8 +28,11 @@ interface EnvBackup {
 function isEnvBackup(value: unknown): value is EnvBackup {
   if (!isRecord(value)) return false;
   return (
-    ("OPENAI_BASE_URL" in value && (typeof value.OPENAI_BASE_URL === "string" || value.OPENAI_BASE_URL === null)) &&
-    ("OPENAI_API_KEY" in value && (typeof value.OPENAI_API_KEY === "string" || value.OPENAI_API_KEY === null))
+    "OPENAI_BASE_URL" in value &&
+    (typeof value.OPENAI_BASE_URL === "string" ||
+      value.OPENAI_BASE_URL === null) &&
+    "OPENAI_API_KEY" in value &&
+    (typeof value.OPENAI_API_KEY === "string" || value.OPENAI_API_KEY === null)
   );
 }
 
@@ -36,7 +44,10 @@ function defaultCodexBackupPath(): string {
   );
 }
 
-async function launchctlGetenv(exec: ExecFn, name: string): Promise<string | null> {
+async function launchctlGetenv(
+  exec: ExecFn,
+  name: string,
+): Promise<string | null> {
   try {
     const value = (await exec("launchctl", ["getenv", name])).trim();
     return value || null;
@@ -46,7 +57,9 @@ async function launchctlGetenv(exec: ExecFn, name: string): Promise<string | nul
   }
 }
 
-export async function detectCodexPatchState(options: CodexDetectOptions): Promise<PatchResult> {
+export async function detectCodexPatchState(
+  options: CodexDetectOptions,
+): Promise<PatchResult> {
   const { logger } = options;
   const exec = options.exec ?? defaultExec;
   const backupFile = options.backupFile ?? defaultCodexBackupPath();
@@ -71,7 +84,9 @@ export async function detectCodexPatchState(options: CodexDetectOptions): Promis
   return { patched: true };
 }
 
-export async function patchCodexSettings(options: CodexPatchOptions): Promise<void> {
+export async function patchCodexSettings(
+  options: CodexPatchOptions,
+): Promise<void> {
   const { port } = options;
   const exec = options.exec ?? defaultExec;
   const backupFile = options.backupFile ?? defaultCodexBackupPath();
@@ -86,7 +101,11 @@ export async function patchCodexSettings(options: CodexPatchOptions): Promise<vo
     };
     const dir = join(backupFile, "..");
     await mkdir(dir, { recursive: true });
-    await writeFile(backupFile, JSON.stringify(backup, null, 2) + "\n", "utf-8");
+    await writeFile(
+      backupFile,
+      JSON.stringify(backup, null, 2) + "\n",
+      "utf-8",
+    );
   }
 
   // Let exec errors propagate. The caller (patchSettings) decides how to handle them.
@@ -103,7 +122,10 @@ async function unsetEnvVars(exec: ExecFn, logger: Logger): Promise<void> {
   }
 }
 
-async function readEnvBackup(backupFile: string, logger: Logger): Promise<EnvBackup | null> {
+async function readEnvBackup(
+  backupFile: string,
+  logger: Logger,
+): Promise<EnvBackup | null> {
   if (!existsSync(backupFile)) return null;
 
   const raw = await readFile(backupFile, "utf-8");
@@ -121,7 +143,9 @@ async function readEnvBackup(backupFile: string, logger: Logger): Promise<EnvBac
   return parsed;
 }
 
-export async function restoreCodexSettings(options: CodexRestoreOptions): Promise<void> {
+export async function restoreCodexSettings(
+  options: CodexRestoreOptions,
+): Promise<void> {
   const { logger } = options;
   const exec = options.exec ?? defaultExec;
   const backupFile = options.backupFile ?? defaultCodexBackupPath();
@@ -135,7 +159,11 @@ export async function restoreCodexSettings(options: CodexRestoreOptions): Promis
   // Best-effort: restore as many env vars as possible.
   try {
     if (backup.OPENAI_BASE_URL != null) {
-      await exec("launchctl", ["setenv", "OPENAI_BASE_URL", backup.OPENAI_BASE_URL]);
+      await exec("launchctl", [
+        "setenv",
+        "OPENAI_BASE_URL",
+        backup.OPENAI_BASE_URL,
+      ]);
     } else {
       await exec("launchctl", ["unsetenv", "OPENAI_BASE_URL"]);
     }
@@ -145,7 +173,11 @@ export async function restoreCodexSettings(options: CodexRestoreOptions): Promis
 
   try {
     if (backup.OPENAI_API_KEY != null) {
-      await exec("launchctl", ["setenv", "OPENAI_API_KEY", backup.OPENAI_API_KEY]);
+      await exec("launchctl", [
+        "setenv",
+        "OPENAI_API_KEY",
+        backup.OPENAI_API_KEY,
+      ]);
     } else {
       await exec("launchctl", ["unsetenv", "OPENAI_API_KEY"]);
     }

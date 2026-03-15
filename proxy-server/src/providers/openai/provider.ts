@@ -1,5 +1,8 @@
 import type { Provider } from "../types.js";
-import { createModelsHandler, createCompletionsHandler } from "copilot-sdk-proxy";
+import {
+  createModelsHandler,
+  createCompletionsHandler,
+} from "copilot-sdk-proxy";
 import { resolveToolBridgeManager } from "../../tool-bridge/index.js";
 import { filterExcludedFiles } from "../shared/prompt-utils.js";
 import { addUserAgentGuard } from "../shared/user-agent-guard.js";
@@ -12,10 +15,19 @@ export const openaiProvider = {
   register(app, ctx) {
     addUserAgentGuard(app, UA_PREFIXES.openai, ctx.logger);
 
-    const manager = resolveToolBridgeManager(app, ctx.toolBridgeManager, ctx.logger, ctx.config.toolBridgeTimeoutMs);
+    const manager = resolveToolBridgeManager(
+      app,
+      ctx.toolBridgeManager,
+      ctx.logger,
+      ctx.config.toolBridgeTimeoutMs,
+    );
     app.get("/v1/models", createModelsHandler(ctx));
-    app.post("/v1/chat/completions", createCompletionsHandler(ctx, manager, {
-      transformPrompt: (prompt) => filterExcludedFiles(prompt, ctx.config.excludedFilePatterns),
-    }));
+    app.post(
+      "/v1/chat/completions",
+      createCompletionsHandler(ctx, manager, {
+        transformPrompt: (prompt) =>
+          filterExcludedFiles(prompt, ctx.config.excludedFilePatterns),
+      }),
+    );
   },
 } satisfies Provider;

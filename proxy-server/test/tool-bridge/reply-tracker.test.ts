@@ -27,7 +27,9 @@ describe("ReplyTracker", () => {
 
     it("notifyStreamingDone is safe to call without a waiter", () => {
       const tracker = new ReplyTracker();
-      expect(() => { tracker.notifyStreamingDone(); }).not.toThrow();
+      expect(() => {
+        tracker.notifyStreamingDone();
+      }).not.toThrow();
     });
 
     it("supports multiple concurrent waiters", async () => {

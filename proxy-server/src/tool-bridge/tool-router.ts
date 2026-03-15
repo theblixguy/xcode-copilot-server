@@ -20,7 +20,10 @@ export class ToolRouter {
   }
 
   hasPendingToolCall(toolCallId: string): boolean {
-    return this.pendingByCallId.has(toolCallId) || this.expectedByCallId.has(toolCallId);
+    return (
+      this.pendingByCallId.has(toolCallId) ||
+      this.expectedByCallId.has(toolCallId)
+    );
   }
 
   hasExpectedTool(name: string): boolean {
@@ -51,7 +54,9 @@ export class ToolRouter {
     const toolCallId = queue.shift();
     if (queue.length === 0) this.expectedByName.delete(name);
     if (!toolCallId) {
-      reject(new Error(`Internal: expected toolCallId was falsy for "${name}"`));
+      reject(
+        new Error(`Internal: expected toolCallId was falsy for "${name}"`),
+      );
       return;
     }
     this.expectedByCallId.delete(toolCallId);
@@ -103,13 +108,23 @@ export class ToolRouter {
     resolve: (result: string) => void,
     reject: (err: Error) => void,
   ): void {
-    const timeout = this.timeoutMs > 0
-      ? setTimeout(() => {
-          this.pendingByCallId.delete(toolCallId);
-          reject(new Error(`Tool call ${toolCallId} timed out after ${String(this.timeoutMs)}ms`));
-        }, this.timeoutMs)
-      : undefined;
+    const timeout =
+      this.timeoutMs > 0
+        ? setTimeout(() => {
+            this.pendingByCallId.delete(toolCallId);
+            reject(
+              new Error(
+                `Tool call ${toolCallId} timed out after ${String(this.timeoutMs)}ms`,
+              ),
+            );
+          }, this.timeoutMs)
+        : undefined;
 
-    this.pendingByCallId.set(toolCallId, { toolCallId, resolve, reject, timeout });
+    this.pendingByCallId.set(toolCallId, {
+      toolCallId,
+      resolve,
+      reject,
+      timeout,
+    });
   }
 }

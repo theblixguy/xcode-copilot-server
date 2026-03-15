@@ -1,5 +1,8 @@
 import type { Logger } from "copilot-sdk-proxy";
-import type { ConversationManager, Conversation } from "../../conversation-manager.js";
+import type {
+  ConversationManager,
+  Conversation,
+} from "../../conversation-manager.js";
 
 interface StreamingContext {
   conversation: Conversation;
@@ -9,7 +12,9 @@ interface StreamingContext {
   runStreaming: () => Promise<void>;
 }
 
-export async function orchestrateStreaming(ctx: StreamingContext): Promise<void> {
+export async function orchestrateStreaming(
+  ctx: StreamingContext,
+): Promise<void> {
   const { conversation, logger, manager, messageCount } = ctx;
   const { state } = conversation;
 

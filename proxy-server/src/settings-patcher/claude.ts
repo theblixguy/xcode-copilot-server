@@ -1,5 +1,12 @@
 import { existsSync } from "node:fs";
-import { readFile, writeFile, rename, unlink, mkdir, copyFile } from "node:fs/promises";
+import {
+  readFile,
+  writeFile,
+  rename,
+  unlink,
+  mkdir,
+  copyFile,
+} from "node:fs/promises";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import type {
@@ -31,7 +38,10 @@ function isSettings(value: unknown): value is Settings {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-async function readSettingsFile(path: string, logger?: { warn(msg: string): void }): Promise<Settings | null> {
+async function readSettingsFile(
+  path: string,
+  logger?: { warn(msg: string): void },
+): Promise<Settings | null> {
   if (!existsSync(path)) return null;
   const content = await readFile(path, "utf-8");
   let parsed: unknown;
@@ -44,7 +54,9 @@ async function readSettingsFile(path: string, logger?: { warn(msg: string): void
   return isSettings(parsed) ? parsed : null;
 }
 
-export async function detectPatchState(options: DetectOptions): Promise<PatchResult> {
+export async function detectPatchState(
+  options: DetectOptions,
+): Promise<PatchResult> {
   const { logger } = options;
   const p = options.paths ?? defaultSettingsPaths();
 
@@ -69,7 +81,9 @@ export async function detectPatchState(options: DetectOptions): Promise<PatchRes
   return { patched: true };
 }
 
-export async function patchClaudeSettings(options: PatchOptions): Promise<void> {
+export async function patchClaudeSettings(
+  options: PatchOptions,
+): Promise<void> {
   const { logger } = options;
   const p = options.paths ?? defaultSettingsPaths();
 
@@ -82,7 +96,7 @@ export async function patchClaudeSettings(options: PatchOptions): Promise<void> 
 
   let settings: Settings = {};
   try {
-    settings = await readSettingsFile(p.file, logger) ?? {};
+    settings = (await readSettingsFile(p.file, logger)) ?? {};
   } catch (err) {
     logger.warn(`Could not read settings.json, starting fresh: ${String(err)}`);
   }
@@ -96,7 +110,9 @@ export async function patchClaudeSettings(options: PatchOptions): Promise<void> 
   await writeFile(p.file, JSON.stringify(settings, null, 2) + "\n", "utf-8");
 }
 
-export async function restoreClaudeSettings(options: RestoreOptions): Promise<void> {
+export async function restoreClaudeSettings(
+  options: RestoreOptions,
+): Promise<void> {
   const p = options.paths ?? defaultSettingsPaths();
 
   // Best-effort: log and continue so restore completes as much as possible.

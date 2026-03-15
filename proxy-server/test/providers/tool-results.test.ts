@@ -6,7 +6,11 @@ import { resolveResponsesToolResults } from "../../src/providers/codex/tool-resu
 
 const logger = new Logger("none");
 
-function setupPending(state: ToolBridgeState, callId: string, toolName: string): ReturnType<typeof vi.fn> {
+function setupPending(
+  state: ToolBridgeState,
+  callId: string,
+  toolName: string,
+): ReturnType<typeof vi.fn> {
   state.toolRouter.registerExpected(callId, toolName);
   const resolve = vi.fn();
   state.toolRouter.registerMCPRequest(toolName, resolve, vi.fn());
@@ -19,7 +23,18 @@ describe("resolveToolResults (Claude)", () => {
     const resolve = setupPending(state, "tool-1", "Read");
 
     resolveToolResults(
-      [{ role: "user", content: [{ type: "tool_result", tool_use_id: "tool-1", content: "result text" }] }],
+      [
+        {
+          role: "user",
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "tool-1",
+              content: "result text",
+            },
+          ],
+        },
+      ],
       state,
       logger,
     );
@@ -33,7 +48,21 @@ describe("resolveToolResults (Claude)", () => {
     const resolve = setupPending(state, "tool-1", "Read");
 
     resolveToolResults(
-      [{ role: "user", content: [{ type: "tool_result", tool_use_id: "tool-1", content: [{ type: "text", text: "line1" }, { type: "text", text: "line2" }] }] }],
+      [
+        {
+          role: "user",
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "tool-1",
+              content: [
+                { type: "text", text: "line1" },
+                { type: "text", text: "line2" },
+              ],
+            },
+          ],
+        },
+      ],
       state,
       logger,
     );
@@ -56,11 +85,7 @@ describe("resolveToolResults (Claude)", () => {
   it("ignores string content in last message", () => {
     const state = new ToolBridgeState();
     const warnSpy = vi.spyOn(logger, "warn");
-    resolveToolResults(
-      [{ role: "user", content: "just text" }],
-      state,
-      logger,
-    );
+    resolveToolResults([{ role: "user", content: "just text" }], state, logger);
     expect(warnSpy).not.toHaveBeenCalled();
     warnSpy.mockRestore();
   });
@@ -78,7 +103,18 @@ describe("resolveToolResults (Claude)", () => {
     const warnSpy = vi.spyOn(logger, "warn");
 
     resolveToolResults(
-      [{ role: "user", content: [{ type: "tool_result", tool_use_id: "unknown-id", content: "result" }] }],
+      [
+        {
+          role: "user",
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "unknown-id",
+              content: "result",
+            },
+          ],
+        },
+      ],
       state,
       logger,
     );
@@ -94,7 +130,13 @@ describe("resolveResponsesToolResults (Codex)", () => {
     const resolve = setupPending(state, "call-1", "Read");
 
     resolveResponsesToolResults(
-      [{ type: "function_call_output", call_id: "call-1", output: "result text" }],
+      [
+        {
+          type: "function_call_output",
+          call_id: "call-1",
+          output: "result text",
+        },
+      ],
       state,
       logger,
     );
@@ -107,7 +149,13 @@ describe("resolveResponsesToolResults (Codex)", () => {
     const warnSpy = vi.spyOn(logger, "warn");
 
     resolveResponsesToolResults(
-      [{ type: "function_call_output", call_id: "unknown-id", output: "result" }],
+      [
+        {
+          type: "function_call_output",
+          call_id: "unknown-id",
+          output: "result",
+        },
+      ],
       state,
       logger,
     );

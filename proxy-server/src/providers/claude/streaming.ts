@@ -1,17 +1,28 @@
 import type { FastifyReply } from "fastify";
-import type { CopilotSession, Logger, Stats, ContentBlockStopEvent } from "copilot-sdk-proxy";
+import type {
+  CopilotSession,
+  Logger,
+  Stats,
+  ContentBlockStopEvent,
+} from "copilot-sdk-proxy";
 import {
   sendSSEEvent as sendEvent,
   startReply,
   AnthropicProtocol,
 } from "copilot-sdk-proxy";
 import type { ToolBridgeState } from "../../tool-bridge/state.js";
-import type { BridgeStreamProtocol, StrippedToolRequest } from "../shared/streaming-core.js";
+import type {
+  BridgeStreamProtocol,
+  StrippedToolRequest,
+} from "../shared/streaming-core.js";
 import { runSessionStreaming } from "../shared/streaming-core.js";
 
 export { startReply };
 
-class BridgeAnthropicProtocol extends AnthropicProtocol implements BridgeStreamProtocol {
+class BridgeAnthropicProtocol
+  extends AnthropicProtocol
+  implements BridgeStreamProtocol
+{
   private emitToolUseBlocks(
     r: FastifyReply,
     toolRequests: StrippedToolRequest[],
@@ -21,10 +32,16 @@ class BridgeAnthropicProtocol extends AnthropicProtocol implements BridgeStreamP
       sendEvent(r, "content_block_start", {
         type: "content_block_start",
         index,
-        content_block: { type: "tool_use", id: tr.toolCallId, name: tr.name, input: {} },
+        content_block: {
+          type: "tool_use",
+          id: tr.toolCallId,
+          name: tr.name,
+          input: {},
+        },
       });
 
-      const argsJson = tr.arguments != null ? JSON.stringify(tr.arguments) : "{}";
+      const argsJson =
+        tr.arguments != null ? JSON.stringify(tr.arguments) : "{}";
       sendEvent(r, "content_block_delta", {
         type: "content_block_delta",
         index,
@@ -64,12 +81,23 @@ interface AnthropicStreamingOptions {
   stats: Stats;
 }
 
-export function handleAnthropicStreaming(opts: AnthropicStreamingOptions): Promise<void> {
+export function handleAnthropicStreaming(
+  opts: AnthropicStreamingOptions,
+): Promise<void> {
   const { state, session, prompt, model, logger, hasBridge, stats } = opts;
   const reply = state.replies.currentReply;
   if (!reply) throw new Error("No reply set on bridge state");
   startReply(reply, model);
 
   const protocol = new BridgeAnthropicProtocol();
-  return runSessionStreaming({ state, session, prompt, logger, hasBridge, protocol, initialReply: reply, stats });
+  return runSessionStreaming({
+    state,
+    session,
+    prompt,
+    logger,
+    hasBridge,
+    protocol,
+    initialReply: reply,
+    stats,
+  });
 }

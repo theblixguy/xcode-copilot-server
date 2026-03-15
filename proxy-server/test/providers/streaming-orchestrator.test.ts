@@ -29,7 +29,8 @@ function createContext(overrides: {
     manager,
     messageCount: overrides.messageCount ?? 5,
     tools: undefined,
-    runStreaming: overrides.runStreaming ?? vi.fn().mockResolvedValue(undefined),
+    runStreaming:
+      overrides.runStreaming ?? vi.fn().mockResolvedValue(undefined),
   };
 }
 

@@ -5,7 +5,13 @@ import { z } from "zod";
 import { Command } from "commander";
 import { Logger } from "copilot-sdk-proxy";
 import { patcherByProxy } from "./settings-patcher/index.js";
-import { parsePort, parseLogLevel, parseProvider, parseIdleTimeout, validateAutoPatch } from "./cli-validators.js";
+import {
+  parsePort,
+  parseLogLevel,
+  parseProvider,
+  parseIdleTimeout,
+  validateAutoPatch,
+} from "./cli-validators.js";
 import { startServer, type StartOptions } from "./startup.js";
 import { installAgent, uninstallAgent } from "./launchd/index.js";
 
@@ -15,7 +21,9 @@ const DEFAULT_CONFIG_PATH = join(PACKAGE_ROOT, "config.json5");
 // Can't use a JSON import here because rootDir is src/ and package.json lives at the root
 let version: string;
 try {
-  const raw: unknown = JSON.parse(await readFile(join(PACKAGE_ROOT, "package.json"), "utf-8"));
+  const raw: unknown = JSON.parse(
+    await readFile(join(PACKAGE_ROOT, "package.json"), "utf-8"),
+  );
   version = z.object({ version: z.string() }).parse(raw).version;
 } catch (err) {
   throw new Error(
@@ -84,7 +92,9 @@ interface InstallAgentCliOptions {
   autoPatch?: true;
 }
 
-async function installAgentCommand(options: InstallAgentCliOptions): Promise<void> {
+async function installAgentCommand(
+  options: InstallAgentCliOptions,
+): Promise<void> {
   const logLevel = parseLogLevel(options.logLevel);
   const logger = new Logger(logLevel);
   const port = parsePort(options.port);
@@ -107,7 +117,9 @@ async function installAgentCommand(options: InstallAgentCliOptions): Promise<voi
   });
 }
 
-async function uninstallAgentCommand(options: { logLevel: string }): Promise<void> {
+async function uninstallAgentCommand(options: {
+  logLevel: string;
+}): Promise<void> {
   const logLevel = parseLogLevel(options.logLevel);
   const logger = new Logger(logLevel);
   await uninstallAgent({ logger });
@@ -122,27 +134,49 @@ const program = new Command()
 
 program
   .option("-p, --port <number>", "port to listen on", "8080")
-  .option("--proxy <provider>", "API format: openai, claude, codex (default: all)")
+  .option(
+    "--proxy <provider>",
+    "API format: openai, claude, codex (default: all)",
+  )
   .option("-l, --log-level <level>", "log verbosity", "info")
   .option("-c, --config <path>", "path to config file")
   .option("--cwd <path>", "working directory for Copilot sessions")
-  .option("--auto-patch", "auto-patch settings on start, restore on exit (implied when --proxy is omitted)")
-  .option("--idle-timeout <minutes>", "shut down after N minutes of inactivity", "0")
+  .option(
+    "--auto-patch",
+    "auto-patch settings on start, restore on exit (implied when --proxy is omitted)",
+  )
+  .option(
+    "--idle-timeout <minutes>",
+    "shut down after N minutes of inactivity",
+    "0",
+  )
   .option("--launchd", "run in launchd mode (socket activation, no TTY output)")
-  .action((options: StartOptions) => startServer({ ...options, version, defaultConfigPath: DEFAULT_CONFIG_PATH }));
+  .action((options: StartOptions) =>
+    startServer({
+      ...options,
+      version,
+      defaultConfigPath: DEFAULT_CONFIG_PATH,
+    }),
+  );
 
 program
   .command("patch-settings")
   .description("Patch settings to point to this server, then exit")
   .option("-p, --port <number>", "port to write into settings", "8080")
-  .option("--proxy <provider>", "which provider to patch: claude, codex (default: all)")
+  .option(
+    "--proxy <provider>",
+    "which provider to patch: claude, codex (default: all)",
+  )
   .option("-l, --log-level <level>", "log verbosity", "info")
   .action((options: PatchOptions) => patchSettingsCommand(options));
 
 program
   .command("restore-settings")
   .description("Restore settings from backup, then exit")
-  .option("--proxy <provider>", "which provider to restore: claude, codex (default: all)")
+  .option(
+    "--proxy <provider>",
+    "which provider to restore: claude, codex (default: all)",
+  )
   .option("-l, --log-level <level>", "log verbosity", "info")
   .action((options: RestoreOptions) => restoreSettingsCommand(options));
 
@@ -150,12 +184,22 @@ program
   .command("install-agent")
   .description("Install a launchd agent with socket activation")
   .option("-p, --port <number>", "port to listen on", "8080")
-  .option("--proxy <provider>", "API format: openai, claude, codex (default: all)")
+  .option(
+    "--proxy <provider>",
+    "API format: openai, claude, codex (default: all)",
+  )
   .option("-l, --log-level <level>", "log verbosity for the agent", "info")
   .option("-c, --config <path>", "path to config file")
   .option("--cwd <path>", "working directory for Copilot sessions")
-  .option("--auto-patch", "patch settings on install, restore on uninstall (implied when --proxy is omitted)")
-  .option("--idle-timeout <minutes>", "shut down agent after N minutes of inactivity", "60")
+  .option(
+    "--auto-patch",
+    "patch settings on install, restore on uninstall (implied when --proxy is omitted)",
+  )
+  .option(
+    "--idle-timeout <minutes>",
+    "shut down agent after N minutes of inactivity",
+    "60",
+  )
   .action((options: InstallAgentCliOptions) => installAgentCommand(options));
 
 program

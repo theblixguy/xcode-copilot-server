@@ -11,8 +11,16 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { Logger } from "copilot-sdk-proxy";
 import { patcherByProxy } from "../src/settings-patcher/index.js";
-import { patchClaudeSettings, restoreClaudeSettings, detectPatchState } from "../src/settings-patcher/claude.js";
-import { patchCodexSettings, restoreCodexSettings, detectCodexPatchState } from "../src/settings-patcher/codex.js";
+import {
+  patchClaudeSettings,
+  restoreClaudeSettings,
+  detectPatchState,
+} from "../src/settings-patcher/claude.js";
+import {
+  patchCodexSettings,
+  restoreCodexSettings,
+  detectCodexPatchState,
+} from "../src/settings-patcher/codex.js";
 import type { Settings, SettingsPaths } from "../src/settings-patcher/types.js";
 import type { ExecFn } from "../src/utils/child-process.js";
 
@@ -111,7 +119,12 @@ describe("patchClaudeSettings", () => {
   });
 
   it("uses custom auth token when provided", async () => {
-    await patchClaudeSettings({ port: 8080, logger, authToken: "custom-token", paths });
+    await patchClaudeSettings({
+      port: 8080,
+      logger,
+      authToken: "custom-token",
+      paths,
+    });
 
     const settings = readSettings();
     expect(settings.env?.ANTHROPIC_AUTH_TOKEN).toBe("custom-token");
@@ -251,7 +264,9 @@ describe("full lifecycle", () => {
   });
 
   it("user edits between sessions are preserved", async () => {
-    const original: Settings = { env: { ANTHROPIC_BASE_URL: ORIGINAL_ANTHROPIC_URL } };
+    const original: Settings = {
+      env: { ANTHROPIC_BASE_URL: ORIGINAL_ANTHROPIC_URL },
+    };
     writeSettings(original);
 
     await patchClaudeSettings({ port: 8080, logger, paths });
@@ -294,7 +309,9 @@ function createMockLaunchctl(): { exec: ExecFn; env: Map<string, string> } {
       if (val === undefined) return Promise.reject(new Error("not set"));
       return Promise.resolve(val + "\n");
     }
-    return Promise.reject(new Error(`unexpected launchctl subcommand: ${String(sub)}`));
+    return Promise.reject(
+      new Error(`unexpected launchctl subcommand: ${String(sub)}`),
+    );
   };
   return { exec, env };
 }
@@ -309,14 +326,24 @@ describe("patchCodexSettings", () => {
   });
 
   it("sets OPENAI_BASE_URL and OPENAI_API_KEY", async () => {
-    await patchCodexSettings({ port: 8080, logger, exec: mock.exec, backupFile });
+    await patchCodexSettings({
+      port: 8080,
+      logger,
+      exec: mock.exec,
+      backupFile,
+    });
 
     expect(mock.env.get("OPENAI_BASE_URL")).toBe(codexBaseUrl(8080));
     expect(mock.env.get("OPENAI_API_KEY")).toBe("xcode-copilot");
   });
 
   it("creates backup file with null values when no previous env vars", async () => {
-    await patchCodexSettings({ port: 8080, logger, exec: mock.exec, backupFile });
+    await patchCodexSettings({
+      port: 8080,
+      logger,
+      exec: mock.exec,
+      backupFile,
+    });
 
     expect(existsSync(backupFile)).toBe(true);
     const backup = JSON.parse(readFileSync(backupFile, "utf-8"));
@@ -328,7 +355,12 @@ describe("patchCodexSettings", () => {
     mock.env.set("OPENAI_BASE_URL", "https://api.openai.com/v1");
     mock.env.set("OPENAI_API_KEY", "sk-real-key");
 
-    await patchCodexSettings({ port: 3000, logger, exec: mock.exec, backupFile });
+    await patchCodexSettings({
+      port: 3000,
+      logger,
+      exec: mock.exec,
+      backupFile,
+    });
 
     const backup = JSON.parse(readFileSync(backupFile, "utf-8"));
     expect(backup.OPENAI_BASE_URL).toBe("https://api.openai.com/v1");
@@ -342,13 +374,23 @@ describe("patchCodexSettings", () => {
   it("does not overwrite backup on second patch (crash recovery)", async () => {
     mock.env.set("OPENAI_API_KEY", "sk-original");
 
-    await patchCodexSettings({ port: 8080, logger, exec: mock.exec, backupFile });
+    await patchCodexSettings({
+      port: 8080,
+      logger,
+      exec: mock.exec,
+      backupFile,
+    });
 
     const firstBackup = readFileSync(backupFile, "utf-8");
     expect(JSON.parse(firstBackup).OPENAI_API_KEY).toBe("sk-original");
 
     // Second patch (simulating restart after crash)
-    await patchCodexSettings({ port: 9090, logger, exec: mock.exec, backupFile });
+    await patchCodexSettings({
+      port: 9090,
+      logger,
+      exec: mock.exec,
+      backupFile,
+    });
 
     // Backup still has the original value
     const secondBackup = readFileSync(backupFile, "utf-8");
@@ -372,7 +414,12 @@ describe("restoreCodexSettings", () => {
     mock.env.set("OPENAI_BASE_URL", "https://api.openai.com/v1");
     mock.env.set("OPENAI_API_KEY", "sk-real-key");
 
-    await patchCodexSettings({ port: 8080, logger, exec: mock.exec, backupFile });
+    await patchCodexSettings({
+      port: 8080,
+      logger,
+      exec: mock.exec,
+      backupFile,
+    });
     await restoreCodexSettings({ logger, exec: mock.exec, backupFile });
 
     expect(mock.env.get("OPENAI_BASE_URL")).toBe("https://api.openai.com/v1");
@@ -381,7 +428,12 @@ describe("restoreCodexSettings", () => {
   });
 
   it("unsets env vars when backup has null values", async () => {
-    await patchCodexSettings({ port: 8080, logger, exec: mock.exec, backupFile });
+    await patchCodexSettings({
+      port: 8080,
+      logger,
+      exec: mock.exec,
+      backupFile,
+    });
 
     expect(mock.env.has("OPENAI_BASE_URL")).toBe(true);
     expect(mock.env.has("OPENAI_API_KEY")).toBe(true);
@@ -412,23 +464,45 @@ describe("detectCodexPatchState", () => {
   });
 
   it("returns unpatched when no backup exists", async () => {
-    const result = await detectCodexPatchState({ logger, exec: mock.exec, backupFile });
+    const result = await detectCodexPatchState({
+      logger,
+      exec: mock.exec,
+      backupFile,
+    });
     expect(result.patched).toBe(false);
   });
 
   it("returns patched with port when backup exists", async () => {
-    await patchCodexSettings({ port: 8080, logger, exec: mock.exec, backupFile });
+    await patchCodexSettings({
+      port: 8080,
+      logger,
+      exec: mock.exec,
+      backupFile,
+    });
 
-    const result = await detectCodexPatchState({ logger, exec: mock.exec, backupFile });
+    const result = await detectCodexPatchState({
+      logger,
+      exec: mock.exec,
+      backupFile,
+    });
     expect(result.patched).toBe(true);
     expect(result.port).toBe(8080);
   });
 
   it("returns unpatched after restore", async () => {
-    await patchCodexSettings({ port: 8080, logger, exec: mock.exec, backupFile });
+    await patchCodexSettings({
+      port: 8080,
+      logger,
+      exec: mock.exec,
+      backupFile,
+    });
     await restoreCodexSettings({ logger, exec: mock.exec, backupFile });
 
-    const result = await detectCodexPatchState({ logger, exec: mock.exec, backupFile });
+    const result = await detectCodexPatchState({
+      logger,
+      exec: mock.exec,
+      backupFile,
+    });
     expect(result.patched).toBe(false);
   });
 });

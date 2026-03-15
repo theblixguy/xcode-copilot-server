@@ -12,7 +12,10 @@ describe("providers", () => {
   it("each provider has name and routes", () => {
     for (const [key, provider] of Object.entries(providers)) {
       expect(provider.name, `${key} should have a name`).toBeTruthy();
-      expect(provider.routes.length, `${key} should have routes`).toBeGreaterThan(0);
+      expect(
+        provider.routes.length,
+        `${key} should have routes`,
+      ).toBeGreaterThan(0);
     }
   });
 });

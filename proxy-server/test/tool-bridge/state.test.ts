@@ -5,7 +5,11 @@ describe("ToolBridgeState", () => {
   it("exposes toolCache for caching and resolving tools", () => {
     const state = new ToolBridgeState();
     const tools = [
-      { name: "Read", description: "", input_schema: { type: "object" as const, properties: {} } },
+      {
+        name: "Read",
+        description: "",
+        input_schema: { type: "object" as const, properties: {} },
+      },
     ];
     state.toolCache.cacheTools(tools);
     expect(state.toolCache.getCachedTools()).toBe(tools);

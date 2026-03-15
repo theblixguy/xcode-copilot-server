@@ -3,11 +3,17 @@ import {
   createServer,
   Logger,
   Stats,
-  bold, dim, createSpinner,
+  bold,
+  dim,
+  createSpinner,
   type LogLevel,
 } from "copilot-sdk-proxy";
 import type { AppContext } from "./context.js";
-import { loadConfig, loadAllProviderConfigs, resolveConfigPath } from "./config.js";
+import {
+  loadConfig,
+  loadAllProviderConfigs,
+  resolveConfigPath,
+} from "./config.js";
 import type { ServerConfig } from "./config-schema.js";
 import type { AllProviderConfigs } from "./config.js";
 import type { ProviderMode } from "copilot-sdk-proxy";
@@ -55,9 +61,13 @@ function parseOptions(options: StartOptions): ParsedOptions {
   const logLevel = parseLogLevel(options.logLevel);
   const logger = new Logger(logLevel);
   const port = parsePort(options.port);
-  const proxyMode: ProviderMode = options.proxy ? parseProviderMode(options.proxy) : "auto";
+  const proxyMode: ProviderMode = options.proxy
+    ? parseProviderMode(options.proxy)
+    : "auto";
 
-  const idleTimeoutMinutes = options.idleTimeout ? parseIdleTimeout(options.idleTimeout) : 0;
+  const idleTimeoutMinutes = options.idleTimeout
+    ? parseIdleTimeout(options.idleTimeout)
+    : 0;
   const launchdMode = options.launchd === true;
   const isAuto = proxyMode === "auto";
   const shouldPatch = isAuto
@@ -67,19 +77,38 @@ function parseOptions(options: StartOptions): ParsedOptions {
     validateAutoPatch(proxyMode, options.autoPatch === true);
   }
 
-  const configPath = options.config ?? resolveConfigPath(options.cwd, process.cwd(), options.defaultConfigPath);
+  const configPath =
+    options.config ??
+    resolveConfigPath(options.cwd, process.cwd(), options.defaultConfigPath);
   const quiet = logLevel === "none" || launchdMode;
 
-  return { port, proxyMode, logLevel, logger, quiet, launchdMode, shouldPatch, idleTimeoutMinutes, configPath, cwd: options.cwd };
+  return {
+    port,
+    proxyMode,
+    logLevel,
+    logger,
+    quiet,
+    launchdMode,
+    shouldPatch,
+    idleTimeoutMinutes,
+    configPath,
+    cwd: options.cwd,
+  };
 }
 
-async function loadProvider(
-  parsed: ParsedOptions,
-): Promise<{ provider: Provider; config: ServerConfig; allConfigs?: AllProviderConfigs }> {
+async function loadProvider(parsed: ParsedOptions): Promise<{
+  provider: Provider;
+  config: ServerConfig;
+  allConfigs?: AllProviderConfigs;
+}> {
   const { proxyMode, configPath, logger } = parsed;
   if (proxyMode === "auto") {
     const allConfigs = await loadAllProviderConfigs(configPath, logger);
-    return { provider: createAutoProvider(allConfigs.providers), config: allConfigs.shared, allConfigs };
+    return {
+      provider: createAutoProvider(allConfigs.providers),
+      config: allConfigs.shared,
+      allConfigs,
+    };
   }
   const config = await loadConfig(configPath, logger, proxyMode);
   return { provider: providers[proxyMode], config };
@@ -99,7 +128,9 @@ async function initializeService(
     console.log();
   }
 
-  const bootSpinner = quiet ? null : createSpinner("Initialising Copilot SDK...");
+  const bootSpinner = quiet
+    ? null
+    : createSpinner("Initialising Copilot SDK...");
   await service.start();
   bootSpinner?.succeed("Copilot SDK initialised");
 
@@ -114,7 +145,9 @@ async function initializeService(
   }
   const login = auth.login ?? "unknown";
   const authType = auth.authType ?? "unknown";
-  authSpinner?.succeed(`Authenticated as ${bold(login)} ${dim(`(${authType})`)}`);
+  authSpinner?.succeed(
+    `Authenticated as ${bold(login)} ${dim(`(${authType})`)}`,
+  );
 
   return service;
 }
@@ -125,7 +158,9 @@ async function bindAndListen(
 ): Promise<void> {
   const { port, quiet, launchdMode, logger } = parsed;
 
-  const listenSpinner = quiet ? null : createSpinner(`Starting server on port ${String(port)}...`);
+  const listenSpinner = quiet
+    ? null
+    : createSpinner(`Starting server on port ${String(port)}...`);
   const prevPinoLevel = app.log.level;
   app.log.level = "silent";
 
@@ -136,14 +171,18 @@ async function bindAndListen(
       throw new Error("launch_activate_socket returned no file descriptors");
     }
     await app.listen({ fd });
-    logger.info(`Listening via launchd socket activation (fd ${String(fd)}, port ${String(port)})`);
+    logger.info(
+      `Listening via launchd socket activation (fd ${String(fd)}, port ${String(port)})`,
+    );
   } else {
     // 127.0.0.1 binding is the auth boundary. Only local processes can reach the server.
     await app.listen({ port, host: "127.0.0.1" });
   }
 
   app.log.level = prevPinoLevel;
-  listenSpinner?.succeed(`Listening on ${bold(`http://localhost:${String(port)}`)}`);
+  listenSpinner?.succeed(
+    `Listening on ${bold(`http://localhost:${String(port)}`)}`,
+  );
 }
 
 function printBanner(
@@ -168,7 +207,11 @@ function printBanner(
 
   logger.debug(`Config loaded from ${configPath}`);
   const mcpCount = allConfigs
-    ? new Set(Object.values(allConfigs.providers).flatMap((c) => Object.keys(c.mcpServers))).size
+    ? new Set(
+        Object.values(allConfigs.providers).flatMap((c) =>
+          Object.keys(c.mcpServers),
+        ),
+      ).size
     : Object.keys(config.mcpServers).length;
   const cliToolsSummary = config.allowedCliTools.includes("*")
     ? "all CLI tools allowed"
@@ -190,7 +233,9 @@ export async function startServer(options: StartOptions): Promise<void> {
       patchSpinner?.succeed("Settings patched");
     } catch (err) {
       patchSpinner?.fail(`Failed to patch settings: ${String(err)}`);
-      logger.warn(`Settings patching failed (continuing without patch): ${String(err)}`);
+      logger.warn(
+        `Settings patching failed (continuing without patch): ${String(err)}`,
+      );
     }
   }
 
@@ -207,8 +252,13 @@ export async function startServer(options: StartOptions): Promise<void> {
   printBanner(parsed, provider, service, config, allConfigs);
 
   registerShutdownHandlers({
-    app, service, logger, stats,
-    shouldPatch, proxyMode, quiet,
+    app,
+    service,
+    logger,
+    stats,
+    shouldPatch,
+    proxyMode,
+    quiet,
     lastActivityRef: () => lastActivity,
     idleTimeoutMinutes: parsed.idleTimeoutMinutes,
   });

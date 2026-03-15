@@ -8,7 +8,8 @@ import type { FastifyInstance } from "fastify";
 const logger = new Logger("none");
 
 const codexHeaders = {
-  "user-agent": "Xcode/0.87.0 (Mac OS 26.2.0; arm64) unknown (Xcode; 26.3 (17C518))",
+  "user-agent":
+    "Xcode/0.87.0 (Mac OS 26.2.0; arm64) unknown (Xcode; 26.3 (17C518))",
 };
 
 const baseConfig: ServerConfig = {
@@ -22,11 +23,17 @@ const baseConfig: ServerConfig = {
   autoApprovePermissions: ["read", "mcp"],
 };
 
-function makeMockSession(events: Array<{ type: string; data: unknown }> = [{ type: "session.idle", data: {} }]) {
+function makeMockSession(
+  events: Array<{ type: string; data: unknown }> = [
+    { type: "session.idle", data: {} },
+  ],
+) {
   return {
     on: (callback: (event: { type: string; data: unknown }) => void) => {
       for (const event of events) {
-        queueMicrotask(() => { callback(event); });
+        queueMicrotask(() => {
+          callback(event);
+        });
       }
       return () => {};
     },
@@ -104,7 +111,9 @@ describe("Responses handler — session creation failure", () => {
           },
         },
       ]),
-      createSession: vi.fn().mockRejectedValue(new Error("SDK connection failed")),
+      createSession: vi
+        .fn()
+        .mockRejectedValue(new Error("SDK connection failed")),
     };
 
     const ctx: AppContext = {
@@ -156,11 +165,13 @@ describe("Responses handler — session error event", () => {
           },
         },
       ]),
-      createSession: vi.fn().mockResolvedValue(
-        makeMockSession([
-          { type: "session.error", data: { message: "Rate limit exceeded" } },
-        ]),
-      ),
+      createSession: vi
+        .fn()
+        .mockResolvedValue(
+          makeMockSession([
+            { type: "session.error", data: { message: "Rate limit exceeded" } },
+          ]),
+        ),
     };
 
     const ctx: AppContext = {

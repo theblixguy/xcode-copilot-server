@@ -21,23 +21,35 @@ const ProviderConfigSchema = z.object({
 });
 
 export const ServerConfigSchema = z.object({
-  openai: ProviderConfigSchema.default({ toolBridge: false, toolBridgeTimeout: 0, mcpServers: {} }),
-  claude: ProviderConfigSchema.default({ toolBridge: false, toolBridgeTimeout: 0, mcpServers: {} }),
-  codex: ProviderConfigSchema.default({ toolBridge: false, toolBridgeTimeout: 0, mcpServers: {} }),
-  allowedCliTools: z.array(z.string()).refine(
-    (arr) => !arr.includes("*") || arr.length === 1,
-    'allowedCliTools: use ["*"] alone to allow all tools, don\'t mix with other entries',
-  ).default([]),
+  openai: ProviderConfigSchema.default({
+    toolBridge: false,
+    toolBridgeTimeout: 0,
+    mcpServers: {},
+  }),
+  claude: ProviderConfigSchema.default({
+    toolBridge: false,
+    toolBridgeTimeout: 0,
+    mcpServers: {},
+  }),
+  codex: ProviderConfigSchema.default({
+    toolBridge: false,
+    toolBridgeTimeout: 0,
+    mcpServers: {},
+  }),
+  allowedCliTools: z
+    .array(z.string())
+    .refine(
+      (arr) => !arr.includes("*") || arr.length === 1,
+      'allowedCliTools: use ["*"] alone to allow all tools, don\'t mix with other entries',
+    )
+    .default([]),
   excludedFilePatterns: z.array(z.string()).default([]),
   bodyLimit: z
     .number()
     .positive()
     .max(100, "bodyLimit cannot exceed 100")
     .default(10),
-  requestTimeout: z
-    .number()
-    .min(0, "requestTimeout must be >= 0")
-    .default(0),
+  requestTimeout: z.number().min(0, "requestTimeout must be >= 0").default(0),
   reasoningEffort: ReasoningEffortSchema.optional(),
   autoApprovePermissions: ApprovalRuleSchema.default(["read", "mcp"]),
 });

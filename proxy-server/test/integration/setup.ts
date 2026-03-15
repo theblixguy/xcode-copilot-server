@@ -44,7 +44,11 @@ afterAll(async () => {
   await mock.stop();
 }, TIMEOUT);
 
-export async function startServer(provider: Provider, byokProvider: SessionConfig["provider"], configOverrides?: Partial<ServerConfig>) {
+export async function startServer(
+  provider: Provider,
+  byokProvider: SessionConfig["provider"],
+  configOverrides?: Partial<ServerConfig>,
+) {
   const config: ServerConfig = {
     toolBridge: false,
     toolBridgeTimeoutMs: 0,
@@ -70,13 +74,22 @@ export async function startServer(provider: Provider, byokProvider: SessionConfi
   return { app, baseUrl: address, ctx };
 }
 
-export async function postJSON(baseUrl: string, path: string, body: unknown, extraHeaders?: Record<string, string>): Promise<{ status: number; body: string; contentType: string | null }> {
+export async function postJSON(
+  baseUrl: string,
+  path: string,
+  body: unknown,
+  extraHeaders?: Record<string, string>,
+): Promise<{ status: number; body: string; contentType: string | null }> {
   const res = await fetch(`${baseUrl}${path}`, {
     method: "POST",
     headers: { "content-type": "application/json", ...extraHeaders },
     body: JSON.stringify(body),
   });
-  return { status: res.status, body: await res.text(), contentType: res.headers.get("content-type") };
+  return {
+    status: res.status,
+    body: await res.text(),
+    contentType: res.headers.get("content-type"),
+  };
 }
 
 export function parseSSELines(body: string): unknown[] {

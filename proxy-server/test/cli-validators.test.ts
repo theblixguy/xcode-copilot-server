@@ -26,34 +26,47 @@ describe("parseProvider", () => {
 
 describe("validateAutoPatch", () => {
   it("allows auto-patch with claude", () => {
-    expect(() => { validateAutoPatch("claude", true); }).not.toThrow();
+    expect(() => {
+      validateAutoPatch("claude", true);
+    }).not.toThrow();
   });
 
   it("allows auto-patch with codex", () => {
-    expect(() => { validateAutoPatch("codex", true); }).not.toThrow();
+    expect(() => {
+      validateAutoPatch("codex", true);
+    }).not.toThrow();
   });
 
   it("throws when auto-patch is used with openai", () => {
-    expect(() => { validateAutoPatch("openai", true); }).toThrow(
-      "--auto-patch is only supported for: claude, codex",
-    );
+    expect(() => {
+      validateAutoPatch("openai", true);
+    }).toThrow("--auto-patch is only supported for: claude, codex");
   });
 
   it("allows no auto-patch with openai", () => {
-    expect(() => { validateAutoPatch("openai", false); }).not.toThrow();
+    expect(() => {
+      validateAutoPatch("openai", false);
+    }).not.toThrow();
   });
 
   it("allows no auto-patch with claude", () => {
-    expect(() => { validateAutoPatch("claude", false); }).not.toThrow();
+    expect(() => {
+      validateAutoPatch("claude", false);
+    }).not.toThrow();
   });
 
   it("allows no auto-patch with codex", () => {
-    expect(() => { validateAutoPatch("codex", false); }).not.toThrow();
+    expect(() => {
+      validateAutoPatch("codex", false);
+    }).not.toThrow();
   });
 });
 
 describe("subcommand option pass-through", () => {
-  function buildProgram(): { program: Command; captured: Record<string, Record<string, string>> } {
+  function buildProgram(): {
+    program: Command;
+    captured: Record<string, Record<string, string>>;
+  } {
     const captured: Record<string, Record<string, string>> = {};
 
     const program = new Command()
@@ -61,28 +74,44 @@ describe("subcommand option pass-through", () => {
       .passThroughOptions()
       .option("--proxy <provider>", "API format", "openai")
       .option("--idle-timeout <minutes>", "idle timeout", "0")
-      .action((opts: Record<string, string>) => { captured["main"] = opts; });
+      .action((opts: Record<string, string>) => {
+        captured["main"] = opts;
+      });
 
     program
       .command("install-agent")
       .option("--proxy <provider>", "API format", "openai")
       .option("--idle-timeout <minutes>", "idle timeout", "60")
       .option("--auto-patch")
-      .action((opts: Record<string, string>) => { captured["install-agent"] = opts; });
+      .action((opts: Record<string, string>) => {
+        captured["install-agent"] = opts;
+      });
 
     return { program, captured };
   }
 
   it("routes --proxy to the subcommand, not the parent", async () => {
     const { program, captured } = buildProgram();
-    await program.parseAsync(["node", "test", "install-agent", "--proxy", "claude"]);
+    await program.parseAsync([
+      "node",
+      "test",
+      "install-agent",
+      "--proxy",
+      "claude",
+    ]);
 
     expect(captured["install-agent"]!.proxy).toBe("claude");
   });
 
   it("routes --idle-timeout to the subcommand", async () => {
     const { program, captured } = buildProgram();
-    await program.parseAsync(["node", "test", "install-agent", "--idle-timeout", "30"]);
+    await program.parseAsync([
+      "node",
+      "test",
+      "install-agent",
+      "--idle-timeout",
+      "30",
+    ]);
 
     expect(captured["install-agent"]!.idleTimeout).toBe("30");
   });

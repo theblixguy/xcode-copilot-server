@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
 import Fastify from "fastify";
 import { Logger } from "copilot-sdk-proxy";
-import { registerToolBridge, resolveToolBridgeManager } from "../../src/tool-bridge/index.js";
+import {
+  registerToolBridge,
+  resolveToolBridgeManager,
+} from "../../src/tool-bridge/index.js";
 
 const logger = new Logger("none");
 
@@ -14,7 +17,11 @@ describe("registerToolBridge", () => {
     expect(manager).toBeDefined();
     expect(typeof manager.create).toBe("function");
 
-    const resp = await app.inject({ method: "POST", url: "/mcp/test-conv", payload: {} });
+    const resp = await app.inject({
+      method: "POST",
+      url: "/mcp/test-conv",
+      payload: {},
+    });
     expect(resp.statusCode).not.toBe(404);
 
     await app.close();

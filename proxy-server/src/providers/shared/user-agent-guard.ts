@@ -15,7 +15,10 @@ export function addUserAgentGuard(
     const ua = request.headers["user-agent"] ?? "";
     if (!ua.startsWith(uaPrefix)) {
       logger.warn(`Rejected request from unexpected user-agent: ${ua}`);
-      void reply.code(403).type("application/json").send('{"error":"Forbidden"}\n');
+      void reply
+        .code(403)
+        .type("application/json")
+        .send('{"error":"Forbidden"}\n');
       return;
     }
     done();

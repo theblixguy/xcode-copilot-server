@@ -1,21 +1,38 @@
-import type { SessionConfig, Logger, SessionConfigOptions as BaseSessionConfigOptions } from "copilot-sdk-proxy";
+import type {
+  SessionConfig,
+  Logger,
+  SessionConfigOptions as BaseSessionConfigOptions,
+} from "copilot-sdk-proxy";
 import { createSessionConfig as createBaseSessionConfig } from "copilot-sdk-proxy";
 import type { ServerConfig } from "../../config-schema.js";
-import { BRIDGE_SERVER_NAME, BRIDGE_TOOL_PREFIX } from "../../bridge-constants.js";
+import {
+  BRIDGE_SERVER_NAME,
+  BRIDGE_TOOL_PREFIX,
+} from "../../bridge-constants.js";
 
 const SDK_BUILT_IN_TOOLS: string[] = [
   // shell
-  "bash", "write_bash", "read_bash", "stop_bash", "list_bash",
+  "bash",
+  "write_bash",
+  "read_bash",
+  "stop_bash",
+  "list_bash",
   // file ops
-  "view", "apply_patch",
+  "view",
+  "apply_patch",
   // search
-  "rg", "glob",
+  "rg",
+  "glob",
   // agents / task management
-  "task", "update_todo", "report_intent",
+  "task",
+  "update_todo",
+  "report_intent",
   // interaction
   "ask_user",
   // misc
-  "skill", "web_fetch", "fetch_copilot_cli_documentation",
+  "skill",
+  "web_fetch",
+  "fetch_copilot_cli_documentation",
 ];
 
 interface SessionConfigOptions extends BaseSessionConfigOptions {
@@ -31,7 +48,11 @@ interface ToolBridgeContext {
   logger: Logger;
 }
 
-function resolveToolBridge({ tools, config, logger }: ToolBridgeContext): boolean {
+function resolveToolBridge({
+  tools,
+  config,
+  logger,
+}: ToolBridgeContext): boolean {
   if (tools) {
     logger.debug(`Tools in request: ${String(tools.length)}`);
   }
@@ -54,7 +75,11 @@ export function createProviderSessionConfig(
   baseOptions: BaseSessionConfigOptions,
   ctx: ProviderContext,
 ): SessionConfig {
-  const hasBridge = resolveToolBridge({ tools: ctx.tools, config: ctx.config, logger: ctx.logger });
+  const hasBridge = resolveToolBridge({
+    tools: ctx.tools,
+    config: ctx.config,
+    logger: ctx.logger,
+  });
   return createSessionConfig({
     ...baseOptions,
     config: ctx.config,
@@ -88,7 +113,9 @@ export function createSessionConfig({
 
   // Hide SDK built-ins so the model uses bridge tools (forwarded to Xcode).
   const excludedTools = SDK_BUILT_IN_TOOLS.filter(
-    (t) => !config.allowedCliTools.includes("*") && !config.allowedCliTools.includes(t),
+    (t) =>
+      !config.allowedCliTools.includes("*") &&
+      !config.allowedCliTools.includes(t),
   );
 
   if (!hasToolBridge) {

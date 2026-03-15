@@ -26,7 +26,9 @@ const ctx: AppContext = {
   stats: new Stats(),
 };
 
-const claudeCliHeaders = { "user-agent": "claude-cli/2.1.14 (external, sdk-cli)" };
+const claudeCliHeaders = {
+  "user-agent": "claude-cli/2.1.14 (external, sdk-cli)",
+};
 
 let app: FastifyInstance;
 
@@ -44,7 +46,11 @@ describe("Anthropic provider — user-agent check", () => {
       method: "POST",
       url: "/v1/messages",
       headers: claudeCliHeaders,
-      payload: { model: "claude-sonnet-4-20250514", max_tokens: 1024, messages: [] },
+      payload: {
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1024,
+        messages: [],
+      },
     });
     // 400 from validation (empty messages), not 403
     expect(res.statusCode).toBe(400);
@@ -55,7 +61,11 @@ describe("Anthropic provider — user-agent check", () => {
       method: "POST",
       url: "/v1/messages",
       headers: { "user-agent": "curl/8.0" },
-      payload: { model: "claude-sonnet-4-20250514", max_tokens: 1024, messages: [] },
+      payload: {
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1024,
+        messages: [],
+      },
     });
     expect(res.statusCode).toBe(403);
   });
@@ -65,7 +75,11 @@ describe("Anthropic provider — user-agent check", () => {
       method: "POST",
       url: "/v1/messages",
       headers: {},
-      payload: { model: "claude-sonnet-4-20250514", max_tokens: 1024, messages: [] },
+      payload: {
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1024,
+        messages: [],
+      },
     });
     expect(res.statusCode).toBe(403);
   });
@@ -88,7 +102,10 @@ describe("Anthropic provider — /v1/messages validation", () => {
       method: "POST",
       url: "/v1/messages",
       headers: claudeCliHeaders,
-      payload: { max_tokens: 1024, messages: [{ role: "user", content: "Hello" }] },
+      payload: {
+        max_tokens: 1024,
+        messages: [{ role: "user", content: "Hello" }],
+      },
     });
     expect(res.statusCode).toBe(400);
     const body = res.json();
@@ -101,7 +118,11 @@ describe("Anthropic provider — /v1/messages validation", () => {
       method: "POST",
       url: "/v1/messages",
       headers: claudeCliHeaders,
-      payload: { model: "claude-sonnet-4-20250514", max_tokens: 1024, messages: [] },
+      payload: {
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1024,
+        messages: [],
+      },
     });
     expect(res.statusCode).toBe(400);
     const body = res.json();

@@ -41,7 +41,9 @@ describe("OpenAI provider — user-agent check", () => {
     const res = await app.inject({
       method: "GET",
       url: "/v1/models",
-      headers: { "user-agent": "Xcode/24577 CFNetwork/3860.300.31 Darwin/25.2.0" },
+      headers: {
+        "user-agent": "Xcode/24577 CFNetwork/3860.300.31 Darwin/25.2.0",
+      },
     });
     expect(res.statusCode).not.toBe(403);
   });
@@ -79,7 +81,9 @@ describe("OpenAI provider — route isolation", () => {
   });
 });
 
-const xcodeHeaders = { "user-agent": "Xcode/24577 CFNetwork/3860.300.31 Darwin/25.2.0" };
+const xcodeHeaders = {
+  "user-agent": "Xcode/24577 CFNetwork/3860.300.31 Darwin/25.2.0",
+};
 
 describe("OpenAI provider — /v1/chat/completions validation", () => {
   it("returns 400 for missing model", async () => {

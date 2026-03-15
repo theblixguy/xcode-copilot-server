@@ -1,6 +1,10 @@
 import { describe, it, expect, afterEach } from "vitest";
 import type { FastifyInstance } from "fastify";
-import type { SessionEvent, SessionEventHandler, CopilotSession } from "@github/copilot-sdk";
+import type {
+  SessionEvent,
+  SessionEventHandler,
+  CopilotSession,
+} from "@github/copilot-sdk";
 import { createServer, Logger, Stats } from "copilot-sdk-proxy";
 import { claudeProvider } from "../src/providers/claude/provider.js";
 import { codexProvider } from "../src/providers/codex/provider.js";
@@ -10,9 +14,15 @@ import { BYTES_PER_MIB, type ServerConfig } from "../src/config-schema.js";
 import { BRIDGE_TOOL_PREFIX } from "../src/bridge-constants.js";
 import type { Provider } from "../src/providers/types.js";
 
-const BASE_EVENT = { id: "e1", timestamp: new Date().toISOString(), parentId: null };
+const BASE_EVENT = {
+  id: "e1",
+  timestamp: new Date().toISOString(),
+  parentId: null,
+};
 
-type EventSequence = (emit: (type: string, data: Record<string, unknown>) => void) => void;
+type EventSequence = (
+  emit: (type: string, data: Record<string, unknown>) => void,
+) => void;
 
 function createMockSession(sequence: EventSequence): CopilotSession {
   let handler: SessionEventHandler | null = null;
@@ -24,7 +34,9 @@ function createMockSession(sequence: EventSequence): CopilotSession {
   return {
     on(h: SessionEventHandler) {
       handler = h;
-      return () => { handler = null; };
+      return () => {
+        handler = null;
+      };
     },
     abort: () => Promise.resolve(),
     setModel: () => Promise.resolve(),
@@ -44,9 +56,15 @@ function standardSequence(opts: {
   return (emit) => {
     if (opts.reasoning) {
       for (const text of opts.reasoning) {
-        emit("assistant.reasoning_delta", { reasoningId: "r1", deltaContent: text });
+        emit("assistant.reasoning_delta", {
+          reasoningId: "r1",
+          deltaContent: text,
+        });
       }
-      emit("assistant.reasoning", { reasoningId: "r1", content: opts.reasoning.join("") });
+      emit("assistant.reasoning", {
+        reasoningId: "r1",
+        content: opts.reasoning.join(""),
+      });
     }
 
     if (opts.compaction) {
@@ -80,16 +98,26 @@ function standardSequence(opts: {
       toolRequests: [],
     });
 
-    emit("assistant.usage", { inputTokens: 10, outputTokens: 5, model: "test-model" });
+    emit("assistant.usage", {
+      inputTokens: 10,
+      outputTokens: 5,
+      model: "test-model",
+    });
     emit("session.idle", {});
   };
 }
 
-function errorSequence(opts: { deltasBeforeError?: string[]; errorMessage: string }): EventSequence {
+function errorSequence(opts: {
+  deltasBeforeError?: string[];
+  errorMessage: string;
+}): EventSequence {
   return (emit) => {
     if (opts.deltasBeforeError) {
       for (const text of opts.deltasBeforeError) {
-        emit("assistant.message_delta", { messageId: "m1", deltaContent: text });
+        emit("assistant.message_delta", {
+          messageId: "m1",
+          deltaContent: text,
+        });
       }
     }
     emit("session.error", { message: opts.errorMessage });
@@ -136,14 +164,21 @@ const toolBridgeConfig: ServerConfig = {
   toolBridge: true,
 };
 
-function createCtx(sequence: EventSequence, overrideConfig?: ServerConfig): AppContext {
+function createCtx(
+  sequence: EventSequence,
+  overrideConfig?: ServerConfig,
+): AppContext {
   return {
     service: {
       cwd: process.cwd(),
       createSession: () => Promise.resolve(createMockSession(sequence)),
-      listModels: () => Promise.resolve([
-        { id: "test-model", capabilities: { supports: { reasoningEffort: false } } },
-      ]),
+      listModels: () =>
+        Promise.resolve([
+          {
+            id: "test-model",
+            capabilities: { supports: { reasoningEffort: false } },
+          },
+        ]),
       ping: () => Promise.resolve({ message: "ok", timestamp: Date.now() }),
     } as unknown as AppContext["service"],
     logger: new Logger("none"),
@@ -153,7 +188,10 @@ function createCtx(sequence: EventSequence, overrideConfig?: ServerConfig): AppC
   };
 }
 
-function collectTextContent(events: unknown[], provider: "openai" | "claude" | "codex"): string {
+function collectTextContent(
+  events: unknown[],
+  provider: "openai" | "claude" | "codex",
+): string {
   if (provider === "openai") {
     return (events as { choices?: { delta?: { content?: string } }[] }[])
       .flatMap((e) => e.choices ?? [])
@@ -163,8 +201,13 @@ function collectTextContent(events: unknown[], provider: "openai" | "claude" | "
   }
 
   if (provider === "claude") {
-    return (events as { type?: string; delta?: { type?: string; text?: string } }[])
-      .filter((e) => e.type === "content_block_delta" && e.delta?.type === "text_delta")
+    return (
+      events as { type?: string; delta?: { type?: string; text?: string } }[]
+    )
+      .filter(
+        (e) =>
+          e.type === "content_block_delta" && e.delta?.type === "text_delta",
+      )
       .map((e) => e.delta?.text ?? "")
       .join("");
   }
@@ -175,18 +218,27 @@ function collectTextContent(events: unknown[], provider: "openai" | "claude" | "
     .join("");
 }
 
-async function createApp(ctx: AppContext, provider: Provider): Promise<FastifyInstance> {
+async function createApp(
+  ctx: AppContext,
+  provider: Provider,
+): Promise<FastifyInstance> {
   return createServer(ctx, provider);
 }
 
 const claudeHeaders = { "user-agent": "claude-cli/1.0" };
-const codexHeaders = { "user-agent": "Xcode/24577 CFNetwork/3860.300.31 Darwin/25.2.0" };
-const xcodeHeaders = { "user-agent": "Xcode/24577 CFNetwork/3860.300.31 Darwin/25.2.0" };
+const codexHeaders = {
+  "user-agent": "Xcode/24577 CFNetwork/3860.300.31 Darwin/25.2.0",
+};
+const xcodeHeaders = {
+  "user-agent": "Xcode/24577 CFNetwork/3860.300.31 Darwin/25.2.0",
+};
 
 describe("OpenAI streaming integration", () => {
   let app: FastifyInstance;
 
-  afterEach(async () => { await app.close(); });
+  afterEach(async () => {
+    await app.close();
+  });
 
   it("handles session error", async () => {
     const ctx = createCtx(errorSequence({ errorMessage: "backend exploded" }));
@@ -196,7 +248,10 @@ describe("OpenAI streaming integration", () => {
       method: "POST",
       url: "/v1/chat/completions",
       headers: { ...xcodeHeaders, "content-type": "application/json" },
-      payload: { model: "test-model", messages: [{ role: "user", content: "Hi" }] },
+      payload: {
+        model: "test-model",
+        messages: [{ role: "user", content: "Hi" }],
+      },
     });
 
     expect(res.statusCode).toBe(200);
@@ -204,17 +259,22 @@ describe("OpenAI streaming integration", () => {
   });
 
   it("handles session error after partial deltas", async () => {
-    const ctx = createCtx(errorSequence({
-      deltasBeforeError: ["Partial"],
-      errorMessage: "connection lost",
-    }));
+    const ctx = createCtx(
+      errorSequence({
+        deltasBeforeError: ["Partial"],
+        errorMessage: "connection lost",
+      }),
+    );
     app = await createApp(ctx, openaiProvider);
 
     const res = await app.inject({
       method: "POST",
       url: "/v1/chat/completions",
       headers: { ...xcodeHeaders, "content-type": "application/json" },
-      payload: { model: "test-model", messages: [{ role: "user", content: "Hi" }] },
+      payload: {
+        model: "test-model",
+        messages: [{ role: "user", content: "Hi" }],
+      },
     });
 
     // Stream still completes (HTTP 200 was already sent)
@@ -222,33 +282,45 @@ describe("OpenAI streaming integration", () => {
   });
 
   it("streams with compaction mid-session", async () => {
-    const ctx = createCtx(standardSequence({ deltas: ["Compacted"], compaction: true }));
+    const ctx = createCtx(
+      standardSequence({ deltas: ["Compacted"], compaction: true }),
+    );
     app = await createApp(ctx, openaiProvider);
 
     const res = await app.inject({
       method: "POST",
       url: "/v1/chat/completions",
       headers: { ...xcodeHeaders, "content-type": "application/json" },
-      payload: { model: "test-model", messages: [{ role: "user", content: "Hi" }] },
+      payload: {
+        model: "test-model",
+        messages: [{ role: "user", content: "Hi" }],
+      },
     });
 
     expect(res.statusCode).toBe(200);
-    expect(collectTextContent(parseSSELines(res.body), "openai")).toBe("Compacted");
+    expect(collectTextContent(parseSSELines(res.body), "openai")).toBe(
+      "Compacted",
+    );
     expect(res.body).toContain("data: [DONE]");
   });
 
   it("streams with tool execution events", async () => {
-    const ctx = createCtx(standardSequence({
-      deltas: ["Done"],
-      toolCall: { id: "tc1", name: "read_file", args: { path: "/tmp" } },
-    }));
+    const ctx = createCtx(
+      standardSequence({
+        deltas: ["Done"],
+        toolCall: { id: "tc1", name: "read_file", args: { path: "/tmp" } },
+      }),
+    );
     app = await createApp(ctx, openaiProvider);
 
     const res = await app.inject({
       method: "POST",
       url: "/v1/chat/completions",
       headers: { ...xcodeHeaders, "content-type": "application/json" },
-      payload: { model: "test-model", messages: [{ role: "user", content: "Read file" }] },
+      payload: {
+        model: "test-model",
+        messages: [{ role: "user", content: "Read file" }],
+      },
     });
 
     expect(res.statusCode).toBe(200);
@@ -256,35 +328,50 @@ describe("OpenAI streaming integration", () => {
   });
 
   it("streams with reasoning deltas", async () => {
-    const ctx = createCtx(standardSequence({ deltas: ["Answer"], reasoning: ["Let me", " think"] }));
+    const ctx = createCtx(
+      standardSequence({ deltas: ["Answer"], reasoning: ["Let me", " think"] }),
+    );
     app = await createApp(ctx, openaiProvider);
 
     const res = await app.inject({
       method: "POST",
       url: "/v1/chat/completions",
       headers: { ...xcodeHeaders, "content-type": "application/json" },
-      payload: { model: "test-model", messages: [{ role: "user", content: "Think hard" }] },
+      payload: {
+        model: "test-model",
+        messages: [{ role: "user", content: "Think hard" }],
+      },
     });
 
     expect(res.statusCode).toBe(200);
-    expect(collectTextContent(parseSSELines(res.body), "openai")).toBe("Answer");
+    expect(collectTextContent(parseSSELines(res.body), "openai")).toBe(
+      "Answer",
+    );
   });
 });
 
 describe("Claude streaming integration", () => {
   let app: FastifyInstance;
 
-  afterEach(async () => { await app.close(); });
+  afterEach(async () => {
+    await app.close();
+  });
 
   it("streams with compaction mid-session", async () => {
-    const ctx = createCtx(standardSequence({ deltas: ["OK"], compaction: true }));
+    const ctx = createCtx(
+      standardSequence({ deltas: ["OK"], compaction: true }),
+    );
     app = await createApp(ctx, claudeProvider);
 
     const res = await app.inject({
       method: "POST",
       url: "/v1/messages",
       headers: { ...claudeHeaders, "content-type": "application/json" },
-      payload: { model: "test-model", messages: [{ role: "user", content: "Hi" }], max_tokens: 100 },
+      payload: {
+        model: "test-model",
+        messages: [{ role: "user", content: "Hi" }],
+        max_tokens: 100,
+      },
     });
 
     expect(res.statusCode).toBe(200);
@@ -299,41 +386,59 @@ describe("Claude streaming integration", () => {
       method: "POST",
       url: "/v1/messages",
       headers: { ...claudeHeaders, "content-type": "application/json" },
-      payload: { model: "test-model", messages: [{ role: "user", content: "Hi" }], max_tokens: 100 },
+      payload: {
+        model: "test-model",
+        messages: [{ role: "user", content: "Hi" }],
+        max_tokens: 100,
+      },
     });
 
     expect(res.statusCode).toBe(200);
     const events = parseSSELines(res.body) as Record<string, unknown>[];
     const messageDelta = events.find(
-      (e) => e.type === "message_delta" && (e.delta as Record<string, unknown>).stop_reason === "end_turn",
+      (e) =>
+        e.type === "message_delta" &&
+        (e.delta as Record<string, unknown>).stop_reason === "end_turn",
     );
     expect(messageDelta).toBeDefined();
   });
 
   it("streams reasoning as thinking blocks", async () => {
-    const ctx = createCtx(standardSequence({ deltas: ["Answer"], reasoning: ["Thinking..."] }));
+    const ctx = createCtx(
+      standardSequence({ deltas: ["Answer"], reasoning: ["Thinking..."] }),
+    );
     app = await createApp(ctx, claudeProvider);
 
     const res = await app.inject({
       method: "POST",
       url: "/v1/messages",
       headers: { ...claudeHeaders, "content-type": "application/json" },
-      payload: { model: "test-model", messages: [{ role: "user", content: "Think" }], max_tokens: 100 },
+      payload: {
+        model: "test-model",
+        messages: [{ role: "user", content: "Think" }],
+        max_tokens: 100,
+      },
     });
 
     expect(res.statusCode).toBe(200);
     const events = parseSSELines(res.body) as Record<string, unknown>[];
 
     const thinkingStart = events.find(
-      (e) => e.type === "content_block_start" && (e.content_block as Record<string, unknown>).type === "thinking",
+      (e) =>
+        e.type === "content_block_start" &&
+        (e.content_block as Record<string, unknown>).type === "thinking",
     );
     expect(thinkingStart).toBeDefined();
 
     const thinkingDelta = events.find(
-      (e) => e.type === "content_block_delta" && (e.delta as Record<string, unknown>).type === "thinking_delta",
+      (e) =>
+        e.type === "content_block_delta" &&
+        (e.delta as Record<string, unknown>).type === "thinking_delta",
     );
     expect(thinkingDelta).toBeDefined();
-    expect((thinkingDelta!.delta as Record<string, string>).thinking).toBe("Thinking...");
+    expect((thinkingDelta!.delta as Record<string, string>).thinking).toBe(
+      "Thinking...",
+    );
     expect(collectTextContent(events, "claude")).toBe("Answer");
   });
 });
@@ -341,7 +446,9 @@ describe("Claude streaming integration", () => {
 describe("Codex streaming integration", () => {
   let app: FastifyInstance;
 
-  afterEach(async () => { await app.close(); });
+  afterEach(async () => {
+    await app.close();
+  });
 
   it("handles session error with failed status", async () => {
     const ctx = createCtx(errorSequence({ errorMessage: "timeout" }));
@@ -361,7 +468,9 @@ describe("Codex streaming integration", () => {
   });
 
   it("streams reasoning as reasoning summary events", async () => {
-    const ctx = createCtx(standardSequence({ deltas: ["Answer"], reasoning: ["Deep thought"] }));
+    const ctx = createCtx(
+      standardSequence({ deltas: ["Answer"], reasoning: ["Deep thought"] }),
+    );
     app = await createApp(ctx, codexProvider);
 
     const res = await app.inject({
@@ -374,7 +483,9 @@ describe("Codex streaming integration", () => {
     expect(res.statusCode).toBe(200);
     const events = parseSSELines(res.body) as Record<string, unknown>[];
 
-    const reasoningDelta = events.find((e) => e.type === "response.reasoning_summary_text.delta");
+    const reasoningDelta = events.find(
+      (e) => e.type === "response.reasoning_summary_text.delta",
+    );
     expect(reasoningDelta).toBeDefined();
     expect(reasoningDelta!.delta).toBe("Deep thought");
     expect(collectTextContent(events, "codex")).toBe("Answer");
@@ -384,14 +495,20 @@ describe("Codex streaming integration", () => {
 describe("Tool bridge integration — Claude", () => {
   let app: FastifyInstance;
 
-  afterEach(async () => { await app.close(); });
+  afterEach(async () => {
+    await app.close();
+  });
 
   it("emits tool_use blocks when model requests bridge tools", async () => {
     const ctx = createCtx(
       toolRequestSequence({
         deltas: ["Let me check"],
         toolRequests: [
-          { toolCallId: "tc1", name: `${BRIDGE_TOOL_PREFIX}XcodeRead`, arguments: { path: "/src" } },
+          {
+            toolCallId: "tc1",
+            name: `${BRIDGE_TOOL_PREFIX}XcodeRead`,
+            arguments: { path: "/src" },
+          },
         ],
       }),
       toolBridgeConfig,
@@ -406,7 +523,13 @@ describe("Tool bridge integration — Claude", () => {
         model: "test-model",
         messages: [{ role: "user", content: "Read my code" }],
         max_tokens: 100,
-        tools: [{ name: "XcodeRead", description: "Read file", input_schema: { type: "object" } }],
+        tools: [
+          {
+            name: "XcodeRead",
+            description: "Read file",
+            input_schema: { type: "object" },
+          },
+        ],
       },
     });
 
@@ -414,7 +537,9 @@ describe("Tool bridge integration — Claude", () => {
     const events = parseSSELines(res.body) as Record<string, unknown>[];
 
     const toolUseStart = events.find(
-      (e) => e.type === "content_block_start" && (e.content_block as Record<string, unknown>).type === "tool_use",
+      (e) =>
+        e.type === "content_block_start" &&
+        (e.content_block as Record<string, unknown>).type === "tool_use",
     );
     expect(toolUseStart).toBeDefined();
 
@@ -423,7 +548,9 @@ describe("Tool bridge integration — Claude", () => {
     expect(block.name).toBe("XcodeRead");
 
     const inputDelta = events.find(
-      (e) => e.type === "content_block_delta" && (e.delta as Record<string, unknown>).type === "input_json_delta",
+      (e) =>
+        e.type === "content_block_delta" &&
+        (e.delta as Record<string, unknown>).type === "input_json_delta",
     );
     expect(inputDelta).toBeDefined();
   });
@@ -432,14 +559,20 @@ describe("Tool bridge integration — Claude", () => {
 describe("Tool bridge integration — Codex", () => {
   let app: FastifyInstance;
 
-  afterEach(async () => { await app.close(); });
+  afterEach(async () => {
+    await app.close();
+  });
 
   it("emits function_call items when model requests bridge tools", async () => {
     const ctx = createCtx(
       toolRequestSequence({
         deltas: ["Let me check"],
         toolRequests: [
-          { toolCallId: "tc1", name: `${BRIDGE_TOOL_PREFIX}XcodeRead`, arguments: { path: "/src" } },
+          {
+            toolCallId: "tc1",
+            name: `${BRIDGE_TOOL_PREFIX}XcodeRead`,
+            arguments: { path: "/src" },
+          },
         ],
       }),
       toolBridgeConfig,
@@ -453,7 +586,14 @@ describe("Tool bridge integration — Codex", () => {
       payload: {
         model: "test-model",
         input: "Read my code",
-        tools: [{ type: "function", name: "XcodeRead", description: "Read file", parameters: { type: "object" } }],
+        tools: [
+          {
+            type: "function",
+            name: "XcodeRead",
+            description: "Read file",
+            parameters: { type: "object" },
+          },
+        ],
       },
     });
 
@@ -462,7 +602,9 @@ describe("Tool bridge integration — Codex", () => {
 
     // The first output_item.added is the "message" item, not the function_call
     const fcAdded = events.find(
-      (e) => e.type === "response.output_item.added" && (e as { item?: { type?: string } }).item?.type === "function_call",
+      (e) =>
+        e.type === "response.output_item.added" &&
+        (e as { item?: { type?: string } }).item?.type === "function_call",
     );
     expect(fcAdded).toBeDefined();
 
@@ -475,10 +617,15 @@ describe("Tool bridge integration — Codex", () => {
 describe("MCP routes", () => {
   let app: FastifyInstance;
 
-  afterEach(async () => { await app.close(); });
+  afterEach(async () => {
+    await app.close();
+  });
 
   it("responds to initialize with protocol version and capabilities", async () => {
-    const ctx = createCtx(standardSequence({ deltas: ["x"] }), toolBridgeConfig);
+    const ctx = createCtx(
+      standardSequence({ deltas: ["x"] }),
+      toolBridgeConfig,
+    );
     app = await createApp(ctx, claudeProvider);
 
     const res = await app.inject({
@@ -503,7 +650,10 @@ describe("MCP routes", () => {
   });
 
   it("returns method not found for unknown methods", async () => {
-    const ctx = createCtx(standardSequence({ deltas: ["x"] }), toolBridgeConfig);
+    const ctx = createCtx(
+      standardSequence({ deltas: ["x"] }),
+      toolBridgeConfig,
+    );
     app = await createApp(ctx, claudeProvider);
 
     const res = await app.inject({
@@ -523,7 +673,10 @@ describe("MCP routes", () => {
   });
 
   it("returns parse error for invalid JSON-RPC", async () => {
-    const ctx = createCtx(standardSequence({ deltas: ["x"] }), toolBridgeConfig);
+    const ctx = createCtx(
+      standardSequence({ deltas: ["x"] }),
+      toolBridgeConfig,
+    );
     app = await createApp(ctx, claudeProvider);
 
     const res = await app.inject({
@@ -539,7 +692,10 @@ describe("MCP routes", () => {
   });
 
   it("accepts notifications (no id) with 202", async () => {
-    const ctx = createCtx(standardSequence({ deltas: ["x"] }), toolBridgeConfig);
+    const ctx = createCtx(
+      standardSequence({ deltas: ["x"] }),
+      toolBridgeConfig,
+    );
     app = await createApp(ctx, claudeProvider);
 
     const res = await app.inject({
@@ -561,7 +717,9 @@ describe("MCP routes", () => {
 describe("GET /health", () => {
   let app: FastifyInstance;
 
-  afterEach(async () => { await app.close(); });
+  afterEach(async () => {
+    await app.close();
+  });
 
   it("returns 200 with status ok when ping succeeds", async () => {
     const ctx = createCtx(standardSequence({ deltas: ["x"] }));

@@ -70,12 +70,14 @@ describe("generatePlist", () => {
   });
 
   it("ProgramArguments includes all provided options", () => {
-    const parsed = parsePlist(generatePlist({
-      ...defaultPlistOptions(),
-      proxy: "claude",
-      port: 9090,
-      logLevel: "debug",
-    }));
+    const parsed = parsePlist(
+      generatePlist({
+        ...defaultPlistOptions(),
+        proxy: "claude",
+        port: 9090,
+        logLevel: "debug",
+      }),
+    );
 
     const args = parsed.ProgramArguments;
     expect(args[args.indexOf("--proxy") + 1]).toBe("claude");
@@ -84,48 +86,58 @@ describe("generatePlist", () => {
   });
 
   it("includes --config when specified", () => {
-    const parsed = parsePlist(generatePlist({
-      ...defaultPlistOptions(),
-      config: "/path/to/config.json5",
-    }));
+    const parsed = parsePlist(
+      generatePlist({
+        ...defaultPlistOptions(),
+        config: "/path/to/config.json5",
+      }),
+    );
 
     const args = parsed.ProgramArguments;
     expect(args[args.indexOf("--config") + 1]).toBe("/path/to/config.json5");
   });
 
   it("includes --cwd when specified", () => {
-    const parsed = parsePlist(generatePlist({
-      ...defaultPlistOptions(),
-      cwd: "/path/to/cwd",
-    }));
+    const parsed = parsePlist(
+      generatePlist({
+        ...defaultPlistOptions(),
+        cwd: "/path/to/cwd",
+      }),
+    );
 
     const args = parsed.ProgramArguments;
     expect(args[args.indexOf("--cwd") + 1]).toBe("/path/to/cwd");
   });
 
   it("includes --auto-patch when specified", () => {
-    const parsed = parsePlist(generatePlist({
-      ...defaultPlistOptions(),
-      autoPatch: true,
-    }));
+    const parsed = parsePlist(
+      generatePlist({
+        ...defaultPlistOptions(),
+        autoPatch: true,
+      }),
+    );
 
     expect(parsed.ProgramArguments).toContain("--auto-patch");
   });
 
   it("does not include --auto-patch when false", () => {
-    const parsed = parsePlist(generatePlist({
-      ...defaultPlistOptions(),
-      autoPatch: false,
-    }));
+    const parsed = parsePlist(
+      generatePlist({
+        ...defaultPlistOptions(),
+        autoPatch: false,
+      }),
+    );
 
     expect(parsed.ProgramArguments).not.toContain("--auto-patch");
   });
 
   it("includes --idle-timeout when specified", () => {
-    const parsed = parsePlist(generatePlist({
-      ...defaultPlistOptions(),
-      idleTimeout: 30,
-    }));
+    const parsed = parsePlist(
+      generatePlist({
+        ...defaultPlistOptions(),
+        idleTimeout: 30,
+      }),
+    );
 
     const args = parsed.ProgramArguments;
     expect(args).toContain("--idle-timeout");
@@ -133,10 +145,12 @@ describe("generatePlist", () => {
   });
 
   it("does not include --idle-timeout when zero", () => {
-    const parsed = parsePlist(generatePlist({
-      ...defaultPlistOptions(),
-      idleTimeout: 0,
-    }));
+    const parsed = parsePlist(
+      generatePlist({
+        ...defaultPlistOptions(),
+        idleTimeout: 0,
+      }),
+    );
 
     expect(parsed.ProgramArguments).not.toContain("--idle-timeout");
   });
@@ -148,10 +162,12 @@ describe("generatePlist", () => {
   });
 
   it("Sockets.Listeners uses correct port and 127.0.0.1", () => {
-    const parsed = parsePlist(generatePlist({
-      ...defaultPlistOptions(),
-      port: 3000,
-    }));
+    const parsed = parsePlist(
+      generatePlist({
+        ...defaultPlistOptions(),
+        port: 3000,
+      }),
+    );
 
     const listeners = parsed.Sockets.Listeners;
     expect(listeners).toEqual({
@@ -163,13 +179,15 @@ describe("generatePlist", () => {
   });
 
   it("includes EnvironmentVariables when provided", () => {
-    const parsed = parsePlist(generatePlist({
-      ...defaultPlistOptions(),
-      environmentVariables: {
-        GITHUB_TOKEN: "ghp_test123",
-        PATH: "/usr/bin",
-      },
-    }));
+    const parsed = parsePlist(
+      generatePlist({
+        ...defaultPlistOptions(),
+        environmentVariables: {
+          GITHUB_TOKEN: "ghp_test123",
+          PATH: "/usr/bin",
+        },
+      }),
+    );
 
     expect(parsed.EnvironmentVariables).toBeDefined();
     expect(parsed.EnvironmentVariables!["GITHUB_TOKEN"]).toBe("ghp_test123");
@@ -212,20 +230,26 @@ describe("generatePlist", () => {
   });
 
   it("round-trips XML special characters in values", () => {
-    const parsed = parsePlist(generatePlist({
-      ...defaultPlistOptions(),
-      cwd: "/path/with <special> & chars",
-    }));
+    const parsed = parsePlist(
+      generatePlist({
+        ...defaultPlistOptions(),
+        cwd: "/path/with <special> & chars",
+      }),
+    );
 
     const args = parsed.ProgramArguments;
-    expect(args[args.indexOf("--cwd") + 1]).toBe("/path/with <special> & chars");
+    expect(args[args.indexOf("--cwd") + 1]).toBe(
+      "/path/with <special> & chars",
+    );
   });
 
   it("includes log paths", () => {
-    const parsed = parsePlist(generatePlist({
-      ...defaultPlistOptions(),
-      logPaths: { out: "/tmp/out.log", err: "/tmp/err.log" },
-    }));
+    const parsed = parsePlist(
+      generatePlist({
+        ...defaultPlistOptions(),
+        logPaths: { out: "/tmp/out.log", err: "/tmp/err.log" },
+      }),
+    );
 
     expect(parsed.StandardOutPath).toBe("/tmp/out.log");
     expect(parsed.StandardErrorPath).toBe("/tmp/err.log");
@@ -286,7 +310,10 @@ describe("parsePlistArgs", () => {
   });
 });
 
-function createMockExec(): { exec: ExecFn; calls: Array<{ cmd: string; args: string[] }> } {
+function createMockExec(): {
+  exec: ExecFn;
+  calls: Array<{ cmd: string; args: string[] }>;
+} {
   const calls: Array<{ cmd: string; args: string[] }> = [];
   const exec: ExecFn = (cmd: string, args: string[]) => {
     calls.push({ cmd, args });
@@ -295,7 +322,10 @@ function createMockExec(): { exec: ExecFn; calls: Array<{ cmd: string; args: str
   return { exec, calls };
 }
 
-function createMockExecFailingUnload(): { exec: ExecFn; calls: Array<{ cmd: string; args: string[] }> } {
+function createMockExecFailingUnload(): {
+  exec: ExecFn;
+  calls: Array<{ cmd: string; args: string[] }>;
+} {
   const calls: Array<{ cmd: string; args: string[] }> = [];
   const exec: ExecFn = (cmd: string, args: string[]) => {
     calls.push({ cmd, args });
@@ -495,10 +525,13 @@ describe("uninstallAgent", () => {
 
   it("detects --proxy value from existing plist", async () => {
     const plistPath = join(tempDir, "test.plist");
-    writeFileSync(plistPath, generatePlist({
-      ...defaultPlistOptions(),
-      proxy: "claude",
-    }));
+    writeFileSync(
+      plistPath,
+      generatePlist({
+        ...defaultPlistOptions(),
+        proxy: "claude",
+      }),
+    );
     const mock = createMockExec();
 
     await uninstallAgent({ logger, exec: mock.exec, plistPath });
