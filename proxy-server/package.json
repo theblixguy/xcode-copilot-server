@@ -12,14 +12,15 @@
     "node": "25.6.0"
   },
   "bin": {
-    "xcode-copilot-server": "bin/xcode-copilot-server.mjs"
+    "xcode-copilot-server": "dist/index.js"
   },
   "files": [
-    "bin/",
     "dist/",
+    "patches/",
     "config.json5"
   ],
   "scripts": {
+    "postinstall": "npx patch-package",
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
@@ -43,6 +44,7 @@
     "@types/node": "25.5.0",
     "@types/plist": "3.0.5",
     "oxlint": "^1.55.0",
+    "patch-package": "8.0.1",
     "tsx": "4.21.0",
     "typescript": "5.9.3",
     "vitest": "4.1.0"

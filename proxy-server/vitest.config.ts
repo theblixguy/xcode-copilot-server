@@ -5,6 +5,5 @@ export default defineConfig({
     include: ["test/**/*.test.ts"],
     exclude: ["test/live/**"],
     environment: "node",
-    setupFiles: ["src/fix-jsonrpc-import.ts"],
   },
 });
