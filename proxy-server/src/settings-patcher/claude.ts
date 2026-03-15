@@ -20,7 +20,7 @@ import type {
 import { extractLocalhostPort } from "./url-utils.js";
 
 // Claude agent requires ANTHROPIC_AUTH_TOKEN to connect, but any value works for the local proxy.
-const DUMMY_AUTH_TOKEN = "xcode-copilot";
+const PLACEHOLDER_AUTH_VALUE = "xcode-copilot";
 
 function defaultSettingsPaths(): SettingsPaths {
   const dir = join(
@@ -104,7 +104,7 @@ export async function patchClaudeSettings(
   settings.env = {
     ...settings.env,
     ANTHROPIC_BASE_URL: `http://localhost:${String(options.port)}`,
-    ANTHROPIC_AUTH_TOKEN: options.authToken ?? DUMMY_AUTH_TOKEN,
+    ANTHROPIC_AUTH_TOKEN: options.authToken ?? PLACEHOLDER_AUTH_VALUE,
   };
 
   await writeFile(p.file, JSON.stringify(settings, null, 2) + "\n", "utf-8");

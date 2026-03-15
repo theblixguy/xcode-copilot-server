@@ -40,161 +40,155 @@ function stripMCPToolPrefix(name: string): string {
   return name.replace(MCP_TOOL_PREFIX, "");
 }
 
+type McpParams = FastifyRequest<{ Params: { convId: string } }>;
+
+function handleSseStream(
+  request: McpParams,
+  reply: FastifyReply,
+  logger: Logger,
+): void {
+  const { convId } = request.params;
+  logger.debug(`MCP ${convId}: SSE stream opened`);
+
+  reply.raw.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+  });
+
+  request.raw.on("close", () => {
+    logger.debug(`MCP ${convId}: SSE stream closed`);
+  });
+}
+
+async function handleToolCall(
+  convId: string,
+  id: number | string,
+  params: Record<string, unknown> | undefined,
+  stateProvider: ToolStateProvider,
+  logger: Logger,
+) {
+  const state = stateProvider.getState(convId);
+  if (!state) {
+    logger.warn(`MCP ${convId} tools/call: conversation not found`);
+    return jsonRpcError(id, JSONRPC_INTERNAL_ERROR, "Conversation not found");
+  }
+
+  const rawName = params?.["name"];
+  const name = typeof rawName === "string" ? rawName : undefined;
+  const rawArgs = params?.["arguments"];
+  const args: Record<string, unknown> = isRecord(rawArgs) ? rawArgs : {};
+
+  if (!name) {
+    return jsonRpcError(id, JSONRPC_INVALID_PARAMS, "Missing tool name");
+  }
+
+  const resolved = state.toolCache.resolveToolName(name);
+  if (resolved !== name) {
+    logger.info(
+      `MCP ${convId} tools/call: name="${name}" resolved to "${resolved}", args=${JSON.stringify(args)}`,
+    );
+  } else {
+    logger.info(
+      `MCP ${convId} tools/call: name="${name}", args=${JSON.stringify(args)}`,
+    );
+  }
+
+  try {
+    const result = await new Promise<string>((resolve, reject) => {
+      state.toolRouter.registerMCPRequest(resolved, resolve, reject);
+    });
+
+    logger.info(`MCP ${convId} tools/call resolved: name="${name}"`);
+    return jsonRpcResult(id, {
+      content: [{ type: "text", text: result }],
+    });
+  } catch (err) {
+    logger.debug(`MCP ${convId} tools/call error details:`, err);
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error(`MCP ${convId} tools/call error: ${message}`);
+    return jsonRpcError(id, JSONRPC_INTERNAL_ERROR, message);
+  }
+}
+
 export function registerRoutes(
   app: FastifyInstance,
   stateProvider: ToolStateProvider,
   logger: Logger,
 ): void {
-  // The SDK opens this SSE stream after initialize. We don't push anything, just keep it open.
-  app.get(
-    "/mcp/:convId",
-    (
-      request: FastifyRequest<{ Params: { convId: string } }>,
-      reply: FastifyReply,
-    ) => {
-      const { convId } = request.params;
-      logger.debug(`MCP ${convId}: SSE stream opened`);
+  app.get("/mcp/:convId", (request: McpParams, reply: FastifyReply) => {
+    handleSseStream(request, reply, logger);
+  });
 
-      reply.raw.writeHead(200, {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      });
-
-      request.raw.on("close", () => {
-        logger.debug(`MCP ${convId}: SSE stream closed`);
-      });
-    },
-  );
-
-  app.post(
-    "/mcp/:convId",
-    async (
-      request: FastifyRequest<{ Params: { convId: string } }>,
-      reply: FastifyReply,
-    ) => {
-      const { convId } = request.params;
-      const parsed = JsonRpcRequestSchema.safeParse(request.body);
-      if (!parsed.success) {
-        return reply.send(
-          jsonRpcError(null, JSONRPC_PARSE_ERROR, "Parse error"),
-        );
-      }
-      const msg = parsed.data;
-
-      logger.debug(
-        `MCP ${convId}: method="${msg.method}", id=${String(msg.id)}`,
+  app.post("/mcp/:convId", async (request: McpParams, reply: FastifyReply) => {
+    const { convId } = request.params;
+    const parsed = JsonRpcRequestSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.send(
+        jsonRpcError(null, JSONRPC_PARSE_ERROR, "Parse error"),
       );
+    }
+    const msg = parsed.data;
 
-      if (msg.id === undefined) {
-        logger.debug(
-          `MCP ${convId}: notification method="${msg.method}", ignoring`,
+    logger.debug(
+      `MCP ${convId}: method="${msg.method}", id=${String(msg.id)}`,
+    );
+
+    if (msg.id === undefined) {
+      logger.debug(
+        `MCP ${convId}: notification method="${msg.method}", ignoring`,
+      );
+      return reply.status(202).send();
+    }
+
+    const { id, method, params } = msg;
+
+    switch (method) {
+      case "initialize":
+        return reply.send(
+          jsonRpcResult(id, {
+            protocolVersion: PROTOCOL_VERSION,
+            capabilities: { tools: {} },
+            serverInfo: { name: BRIDGE_SERVER_NAME, version: "1.0.0" },
+          }),
         );
-        return reply.status(202).send();
-      }
 
-      const { id, method, params } = msg;
-
-      switch (method) {
-        case "initialize":
-          return reply.send(
-            jsonRpcResult(id, {
-              protocolVersion: PROTOCOL_VERSION,
-              capabilities: { tools: {} },
-              serverInfo: { name: BRIDGE_SERVER_NAME, version: "1.0.0" },
-            }),
-          );
-
-        case "tools/list": {
-          const state = stateProvider.getState(convId);
-          if (!state) {
-            logger.warn(`MCP ${convId} tools/list: conversation not found`);
-            return reply.send(
-              jsonRpcError(
-                id,
-                JSONRPC_INTERNAL_ERROR,
-                "Conversation not found",
-              ),
-            );
-          }
-          const tools = state.toolCache.getCachedTools().map((t) => ({
-            name: stripMCPToolPrefix(t.name),
-            description: t.description,
-            inputSchema: t.input_schema,
-          }));
-          logger.debug(
-            `MCP ${convId} tools/list: ${String(tools.length)} tools`,
-          );
-          return reply.send(jsonRpcResult(id, { tools }));
-        }
-
-        case "tools/call": {
-          const state = stateProvider.getState(convId);
-          if (!state) {
-            logger.warn(`MCP ${convId} tools/call: conversation not found`);
-            return reply.send(
-              jsonRpcError(
-                id,
-                JSONRPC_INTERNAL_ERROR,
-                "Conversation not found",
-              ),
-            );
-          }
-
-          const rawName = params?.["name"];
-          const name = typeof rawName === "string" ? rawName : undefined;
-          const rawArgs = params?.["arguments"];
-          const args: Record<string, unknown> = isRecord(rawArgs)
-            ? rawArgs
-            : {};
-
-          if (!name) {
-            return reply.send(
-              jsonRpcError(id, JSONRPC_INVALID_PARAMS, "Missing tool name"),
-            );
-          }
-
-          const resolved = state.toolCache.resolveToolName(name);
-          if (resolved !== name) {
-            logger.info(
-              `MCP ${convId} tools/call: name="${name}" resolved to "${resolved}", args=${JSON.stringify(args)}`,
-            );
-          } else {
-            logger.info(
-              `MCP ${convId} tools/call: name="${name}", args=${JSON.stringify(args)}`,
-            );
-          }
-
-          try {
-            const result = await new Promise<string>((resolve, reject) => {
-              state.toolRouter.registerMCPRequest(resolved, resolve, reject);
-            });
-
-            logger.info(`MCP ${convId} tools/call resolved: name="${name}"`);
-            return await reply.send(
-              jsonRpcResult(id, {
-                content: [{ type: "text", text: result }],
-              }),
-            );
-          } catch (err) {
-            logger.debug(`MCP ${convId} tools/call error details:`, err);
-            const message = err instanceof Error ? err.message : String(err);
-            logger.error(`MCP ${convId} tools/call error: ${message}`);
-            return reply.send(
-              jsonRpcError(id, JSONRPC_INTERNAL_ERROR, message),
-            );
-          }
-        }
-
-        default:
+      case "tools/list": {
+        const state = stateProvider.getState(convId);
+        if (!state) {
+          logger.warn(`MCP ${convId} tools/list: conversation not found`);
           return reply.send(
             jsonRpcError(
               id,
-              JSONRPC_METHOD_NOT_FOUND,
-              `Method not found: ${method}`,
+              JSONRPC_INTERNAL_ERROR,
+              "Conversation not found",
             ),
           );
+        }
+        const tools = state.toolCache.getCachedTools().map((t) => ({
+          name: stripMCPToolPrefix(t.name),
+          description: t.description,
+          inputSchema: t.input_schema,
+        }));
+        logger.debug(
+          `MCP ${convId} tools/list: ${String(tools.length)} tools`,
+        );
+        return reply.send(jsonRpcResult(id, { tools }));
       }
-    },
-  );
+
+      case "tools/call":
+        return reply.send(
+          await handleToolCall(convId, id, params, stateProvider, logger),
+        );
+
+      default:
+        return reply.send(
+          jsonRpcError(
+            id,
+            JSONRPC_METHOD_NOT_FOUND,
+            `Method not found: ${method}`,
+          ),
+        );
+    }
+  });
 }
