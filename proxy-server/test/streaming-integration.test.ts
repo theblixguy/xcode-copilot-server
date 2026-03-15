@@ -11,7 +11,7 @@ import { codexProvider } from "../src/providers/codex/provider.js";
 import { openaiProvider } from "../src/providers/openai/provider.js";
 import type { AppContext } from "../src/context.js";
 import { BYTES_PER_MIB, type ServerConfig } from "../src/config-schema.js";
-import { BRIDGE_TOOL_PREFIX } from "../src/bridge-constants.js";
+import { BRIDGE_TOOL_PREFIX } from "../src/tool-bridge/bridge-constants.js";
 import type { Provider } from "../src/providers/types.js";
 import {
   JSONRPC_METHOD_NOT_FOUND,

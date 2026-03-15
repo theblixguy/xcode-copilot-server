@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import type { ToolStateProvider } from "../conversation-manager.js";
 import type { Logger } from "copilot-sdk-proxy";
-import { BRIDGE_SERVER_NAME } from "../bridge-constants.js";
+import { BRIDGE_SERVER_NAME } from "./bridge-constants.js";
 import { isRecord } from "../utils/type-guards.js";
 import {
   JSONRPC_PARSE_ERROR,
