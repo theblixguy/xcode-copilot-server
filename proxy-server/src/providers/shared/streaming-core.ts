@@ -226,14 +226,16 @@ class StreamingHandler {
       if (this.sessionDone) return;
       this.logger.error("Failed to send prompt:", err);
       this.sessionDone = true;
+      this.state.session.markSessionErrored();
+      this.state.session.markSessionInactive();
       const r = this.getReply();
       if (r) {
         this.protocol.sendFailed(r);
       }
       this.protocol.teardown();
       this.protocol.reset();
-      this.unsubscribe();
       this.finishStream(r);
+      this.unsubscribe();
     });
   }
 }
