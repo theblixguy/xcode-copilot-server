@@ -110,6 +110,27 @@ describe("Claude provider", () => {
     expect(res.status).toBe(400);
   }, TIMEOUT);
 
+  it("rejects requests with wrong user-agent", async () => {
+    const res = await postJSON(baseUrl, PATH, msg("hello"), { "user-agent": "curl/1.0" });
+    expect(res.status).toBe(403);
+  }, TIMEOUT);
+
+  it("rejects requests with missing user-agent", async () => {
+    const res = await fetch(`${baseUrl}${PATH}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(msg("hello")),
+    });
+    expect(res.status).toBe(403);
+  }, TIMEOUT);
+
+  it("rejects non-streaming requests", async () => {
+    const res = await post(baseUrl, { ...msg("hello"), stream: false });
+    expect(res.status).toBe(400);
+  }, TIMEOUT);
+});
+
+describe("Claude provider - usage stats", () => {
   it("records usage stats", async () => {
     const server = await startServer(claudeProvider, byok());
     try {
@@ -139,24 +160,5 @@ describe("Claude provider", () => {
     } finally {
       await server.app.close();
     }
-  }, TIMEOUT);
-
-  it("rejects requests with wrong user-agent", async () => {
-    const res = await postJSON(baseUrl, PATH, msg("hello"), { "user-agent": "curl/1.0" });
-    expect(res.status).toBe(403);
-  }, TIMEOUT);
-
-  it("rejects requests with missing user-agent", async () => {
-    const res = await fetch(`${baseUrl}${PATH}`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(msg("hello")),
-    });
-    expect(res.status).toBe(403);
-  }, TIMEOUT);
-
-  it("rejects non-streaming requests", async () => {
-    const res = await post(baseUrl, { ...msg("hello"), stream: false });
-    expect(res.status).toBe(400);
   }, TIMEOUT);
 });

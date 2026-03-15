@@ -85,6 +85,17 @@ function standardSequence(opts: {
   };
 }
 
+function errorSequence(opts: { deltasBeforeError?: string[]; errorMessage: string }): EventSequence {
+  return (emit) => {
+    if (opts.deltasBeforeError) {
+      for (const text of opts.deltasBeforeError) {
+        emit("assistant.message_delta", { messageId: "m1", deltaContent: text });
+      }
+    }
+    emit("session.error", { message: opts.errorMessage });
+  };
+}
+
 function toolRequestSequence(opts: {
   deltas: string[];
   toolRequests: { toolCallId: string; name: string; arguments?: unknown }[];
@@ -142,6 +153,28 @@ function createCtx(sequence: EventSequence, overrideConfig?: ServerConfig): AppC
   };
 }
 
+function collectTextContent(events: unknown[], provider: "openai" | "claude" | "codex"): string {
+  if (provider === "openai") {
+    return (events as { choices?: { delta?: { content?: string } }[] }[])
+      .flatMap((e) => e.choices ?? [])
+      .map((c) => c.delta?.content ?? "")
+      .filter(Boolean)
+      .join("");
+  }
+
+  if (provider === "claude") {
+    return (events as { type?: string; delta?: { type?: string; text?: string } }[])
+      .filter((e) => e.type === "content_block_delta" && e.delta?.type === "text_delta")
+      .map((e) => e.delta?.text ?? "")
+      .join("");
+  }
+
+  return (events as { type?: string; delta?: string }[])
+    .filter((e) => e.type === "response.output_text.delta")
+    .map((e) => e.delta ?? "")
+    .join("");
+}
+
 async function createApp(ctx: AppContext, provider: Provider): Promise<FastifyInstance> {
   return createServer(ctx, provider);
 }
@@ -149,6 +182,204 @@ async function createApp(ctx: AppContext, provider: Provider): Promise<FastifyIn
 const claudeHeaders = { "user-agent": "claude-cli/1.0" };
 const codexHeaders = { "user-agent": "Xcode/24577 CFNetwork/3860.300.31 Darwin/25.2.0" };
 const xcodeHeaders = { "user-agent": "Xcode/24577 CFNetwork/3860.300.31 Darwin/25.2.0" };
+
+describe("OpenAI streaming integration", () => {
+  let app: FastifyInstance;
+
+  afterEach(async () => { await app.close(); });
+
+  it("handles session error", async () => {
+    const ctx = createCtx(errorSequence({ errorMessage: "backend exploded" }));
+    app = await createApp(ctx, openaiProvider);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { ...xcodeHeaders, "content-type": "application/json" },
+      payload: { model: "test-model", messages: [{ role: "user", content: "Hi" }] },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(collectTextContent(parseSSELines(res.body), "openai")).toBe("");
+  });
+
+  it("handles session error after partial deltas", async () => {
+    const ctx = createCtx(errorSequence({
+      deltasBeforeError: ["Partial"],
+      errorMessage: "connection lost",
+    }));
+    app = await createApp(ctx, openaiProvider);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { ...xcodeHeaders, "content-type": "application/json" },
+      payload: { model: "test-model", messages: [{ role: "user", content: "Hi" }] },
+    });
+
+    // Stream still completes (HTTP 200 was already sent)
+    expect(res.statusCode).toBe(200);
+  });
+
+  it("streams with compaction mid-session", async () => {
+    const ctx = createCtx(standardSequence({ deltas: ["Compacted"], compaction: true }));
+    app = await createApp(ctx, openaiProvider);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { ...xcodeHeaders, "content-type": "application/json" },
+      payload: { model: "test-model", messages: [{ role: "user", content: "Hi" }] },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(collectTextContent(parseSSELines(res.body), "openai")).toBe("Compacted");
+    expect(res.body).toContain("data: [DONE]");
+  });
+
+  it("streams with tool execution events", async () => {
+    const ctx = createCtx(standardSequence({
+      deltas: ["Done"],
+      toolCall: { id: "tc1", name: "read_file", args: { path: "/tmp" } },
+    }));
+    app = await createApp(ctx, openaiProvider);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { ...xcodeHeaders, "content-type": "application/json" },
+      payload: { model: "test-model", messages: [{ role: "user", content: "Read file" }] },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(collectTextContent(parseSSELines(res.body), "openai")).toBe("Done");
+  });
+
+  it("streams with reasoning deltas", async () => {
+    const ctx = createCtx(standardSequence({ deltas: ["Answer"], reasoning: ["Let me", " think"] }));
+    app = await createApp(ctx, openaiProvider);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { ...xcodeHeaders, "content-type": "application/json" },
+      payload: { model: "test-model", messages: [{ role: "user", content: "Think hard" }] },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(collectTextContent(parseSSELines(res.body), "openai")).toBe("Answer");
+  });
+});
+
+describe("Claude streaming integration", () => {
+  let app: FastifyInstance;
+
+  afterEach(async () => { await app.close(); });
+
+  it("streams with compaction mid-session", async () => {
+    const ctx = createCtx(standardSequence({ deltas: ["OK"], compaction: true }));
+    app = await createApp(ctx, claudeProvider);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/messages",
+      headers: { ...claudeHeaders, "content-type": "application/json" },
+      payload: { model: "test-model", messages: [{ role: "user", content: "Hi" }], max_tokens: 100 },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(collectTextContent(parseSSELines(res.body), "claude")).toBe("OK");
+  });
+
+  it("handles session error with end_turn stop reason", async () => {
+    const ctx = createCtx(errorSequence({ errorMessage: "rate limited" }));
+    app = await createApp(ctx, claudeProvider);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/messages",
+      headers: { ...claudeHeaders, "content-type": "application/json" },
+      payload: { model: "test-model", messages: [{ role: "user", content: "Hi" }], max_tokens: 100 },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const events = parseSSELines(res.body) as Record<string, unknown>[];
+    const messageDelta = events.find(
+      (e) => e.type === "message_delta" && (e.delta as Record<string, unknown>).stop_reason === "end_turn",
+    );
+    expect(messageDelta).toBeDefined();
+  });
+
+  it("streams reasoning as thinking blocks", async () => {
+    const ctx = createCtx(standardSequence({ deltas: ["Answer"], reasoning: ["Thinking..."] }));
+    app = await createApp(ctx, claudeProvider);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/messages",
+      headers: { ...claudeHeaders, "content-type": "application/json" },
+      payload: { model: "test-model", messages: [{ role: "user", content: "Think" }], max_tokens: 100 },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const events = parseSSELines(res.body) as Record<string, unknown>[];
+
+    const thinkingStart = events.find(
+      (e) => e.type === "content_block_start" && (e.content_block as Record<string, unknown>).type === "thinking",
+    );
+    expect(thinkingStart).toBeDefined();
+
+    const thinkingDelta = events.find(
+      (e) => e.type === "content_block_delta" && (e.delta as Record<string, unknown>).type === "thinking_delta",
+    );
+    expect(thinkingDelta).toBeDefined();
+    expect((thinkingDelta!.delta as Record<string, string>).thinking).toBe("Thinking...");
+    expect(collectTextContent(events, "claude")).toBe("Answer");
+  });
+});
+
+describe("Codex streaming integration", () => {
+  let app: FastifyInstance;
+
+  afterEach(async () => { await app.close(); });
+
+  it("handles session error with failed status", async () => {
+    const ctx = createCtx(errorSequence({ errorMessage: "timeout" }));
+    app = await createApp(ctx, codexProvider);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/responses",
+      headers: { ...codexHeaders, "content-type": "application/json" },
+      payload: { model: "test-model", input: "Hi" },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const events = parseSSELines(res.body) as Record<string, unknown>[];
+    const failed = events.find((e) => e.type === "response.failed");
+    expect(failed).toBeDefined();
+  });
+
+  it("streams reasoning as reasoning summary events", async () => {
+    const ctx = createCtx(standardSequence({ deltas: ["Answer"], reasoning: ["Deep thought"] }));
+    app = await createApp(ctx, codexProvider);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/responses",
+      headers: { ...codexHeaders, "content-type": "application/json" },
+      payload: { model: "test-model", input: "Think" },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const events = parseSSELines(res.body) as Record<string, unknown>[];
+
+    const reasoningDelta = events.find((e) => e.type === "response.reasoning_summary_text.delta");
+    expect(reasoningDelta).toBeDefined();
+    expect(reasoningDelta!.delta).toBe("Deep thought");
+    expect(collectTextContent(events, "codex")).toBe("Answer");
+  });
+});
 
 describe("Tool bridge integration — Claude", () => {
   let app: FastifyInstance;

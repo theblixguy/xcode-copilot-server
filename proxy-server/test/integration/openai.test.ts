@@ -102,36 +102,6 @@ describe("OpenAI provider", () => {
     expect(res.status).toBe(400);
   }, TIMEOUT);
 
-  it("records usage stats", async () => {
-    const server = await startServer(openaiProvider, byok());
-    try {
-      await post(server.baseUrl, msg("hello"));
-      const snap = server.ctx.stats.snapshot();
-      expect(snap.requests).toBe(1);
-      expect(snap.sessions).toBe(1);
-    } finally {
-      await server.app.close();
-    }
-  }, TIMEOUT);
-
-  it("records multiple requests across turns", async () => {
-    const server = await startServer(openaiProvider, byok());
-    try {
-      await post(server.baseUrl, msg("hello"));
-      await post(server.baseUrl, {
-        model: OPENAI_MODEL,
-        messages: [
-          { role: "user", content: "hello" },
-          { role: "assistant", content: "Hi" },
-          { role: "user", content: "capital of France" },
-        ],
-      });
-      expect(server.ctx.stats.snapshot().requests).toBe(2);
-    } finally {
-      await server.app.close();
-    }
-  }, TIMEOUT);
-
   it("rejects requests with wrong user-agent", async () => {
     const res = await postJSON(baseUrl, PATH, msg("hello"), { "user-agent": "curl/1.0" });
     expect(res.status).toBe(403);
@@ -147,6 +117,7 @@ describe("OpenAI provider", () => {
   }, TIMEOUT);
 
   it("strips excluded file code blocks from prompt", async () => {
+    mock.history.clear();
     const server = await startServer(openaiProvider, byok(), {
       excludedFilePatterns: ["secret.ts"],
     });
@@ -185,5 +156,37 @@ describe("OpenAI provider", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.status).toBe("ok");
+  }, TIMEOUT);
+});
+
+describe("OpenAI provider - usage stats", () => {
+  it("records usage stats", async () => {
+    const server = await startServer(openaiProvider, byok());
+    try {
+      await post(server.baseUrl, msg("hello"));
+      const snap = server.ctx.stats.snapshot();
+      expect(snap.requests).toBe(1);
+      expect(snap.sessions).toBe(1);
+    } finally {
+      await server.app.close();
+    }
+  }, TIMEOUT);
+
+  it("records multiple requests across turns", async () => {
+    const server = await startServer(openaiProvider, byok());
+    try {
+      await post(server.baseUrl, msg("hello"));
+      await post(server.baseUrl, {
+        model: OPENAI_MODEL,
+        messages: [
+          { role: "user", content: "hello" },
+          { role: "assistant", content: "Hi" },
+          { role: "user", content: "capital of France" },
+        ],
+      });
+      expect(server.ctx.stats.snapshot().requests).toBe(2);
+    } finally {
+      await server.app.close();
+    }
   }, TIMEOUT);
 });
