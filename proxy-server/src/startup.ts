@@ -57,7 +57,7 @@ interface ParsedOptions {
   cwd: string | undefined;
 }
 
-function parseOptions(options: StartOptions): ParsedOptions {
+export function parseOptions(options: StartOptions): ParsedOptions {
   const logLevel = parseLogLevel(options.logLevel);
   const logger = new Logger(logLevel);
   const port = parsePort(options.port);
