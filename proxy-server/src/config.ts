@@ -82,10 +82,9 @@ async function parseConfigFile(
   try {
     raw = JSON5.parse(text);
   } catch (err) {
-    throw new Error(
-      `Failed to parse config file: ${errorMessage(err)}`,
-      { cause: err },
-    );
+    throw new Error(`Failed to parse config file: ${errorMessage(err)}`, {
+      cause: err,
+    });
   }
 
   if (!raw || typeof raw !== "object") {

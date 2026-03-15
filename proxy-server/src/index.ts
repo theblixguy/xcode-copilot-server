@@ -27,10 +27,9 @@ try {
   );
   version = z.object({ version: z.string() }).parse(raw).version;
 } catch (err) {
-  throw new Error(
-    `Failed to read package.json: ${errorMessage(err)}`,
-    { cause: err },
-  );
+  throw new Error(`Failed to read package.json: ${errorMessage(err)}`, {
+    cause: err,
+  });
 }
 
 interface PatchOptions {

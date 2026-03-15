@@ -124,15 +124,11 @@ export function registerRoutes(
     const { convId } = request.params;
     const parsed = JsonRpcRequestSchema.safeParse(request.body);
     if (!parsed.success) {
-      return reply.send(
-        jsonRpcError(null, JSONRPC_PARSE_ERROR, "Parse error"),
-      );
+      return reply.send(jsonRpcError(null, JSONRPC_PARSE_ERROR, "Parse error"));
     }
     const msg = parsed.data;
 
-    logger.debug(
-      `MCP ${convId}: method="${msg.method}", id=${String(msg.id)}`,
-    );
+    logger.debug(`MCP ${convId}: method="${msg.method}", id=${String(msg.id)}`);
 
     if (msg.id === undefined) {
       logger.debug(
@@ -158,11 +154,7 @@ export function registerRoutes(
         if (!state) {
           logger.warn(`MCP ${convId} tools/list: conversation not found`);
           return reply.send(
-            jsonRpcError(
-              id,
-              JSONRPC_INTERNAL_ERROR,
-              "Conversation not found",
-            ),
+            jsonRpcError(id, JSONRPC_INTERNAL_ERROR, "Conversation not found"),
           );
         }
         const tools = state.toolCache.getCachedTools().map((t) => ({
@@ -170,9 +162,7 @@ export function registerRoutes(
           description: t.description,
           inputSchema: t.input_schema,
         }));
-        logger.debug(
-          `MCP ${convId} tools/list: ${String(tools.length)} tools`,
-        );
+        logger.debug(`MCP ${convId} tools/list: ${String(tools.length)} tools`);
         return reply.send(jsonRpcResult(id, { tools }));
       }
 
