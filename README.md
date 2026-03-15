@@ -23,7 +23,7 @@ A proxy API server that lets you use GitHub Copilot in Xcode, either as a custom
 
 Xcode 26 added support for third-party LLM providers, but it only supports ChatGPT and Claude out of the box. If you have a GitHub Copilot subscription, there's no built-in way to use it.
 
-This server wraps the [GitHub Copilot SDK](https://github.com/github/copilot-sdk) and exposes it as an API that Xcode can talk to. It's built on [copilot-sdk-proxy](https://github.com/theblixguy/copilot-sdk-proxy), which handles the SDK integration and protocol translation. It supports three providers:
+This server wraps the [GitHub Copilot SDK](https://github.com/github/copilot-sdk) and exposes it as an API that Xcode can talk to. It's built on [copilot-sdk-proxy](https://github.com/theblixguy/copilot-sdk-proxy), which handles the SDK integration and protocol translation. Integration tests run against [llm-mock-server](https://github.com/theblixguy/llm-mock-server). It supports three providers:
 
 - **OpenAI** (default): Exposes an OpenAI-compatible completions API so Xcode can use Copilot as a custom model provider. Xcode handles tool execution directly.
 - **Claude**: Exposes an Anthropic-compatible API so Xcode can use Copilot as the backend for Claude Agent. A built-in tool bridge intercepts tool calls and routes them back to Xcode for execution.
