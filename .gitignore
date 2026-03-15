@@ -12,4 +12,3 @@ menu-bar-app/.build/
 .env.*
 .DS_Store
 .vscode/
-.desloppify/

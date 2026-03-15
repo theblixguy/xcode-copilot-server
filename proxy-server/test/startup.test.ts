@@ -85,9 +85,9 @@ describe("parseOptions", () => {
       expect(result.configPath).toBe("/my/config.json5");
     });
 
-    it("falls back to default config path", () => {
+    it("resolves a config path when not specified", () => {
       const result = parseOptions(baseOptions());
-      expect(typeof result.configPath).toBe("string");
+      expect(result.configPath).toContain("config.json5");
     });
   });
 });
