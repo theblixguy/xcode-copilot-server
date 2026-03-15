@@ -43,7 +43,7 @@ interface SessionConfigOptions extends BaseSessionConfigOptions {
 }
 
 interface ToolBridgeContext {
-  tools: unknown[] | undefined;
+  tools: readonly unknown[] | undefined;
   config: ServerConfig;
   logger: Logger;
 }
@@ -65,7 +65,7 @@ function resolveToolBridge({
 
 interface ProviderContext {
   conversationId: string;
-  tools: unknown[] | undefined;
+  tools: readonly unknown[] | undefined;
   config: ServerConfig;
   logger: Logger;
   port: number;
