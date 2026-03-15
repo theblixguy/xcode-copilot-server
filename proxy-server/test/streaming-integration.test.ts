@@ -13,6 +13,10 @@ import type { AppContext } from "../src/context.js";
 import { BYTES_PER_MIB, type ServerConfig } from "../src/config-schema.js";
 import { BRIDGE_TOOL_PREFIX } from "../src/bridge-constants.js";
 import type { Provider } from "../src/providers/types.js";
+import {
+  JSONRPC_METHOD_NOT_FOUND,
+  JSONRPC_PARSE_ERROR,
+} from "../src/tool-bridge/constants.js";
 
 const BASE_EVENT = {
   id: "e1",
@@ -218,7 +222,7 @@ function collectTextContent(
     .join("");
 }
 
-async function createApp(
+function createApp(
   ctx: AppContext,
   provider: Provider,
 ): Promise<FastifyInstance> {
@@ -669,7 +673,7 @@ describe("MCP routes", () => {
 
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    expect(body.error.code).toBe(-32601);
+    expect(body.error.code).toBe(JSONRPC_METHOD_NOT_FOUND);
   });
 
   it("returns parse error for invalid JSON-RPC", async () => {
@@ -688,7 +692,7 @@ describe("MCP routes", () => {
 
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    expect(body.error.code).toBe(-32700);
+    expect(body.error.code).toBe(JSONRPC_PARSE_ERROR);
   });
 
   it("accepts notifications (no id) with 202", async () => {
