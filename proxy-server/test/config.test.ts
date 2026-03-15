@@ -26,7 +26,11 @@ function writeConfig(filename: string, content: string): string {
 
 describe("loadConfig", () => {
   it("returns defaults when config file does not exist", async () => {
-    const config = await loadConfig("/nonexistent/config.json5", logger, "openai");
+    const config = await loadConfig(
+      "/nonexistent/config.json5",
+      logger,
+      "openai",
+    );
     expect(config.toolBridge).toBe(false);
     expect(config.mcpServers).toEqual({});
     expect(config.allowedCliTools).toEqual([]);
@@ -124,10 +128,7 @@ describe("loadConfig", () => {
   });
 
   it("loads reasoningEffort", async () => {
-    const path = writeConfig(
-      "reason.json5",
-      `{ reasoningEffort: "high" }`,
-    );
+    const path = writeConfig("reason.json5", `{ reasoningEffort: "high" }`);
     const config = await loadConfig(path, logger, "openai");
     expect(config.reasoningEffort).toBe("high");
   });
@@ -216,7 +217,9 @@ describe("loadConfig", () => {
 describe("config validation", () => {
   it("rejects invalid bodyLimit (negative)", async () => {
     const path = writeConfig("bad.json5", `{ bodyLimit: -1 }`);
-    await expect(loadConfig(path, logger, "openai")).rejects.toThrow(/bodyLimit.*>0/i);
+    await expect(loadConfig(path, logger, "openai")).rejects.toThrow(
+      /bodyLimit.*>0/i,
+    );
   });
 
   it("rejects invalid bodyLimit (too large)", async () => {
@@ -225,11 +228,10 @@ describe("config validation", () => {
   });
 
   it("rejects invalid reasoningEffort", async () => {
-    const path = writeConfig(
-      "bad.json5",
-      `{ reasoningEffort: "invalid" }`,
+    const path = writeConfig("bad.json5", `{ reasoningEffort: "invalid" }`);
+    await expect(loadConfig(path, logger, "openai")).rejects.toThrow(
+      /reasoningEffort/i,
     );
-    await expect(loadConfig(path, logger, "openai")).rejects.toThrow(/reasoningEffort/i);
   });
 
   it("rejects non-array allowedCliTools", async () => {
@@ -253,7 +255,9 @@ describe("config validation", () => {
       "bad.json5",
       `{ autoApprovePermissions: ["invalid"] }`,
     );
-    await expect(loadConfig(path, logger, "openai")).rejects.toThrow(/invalid/i);
+    await expect(loadConfig(path, logger, "openai")).rejects.toThrow(
+      /invalid/i,
+    );
   });
 
   it("rejects invalid MCP server (missing command)", async () => {
@@ -261,7 +265,9 @@ describe("config validation", () => {
       "bad.json5",
       `{ openai: { mcpServers: { test: { args: [] } } } }`,
     );
-    await expect(loadConfig(path, logger, "openai")).rejects.toThrow(/Invalid/i);
+    await expect(loadConfig(path, logger, "openai")).rejects.toThrow(
+      /Invalid/i,
+    );
   });
 
   it("rejects invalid MCP server URL", async () => {
@@ -279,11 +285,10 @@ describe("config validation", () => {
   });
 
   it("rejects invalid toolBridge (non-boolean)", async () => {
-    const path = writeConfig(
-      "bad.json5",
-      `{ claude: { toolBridge: "yes" } }`,
+    const path = writeConfig("bad.json5", `{ claude: { toolBridge: "yes" } }`);
+    await expect(loadConfig(path, logger, "claude")).rejects.toThrow(
+      /Invalid/i,
     );
-    await expect(loadConfig(path, logger, "claude")).rejects.toThrow(/Invalid/i);
   });
 
   it("uses defaults for missing optional fields", async () => {
@@ -302,7 +307,11 @@ describe("resolveConfigPath", () => {
     const projectDir = mkdtempSync(join(tmpdir(), "project-"));
     writeFileSync(join(projectDir, "config.json5"), "{}");
     writeFileSync(join(tempDir, "config.json5"), "{}");
-    const result = resolveConfigPath(projectDir, tempDir, "/fallback/config.json5");
+    const result = resolveConfigPath(
+      projectDir,
+      tempDir,
+      "/fallback/config.json5",
+    );
     expect(result).toBe(join(projectDir, "config.json5"));
     rmSync(projectDir, { recursive: true, force: true });
   });
@@ -310,19 +319,31 @@ describe("resolveConfigPath", () => {
   it("falls back to process cwd when project cwd has no config", () => {
     const projectDir = mkdtempSync(join(tmpdir(), "project-"));
     writeFileSync(join(tempDir, "config.json5"), "{}");
-    const result = resolveConfigPath(projectDir, tempDir, "/fallback/config.json5");
+    const result = resolveConfigPath(
+      projectDir,
+      tempDir,
+      "/fallback/config.json5",
+    );
     expect(result).toBe(join(tempDir, "config.json5"));
     rmSync(projectDir, { recursive: true, force: true });
   });
 
   it("falls back to process cwd when project cwd is undefined", () => {
     writeFileSync(join(tempDir, "config.json5"), "{}");
-    const result = resolveConfigPath(undefined, tempDir, "/fallback/config.json5");
+    const result = resolveConfigPath(
+      undefined,
+      tempDir,
+      "/fallback/config.json5",
+    );
     expect(result).toBe(join(tempDir, "config.json5"));
   });
 
   it("returns default path when neither cwd has config.json5", () => {
-    const result = resolveConfigPath(undefined, tempDir, "/fallback/config.json5");
+    const result = resolveConfigPath(
+      undefined,
+      tempDir,
+      "/fallback/config.json5",
+    );
     expect(result).toBe("/fallback/config.json5");
   });
 });

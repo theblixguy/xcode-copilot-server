@@ -59,7 +59,11 @@ export class ToolCache {
     args: Record<string, unknown>,
   ): Record<string, unknown> {
     const tool = this.cachedTools.find((t) => t.name === toolName);
-    const props = (tool?.input_schema as { properties?: Record<string, SchemaProperty> } | undefined)?.properties;
+    const props = (
+      tool?.input_schema as
+        | { properties?: Record<string, SchemaProperty> }
+        | undefined
+    )?.properties;
     if (!props) return args;
 
     const schemaKeys = new Set(Object.keys(props));
@@ -88,7 +92,10 @@ export class ToolCache {
     return key;
   }
 
-  private resolveValue(value: unknown, schemaProp: SchemaProperty | undefined): unknown {
+  private resolveValue(
+    value: unknown,
+    schemaProp: SchemaProperty | undefined,
+  ): unknown {
     if (typeof value !== "string" || !schemaProp?.enum) return value;
     if (schemaProp.enum.includes(value)) return value;
 

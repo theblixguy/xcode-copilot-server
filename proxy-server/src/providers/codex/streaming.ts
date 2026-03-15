@@ -1,5 +1,10 @@
 import type { FastifyReply } from "fastify";
-import type { CopilotSession, Logger, Stats, FunctionCallOutputItem } from "copilot-sdk-proxy";
+import type {
+  CopilotSession,
+  Logger,
+  Stats,
+  FunctionCallOutputItem,
+} from "copilot-sdk-proxy";
 import {
   sendSSEEvent as sendEvent,
   sendSSEComment,
@@ -10,12 +15,18 @@ import {
 } from "copilot-sdk-proxy";
 import type { SeqCounter } from "copilot-sdk-proxy";
 import type { ToolBridgeState } from "../../tool-bridge/state.js";
-import type { BridgeStreamProtocol, StrippedToolRequest } from "../shared/streaming-core.js";
+import type {
+  BridgeStreamProtocol,
+  StrippedToolRequest,
+} from "../shared/streaming-core.js";
 import { runSessionStreaming } from "../shared/streaming-core.js";
 
 export { startResponseStream };
 
-class BridgeResponsesProtocol extends ResponsesProtocol implements BridgeStreamProtocol {
+class BridgeResponsesProtocol
+  extends ResponsesProtocol
+  implements BridgeStreamProtocol
+{
   private readonly keepaliveInterval: ReturnType<typeof setInterval>;
   private readonly getReply: () => FastifyReply | null;
 
@@ -42,7 +53,8 @@ class BridgeResponsesProtocol extends ResponsesProtocol implements BridgeStreamP
     for (const tr of toolRequests) {
       const callId = tr.toolCallId;
       const itemId = genId("fc");
-      const argsJson = tr.arguments != null ? JSON.stringify(tr.arguments) : "{}";
+      const argsJson =
+        tr.arguments != null ? JSON.stringify(tr.arguments) : "{}";
 
       const fcItem: FunctionCallOutputItem = {
         type: "function_call",
@@ -53,16 +65,29 @@ class BridgeResponsesProtocol extends ResponsesProtocol implements BridgeStreamP
         status: "in_progress",
       };
 
-      sendEvent(r, "response.output_item.added", {
-        output_index: this.outputIndex,
-        item: fcItem,
-      }, nextSeq(this.seq));
+      sendEvent(
+        r,
+        "response.output_item.added",
+        {
+          output_index: this.outputIndex,
+          item: fcItem,
+        },
+        nextSeq(this.seq),
+      );
 
-      const doneItem: FunctionCallOutputItem = { ...fcItem, status: "completed" };
-      sendEvent(r, "response.output_item.done", {
-        output_index: this.outputIndex,
-        item: doneItem,
-      }, nextSeq(this.seq));
+      const doneItem: FunctionCallOutputItem = {
+        ...fcItem,
+        status: "completed",
+      };
+      sendEvent(
+        r,
+        "response.output_item.done",
+        {
+          output_index: this.outputIndex,
+          item: doneItem,
+        },
+        nextSeq(this.seq),
+      );
 
       this.outputItems.push(doneItem);
       this.outputIndex++;
@@ -101,12 +126,38 @@ interface ResponsesStreamingOptions {
   stats: Stats;
 }
 
-export function handleResponsesStreaming(opts: ResponsesStreamingOptions): Promise<void> {
-  const { state, session, prompt, model, logger, hasBridge, responseId, stats } = opts;
+export function handleResponsesStreaming(
+  opts: ResponsesStreamingOptions,
+): Promise<void> {
+  const {
+    state,
+    session,
+    prompt,
+    model,
+    logger,
+    hasBridge,
+    responseId,
+    stats,
+  } = opts;
   const reply = state.replies.currentReply;
   if (!reply) throw new Error("No reply set on bridge state");
   const { seq, createdAt } = startResponseStream(reply, responseId, model);
 
-  const protocol = new BridgeResponsesProtocol(responseId, model, seq, createdAt, () => state.replies.currentReply);
-  return runSessionStreaming({ state, session, prompt, logger, hasBridge, protocol, initialReply: reply, stats });
+  const protocol = new BridgeResponsesProtocol(
+    responseId,
+    model,
+    seq,
+    createdAt,
+    () => state.replies.currentReply,
+  );
+  return runSessionStreaming({
+    state,
+    session,
+    prompt,
+    logger,
+    hasBridge,
+    protocol,
+    initialReply: reply,
+    stats,
+  });
 }

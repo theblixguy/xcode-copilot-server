@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { ToolBridgeState } from "./tool-bridge/state.js";
-import type { Conversation as CoreConversation, Logger } from "copilot-sdk-proxy";
+import type {
+  Conversation as CoreConversation,
+  Logger,
+} from "copilot-sdk-proxy";
 
 export interface Conversation extends CoreConversation {
   state: ToolBridgeState;
@@ -13,11 +16,15 @@ export interface ToolStateProvider {
 }
 
 function isConversation(conv: CoreConversation): conv is Conversation {
-  return "state" in conv && (conv as { state: unknown }).state instanceof ToolBridgeState;
+  return (
+    "state" in conv &&
+    (conv as { state: unknown }).state instanceof ToolBridgeState
+  );
 }
 
 export function asConversation(conv: CoreConversation): Conversation {
-  if (!isConversation(conv)) throw new Error("Expected extended Conversation with state");
+  if (!isConversation(conv))
+    throw new Error("Expected extended Conversation with state");
   return conv;
 }
 
@@ -43,12 +50,22 @@ export class ConversationManager implements ToolStateProvider {
       sentMessageCount: 0,
       isPrimary,
       model: null,
-      get sessionActive() { return state.session.sessionActive; },
-      set sessionActive(active: boolean) {
-        if (active) { state.session.markSessionActive(); } else { state.session.markSessionInactive(); }
+      get sessionActive() {
+        return state.session.sessionActive;
       },
-      get hadError() { return state.session.hadError; },
-      set hadError(errored: boolean) { if (errored) state.session.markSessionErrored(); },
+      set sessionActive(active: boolean) {
+        if (active) {
+          state.session.markSessionActive();
+        } else {
+          state.session.markSessionInactive();
+        }
+      },
+      get hadError() {
+        return state.session.hadError;
+      },
+      set hadError(errored: boolean) {
+        if (errored) state.session.markSessionErrored();
+      },
     };
     this.conversations.set(id, conversation);
 
@@ -61,7 +78,9 @@ export class ConversationManager implements ToolStateProvider {
       });
     }
 
-    this.logger.debug(`Created conversation ${id} (primary=${String(isPrimary)})`);
+    this.logger.debug(
+      `Created conversation ${id} (primary=${String(isPrimary)})`,
+    );
     return conversation;
   }
 
@@ -98,17 +117,23 @@ export class ConversationManager implements ToolStateProvider {
     const primary = this.getPrimary();
     if (primary) {
       if (primary.state.session.sessionActive) {
-        this.logger.debug(`Primary ${primary.id} is busy, creating isolated conversation`);
+        this.logger.debug(
+          `Primary ${primary.id} is busy, creating isolated conversation`,
+        );
         return { conversation: this.create(), isReuse: false };
       }
       if (primary.state.toolRouter.hasPending) {
-        this.logger.debug(`Primary ${primary.id} has pending tool calls, creating isolated conversation`);
+        this.logger.debug(
+          `Primary ${primary.id} has pending tool calls, creating isolated conversation`,
+        );
         return { conversation: this.create(), isReuse: false };
       }
       if (!primary.session) {
         // No SDK session yet. Create an isolated conversation so the primary
         // stays available for the first real request.
-        this.logger.debug(`Primary ${primary.id} has no session, creating isolated conversation`);
+        this.logger.debug(
+          `Primary ${primary.id} has no session, creating isolated conversation`,
+        );
         return { conversation: this.create(), isReuse: false };
       }
       this.logger.debug(`Reusing primary conversation ${primary.id}`);
@@ -123,7 +148,9 @@ export class ConversationManager implements ToolStateProvider {
     for (const [, conv] of this.conversations) {
       for (const callId of callIds) {
         if (conv.state.toolRouter.hasPendingToolCall(callId)) {
-          this.logger.debug(`Continuation matched conversation ${conv.id} via call_id ${callId}`);
+          this.logger.debug(
+            `Continuation matched conversation ${conv.id} via call_id ${callId}`,
+          );
           return conv;
         }
       }
@@ -131,7 +158,9 @@ export class ConversationManager implements ToolStateProvider {
 
     for (const [, conv] of this.conversations) {
       if (conv.state.session.sessionActive) {
-        this.logger.debug(`Continuation matched conversation ${conv.id} via sessionActive fallback`);
+        this.logger.debug(
+          `Continuation matched conversation ${conv.id} via sessionActive fallback`,
+        );
         return conv;
       }
     }

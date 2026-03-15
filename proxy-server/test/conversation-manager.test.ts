@@ -96,7 +96,11 @@ describe("ConversationManager", () => {
       const conv = manager.create();
 
       conv.state.toolRouter.registerExpected("tc-123", "Read");
-      conv.state.toolRouter.registerMCPRequest("Read", () => {}, () => {});
+      conv.state.toolRouter.registerMCPRequest(
+        "Read",
+        () => {},
+        () => {},
+      );
 
       expect(manager.findByContinuationIds(["tc-123"])).toBe(conv);
     });
@@ -223,15 +227,31 @@ describe("ConversationManager", () => {
 
       let taskResolve: (r: string) => void = () => {};
       let taskReject: (e: Error) => void = () => {};
-      primary.state.toolRouter.registerMCPRequest("Task", (r) => { taskResolve = () => r; }, (e) => { taskReject = () => e; });
-      primary.state.toolRouter.registerMCPRequest("WebFetch", () => {}, () => {});
+      primary.state.toolRouter.registerMCPRequest(
+        "Task",
+        (r) => {
+          taskResolve = () => r;
+        },
+        (e) => {
+          taskReject = () => e;
+        },
+      );
+      primary.state.toolRouter.registerMCPRequest(
+        "WebFetch",
+        () => {},
+        () => {},
+      );
 
       const { conversation: subagent, isReuse } = manager.findForNewRequest();
       expect(isReuse).toBe(false);
       expect(subagent).not.toBe(primary);
 
-      expect(primary.state.toolRouter.hasPendingToolCall("toolu_task")).toBe(true);
-      expect(primary.state.toolRouter.hasPendingToolCall("toolu_fetch")).toBe(true);
+      expect(primary.state.toolRouter.hasPendingToolCall("toolu_task")).toBe(
+        true,
+      );
+      expect(primary.state.toolRouter.hasPendingToolCall("toolu_fetch")).toBe(
+        true,
+      );
       expect(manager.findByContinuationIds(["toolu_task"])).toBe(primary);
 
       void taskResolve;
@@ -246,7 +266,11 @@ describe("ConversationManager", () => {
       primary.state.session.markSessionActive();
       primary.state.toolRouter.registerExpected("toolu_1", "Read");
       primary.state.session.markSessionInactive();
-      primary.state.toolRouter.registerMCPRequest("Read", () => {}, () => {});
+      primary.state.toolRouter.registerMCPRequest(
+        "Read",
+        () => {},
+        () => {},
+      );
 
       expect(manager.findForNewRequest().isReuse).toBe(false);
 
@@ -335,7 +359,11 @@ describe("ConversationManager", () => {
 
       primary.state.session.markSessionActive();
       primary.state.toolRouter.registerExpected("toolu_01abc", "Task");
-      primary.state.toolRouter.registerMCPRequest("Task", () => {}, () => {});
+      primary.state.toolRouter.registerMCPRequest(
+        "Task",
+        () => {},
+        () => {},
+      );
       primary.state.session.markSessionInactive();
 
       const { conversation, isReuse } = manager.findForNewRequest();

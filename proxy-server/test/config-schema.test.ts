@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { ServerConfigSchema, BYTES_PER_MIB, DEFAULT_CONFIG } from "../src/config-schema.js";
+import {
+  ServerConfigSchema,
+  BYTES_PER_MIB,
+  DEFAULT_CONFIG,
+} from "../src/config-schema.js";
 
 describe("ServerConfigSchema", () => {
   it("accepts empty object with defaults", () => {

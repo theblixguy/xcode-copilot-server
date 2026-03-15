@@ -2,7 +2,11 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import Fastify from "fastify";
 import type { FastifyInstance } from "fastify";
 import { registerRoutes } from "../../src/tool-bridge/routes.js";
-import { JSONRPC_INTERNAL_ERROR, JSONRPC_INVALID_PARAMS, JSONRPC_METHOD_NOT_FOUND } from "../../src/tool-bridge/constants.js";
+import {
+  JSONRPC_INTERNAL_ERROR,
+  JSONRPC_INVALID_PARAMS,
+  JSONRPC_METHOD_NOT_FOUND,
+} from "../../src/tool-bridge/constants.js";
 import { ConversationManager } from "../../src/conversation-manager.js";
 import { Logger } from "copilot-sdk-proxy";
 
@@ -22,8 +26,17 @@ afterAll(async () => {
   await app.close();
 });
 
-function jsonRpc(method: string, id?: number | string, params?: Record<string, unknown>) {
-  return { jsonrpc: "2.0", method, ...(id !== undefined && { id }), ...(params && { params }) } as Record<string, unknown>;
+function jsonRpc(
+  method: string,
+  id?: number | string,
+  params?: Record<string, unknown>,
+) {
+  return {
+    jsonrpc: "2.0",
+    method,
+    ...(id !== undefined && { id }),
+    ...(params && { params }),
+  } as Record<string, unknown>;
 }
 
 describe("POST /mcp/:convId — initialize", () => {
@@ -58,8 +71,16 @@ describe("POST /mcp/:convId — tools/list", () => {
   it("returns cached tools for existing conversation", async () => {
     const conv = manager.create();
     conv.state.toolCache.cacheTools([
-      { name: "mcp__xcode-tools__XcodeRead", description: "Read a file", input_schema: { type: "object", properties: {} } },
-      { name: "mcp__xcode-tools__XcodeWrite", description: "Write a file", input_schema: { type: "object", properties: {} } },
+      {
+        name: "mcp__xcode-tools__XcodeRead",
+        description: "Read a file",
+        input_schema: { type: "object", properties: {} },
+      },
+      {
+        name: "mcp__xcode-tools__XcodeWrite",
+        description: "Write a file",
+        input_schema: { type: "object", properties: {} },
+      },
     ]);
 
     const res = await app.inject({
@@ -72,16 +93,31 @@ describe("POST /mcp/:convId — tools/list", () => {
     expect(body.id).toBe(2);
     expect(body.result.tools).toHaveLength(2);
     expect(body.result.tools[0].name).toBe("XcodeRead");
-    expect(body.result.tools[0].inputSchema).toEqual({ type: "object", properties: {} });
+    expect(body.result.tools[0].inputSchema).toEqual({
+      type: "object",
+      properties: {},
+    });
     expect(body.result.tools[1].name).toBe("XcodeWrite");
   });
 
   it("strips mcp__{server}__ prefix from tool names", async () => {
     const conv = manager.create();
     conv.state.toolCache.cacheTools([
-      { name: "mcp__xcode-tools__XcodeRead", description: "Read", input_schema: { type: "object", properties: {} } },
-      { name: "mcp__xcode-tools__XcodeWrite", description: "Write", input_schema: { type: "object", properties: {} } },
-      { name: "Glob", description: "Glob", input_schema: { type: "object", properties: {} } },
+      {
+        name: "mcp__xcode-tools__XcodeRead",
+        description: "Read",
+        input_schema: { type: "object", properties: {} },
+      },
+      {
+        name: "mcp__xcode-tools__XcodeWrite",
+        description: "Write",
+        input_schema: { type: "object", properties: {} },
+      },
+      {
+        name: "Glob",
+        description: "Glob",
+        input_schema: { type: "object", properties: {} },
+      },
     ]);
 
     const res = await app.inject({
@@ -114,7 +150,11 @@ describe("POST /mcp/:convId — tools/call", () => {
   it("calls registerMCPRequest and returns result", async () => {
     const conv = manager.create();
     conv.state.toolCache.cacheTools([
-      { name: "Read", description: "Read a file", input_schema: { type: "object", properties: {} } },
+      {
+        name: "Read",
+        description: "Read a file",
+        input_schema: { type: "object", properties: {} },
+      },
     ]);
 
     vi.spyOn(conv.state.toolRouter, "registerMCPRequest").mockImplementation(
@@ -126,18 +166,27 @@ describe("POST /mcp/:convId — tools/call", () => {
     const res = await app.inject({
       method: "POST",
       url: `/mcp/${conv.id}`,
-      payload: jsonRpc("tools/call", 4, { name: "Read", arguments: { path: "/test.txt" } }),
+      payload: jsonRpc("tools/call", 4, {
+        name: "Read",
+        arguments: { path: "/test.txt" },
+      }),
     });
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.id).toBe(4);
-    expect(body.result.content).toEqual([{ type: "text", text: "file contents here" }]);
+    expect(body.result.content).toEqual([
+      { type: "text", text: "file contents here" },
+    ]);
   });
 
   it("returns error when registerMCPRequest rejects", async () => {
     const conv = manager.create();
     conv.state.toolCache.cacheTools([
-      { name: "Read", description: "Read a file", input_schema: { type: "object", properties: {} } },
+      {
+        name: "Read",
+        description: "Read a file",
+        input_schema: { type: "object", properties: {} },
+      },
     ]);
 
     vi.spyOn(conv.state.toolRouter, "registerMCPRequest").mockImplementation(
@@ -187,7 +236,11 @@ describe("POST /mcp/:convId — tools/call", () => {
   it("resolves hallucinated tool names", async () => {
     const conv = manager.create();
     conv.state.toolCache.cacheTools([
-      { name: "mcp__xcode-tools__XcodeRead", description: "Read", input_schema: { type: "object", properties: {} } },
+      {
+        name: "mcp__xcode-tools__XcodeRead",
+        description: "Read",
+        input_schema: { type: "object", properties: {} },
+      },
     ]);
 
     vi.spyOn(conv.state.toolRouter, "registerMCPRequest").mockImplementation(
@@ -203,7 +256,9 @@ describe("POST /mcp/:convId — tools/call", () => {
     });
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    expect(body.result.content[0].text).toBe("called: mcp__xcode-tools__XcodeRead");
+    expect(body.result.content[0].text).toBe(
+      "called: mcp__xcode-tools__XcodeRead",
+    );
   });
 });
 

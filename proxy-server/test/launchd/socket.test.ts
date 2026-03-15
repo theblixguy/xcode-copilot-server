@@ -30,20 +30,26 @@ describe("activateSocket", () => {
 
   it("throws descriptive error when not launched by launchd", () => {
     const mockActivate: NativeActivateFn = () => {
-      throw new Error("launch_activate_socket failed: Socket name not found in launchd job (ESRCH)");
+      throw new Error(
+        "launch_activate_socket failed: Socket name not found in launchd job (ESRCH)",
+      );
     };
 
-    expect(() => activateSocket("Listeners", { nativeActivate: mockActivate }))
-      .toThrow("Socket name not found in launchd job (ESRCH)");
+    expect(() =>
+      activateSocket("Listeners", { nativeActivate: mockActivate }),
+    ).toThrow("Socket name not found in launchd job (ESRCH)");
   });
 
   it("throws descriptive error when socket name not found", () => {
     const mockActivate: NativeActivateFn = () => {
-      throw new Error("launch_activate_socket failed: No socket with that name (ENOENT)");
+      throw new Error(
+        "launch_activate_socket failed: No socket with that name (ENOENT)",
+      );
     };
 
-    expect(() => activateSocket("WrongName", { nativeActivate: mockActivate }))
-      .toThrow("No socket with that name (ENOENT)");
+    expect(() =>
+      activateSocket("WrongName", { nativeActivate: mockActivate }),
+    ).toThrow("No socket with that name (ENOENT)");
   });
 
   it("returns empty array when native function returns empty", () => {

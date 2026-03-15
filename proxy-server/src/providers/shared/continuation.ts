@@ -16,10 +16,14 @@ export async function handleContinuation(
 ): Promise<boolean> {
   const { state } = existingConv;
 
-  logger.info(`Continuation for conversation ${existingConv.id} (hasPending=${String(state.toolRouter.hasPending)}, sessionActive=${String(state.session.sessionActive)})`);
+  logger.info(
+    `Continuation for conversation ${existingConv.id} (hasPending=${String(state.toolRouter.hasPending)}, sessionActive=${String(state.session.sessionActive)})`,
+  );
 
   if (state.session.sessionActive) {
-    logger.warn(`Conversation ${existingConv.id} is already streaming, cannot handle continuation`);
+    logger.warn(
+      `Conversation ${existingConv.id} is already streaming, cannot handle continuation`,
+    );
     return false;
   }
 

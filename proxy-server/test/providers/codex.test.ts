@@ -26,7 +26,10 @@ const ctx: AppContext = {
   stats: new Stats(),
 };
 
-const codexHeaders = { "user-agent": "Xcode/0.87.0 (Mac OS 26.2.0; arm64) unknown (Xcode; 26.3 (17C518))" };
+const codexHeaders = {
+  "user-agent":
+    "Xcode/0.87.0 (Mac OS 26.2.0; arm64) unknown (Xcode; 26.3 (17C518))",
+};
 
 let app: FastifyInstance;
 
@@ -210,9 +213,7 @@ describe("Codex provider — /v1/responses happy path", () => {
       headers: codexHeaders,
       payload: {
         model: "gpt-4o",
-        input: [
-          { role: "user", content: "Hello" },
-        ],
+        input: [{ role: "user", content: "Hello" }],
       },
     });
 

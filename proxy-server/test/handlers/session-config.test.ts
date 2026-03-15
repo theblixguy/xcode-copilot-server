@@ -1,7 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { createSessionConfig, createProviderSessionConfig } from "../../src/providers/shared/session-config.js";
+import {
+  createSessionConfig,
+  createProviderSessionConfig,
+} from "../../src/providers/shared/session-config.js";
 import { Logger } from "copilot-sdk-proxy";
-import { BYTES_PER_MIB, type ServerConfig, type MCPLocalServer } from "../../src/config-schema.js";
+import {
+  BYTES_PER_MIB,
+  type ServerConfig,
+  type MCPLocalServer,
+} from "../../src/config-schema.js";
 import type { PermissionRequest } from "copilot-sdk-proxy";
 
 const baseConfig: ServerConfig = {
@@ -97,7 +104,13 @@ describe("createSessionConfig", () => {
       supportsReasoningEffort: false,
     });
     expect(config.mcpServers).toEqual({
-      test: { type: "stdio", command: "node", args: ["server.js"], allowedTools: ["tool1"], tools: ["*"] },
+      test: {
+        type: "stdio",
+        command: "node",
+        args: ["server.js"],
+        allowedTools: ["tool1"],
+        tools: ["*"],
+      },
     });
   });
 
@@ -146,7 +159,10 @@ describe("permission callbacks", () => {
       config: makeConfig({ autoApprovePermissions: true }),
       supportsReasoningEffort: false,
     });
-    const result = await config.onPermissionRequest(permissionRequest("shell"), invocation);
+    const result = await config.onPermissionRequest(
+      permissionRequest("shell"),
+      invocation,
+    );
     expect(result).toEqual({ kind: "approved" });
   });
 
@@ -158,7 +174,10 @@ describe("permission callbacks", () => {
       config: makeConfig({ autoApprovePermissions: false }),
       supportsReasoningEffort: false,
     });
-    const result = await config.onPermissionRequest(permissionRequest("read"), invocation);
+    const result = await config.onPermissionRequest(
+      permissionRequest("read"),
+      invocation,
+    );
     expect(result).toEqual({ kind: "denied-by-rules", rules: [] });
   });
 
@@ -170,7 +189,10 @@ describe("permission callbacks", () => {
       config: makeConfig({ autoApprovePermissions: ["read", "write"] }),
       supportsReasoningEffort: false,
     });
-    const result = await config.onPermissionRequest(permissionRequest("read"), invocation);
+    const result = await config.onPermissionRequest(
+      permissionRequest("read"),
+      invocation,
+    );
     expect(result).toEqual({ kind: "approved" });
   });
 
@@ -182,7 +204,10 @@ describe("permission callbacks", () => {
       config: makeConfig({ autoApprovePermissions: ["read"] }),
       supportsReasoningEffort: false,
     });
-    const result = await config.onPermissionRequest(permissionRequest("shell"), invocation);
+    const result = await config.onPermissionRequest(
+      permissionRequest("shell"),
+      invocation,
+    );
     expect(result).toEqual({ kind: "denied-by-rules", rules: [] });
   });
 });
@@ -196,7 +221,10 @@ describe("tool filtering", () => {
       config: makeConfig({ allowedCliTools: [], mcpServers: {} }),
       supportsReasoningEffort: false,
     });
-    const result = await getOnPreToolUse(config)(toolUseInput("anything"), invocation);
+    const result = await getOnPreToolUse(config)(
+      toolUseInput("anything"),
+      invocation,
+    );
     expect(result).toEqual({ permissionDecision: "deny" });
   });
 
@@ -208,9 +236,15 @@ describe("tool filtering", () => {
       config: makeConfig({ allowedCliTools: ["glob", "grep"] }),
       supportsReasoningEffort: false,
     });
-    const allowed = await getOnPreToolUse(config)(toolUseInput("glob"), invocation);
+    const allowed = await getOnPreToolUse(config)(
+      toolUseInput("glob"),
+      invocation,
+    );
     expect(allowed).toEqual({ permissionDecision: "allow" });
-    const denied = await getOnPreToolUse(config)(toolUseInput("bash"), invocation);
+    const denied = await getOnPreToolUse(config)(
+      toolUseInput("bash"),
+      invocation,
+    );
     expect(denied).toEqual({ permissionDecision: "deny" });
   });
 
@@ -227,9 +261,15 @@ describe("tool filtering", () => {
       }),
       supportsReasoningEffort: false,
     });
-    const allowed = await getOnPreToolUse(config)(toolUseInput("XcodeBuild"), invocation);
+    const allowed = await getOnPreToolUse(config)(
+      toolUseInput("XcodeBuild"),
+      invocation,
+    );
     expect(allowed).toEqual({ permissionDecision: "allow" });
-    const denied = await getOnPreToolUse(config)(toolUseInput("XcodeTest"), invocation);
+    const denied = await getOnPreToolUse(config)(
+      toolUseInput("XcodeTest"),
+      invocation,
+    );
     expect(denied).toEqual({ permissionDecision: "deny" });
   });
 
@@ -241,7 +281,10 @@ describe("tool filtering", () => {
       config: makeConfig({ allowedCliTools: ["*"] }),
       supportsReasoningEffort: false,
     });
-    const result = await getOnPreToolUse(config)(toolUseInput("anything"), invocation);
+    const result = await getOnPreToolUse(config)(
+      toolUseInput("anything"),
+      invocation,
+    );
     expect(result).toEqual({ permissionDecision: "allow" });
   });
 
@@ -258,7 +301,10 @@ describe("tool filtering", () => {
       }),
       supportsReasoningEffort: false,
     });
-    const result = await getOnPreToolUse(config)(toolUseInput("anything"), invocation);
+    const result = await getOnPreToolUse(config)(
+      toolUseInput("anything"),
+      invocation,
+    );
     expect(result).toEqual({ permissionDecision: "allow" });
   });
 
@@ -276,13 +322,25 @@ describe("tool filtering", () => {
       }),
       supportsReasoningEffort: false,
     });
-    const cliAllowed = await getOnPreToolUse(config)(toolUseInput("glob"), invocation);
+    const cliAllowed = await getOnPreToolUse(config)(
+      toolUseInput("glob"),
+      invocation,
+    );
     expect(cliAllowed).toEqual({ permissionDecision: "allow" });
-    const mcp1Allowed = await getOnPreToolUse(config)(toolUseInput("XcodeBuild"), invocation);
+    const mcp1Allowed = await getOnPreToolUse(config)(
+      toolUseInput("XcodeBuild"),
+      invocation,
+    );
     expect(mcp1Allowed).toEqual({ permissionDecision: "allow" });
-    const mcp2Allowed = await getOnPreToolUse(config)(toolUseInput("CustomTool"), invocation);
+    const mcp2Allowed = await getOnPreToolUse(config)(
+      toolUseInput("CustomTool"),
+      invocation,
+    );
     expect(mcp2Allowed).toEqual({ permissionDecision: "allow" });
-    const denied = await getOnPreToolUse(config)(toolUseInput("NotAllowed"), invocation);
+    const denied = await getOnPreToolUse(config)(
+      toolUseInput("NotAllowed"),
+      invocation,
+    );
     expect(denied).toEqual({ permissionDecision: "deny" });
   });
 
@@ -318,7 +376,10 @@ describe("tool filtering", () => {
       hasToolBridge: true,
       port: 8080,
     });
-    const result = await getOnPreToolUse(config)(toolUseInput("xcode-bridge-Read"), invocation);
+    const result = await getOnPreToolUse(config)(
+      toolUseInput("xcode-bridge-Read"),
+      invocation,
+    );
     expect(result).toEqual({ permissionDecision: "allow" });
   });
 
@@ -333,13 +394,19 @@ describe("tool filtering", () => {
       port: 8080,
     });
     // Bridge tools allowed
-    const bridge = await getOnPreToolUse(config)(toolUseInput("xcode-bridge-Read"), invocation);
+    const bridge = await getOnPreToolUse(config)(
+      toolUseInput("xcode-bridge-Read"),
+      invocation,
+    );
     expect(bridge).toEqual({ permissionDecision: "allow" });
     // CLI tools also allowed (additive)
     const cli = await getOnPreToolUse(config)(toolUseInput("glob"), invocation);
     expect(cli).toEqual({ permissionDecision: "allow" });
     // Unknown tools still denied
-    const denied = await getOnPreToolUse(config)(toolUseInput("NotAllowed"), invocation);
+    const denied = await getOnPreToolUse(config)(
+      toolUseInput("NotAllowed"),
+      invocation,
+    );
     expect(denied).toEqual({ permissionDecision: "deny" });
   });
 
@@ -354,7 +421,10 @@ describe("tool filtering", () => {
       port: 8080,
     });
     // No bridge, so xcode-bridge-* tools are denied
-    const result = await getOnPreToolUse(config)(toolUseInput("xcode-bridge-Read"), invocation);
+    const result = await getOnPreToolUse(config)(
+      toolUseInput("xcode-bridge-Read"),
+      invocation,
+    );
     expect(result).toEqual({ permissionDecision: "deny" });
     // No xcode-bridge MCP server entry
     expect(config.mcpServers).toEqual({});
@@ -369,7 +439,10 @@ describe("tool filtering", () => {
       supportsReasoningEffort: false,
       port: 8080,
     });
-    const result = await getOnPreToolUse(config)(toolUseInput("xcode-bridge-Read"), invocation);
+    const result = await getOnPreToolUse(config)(
+      toolUseInput("xcode-bridge-Read"),
+      invocation,
+    );
     expect(result).toEqual({ permissionDecision: "deny" });
     expect(config.mcpServers).toEqual({});
   });
@@ -385,7 +458,11 @@ describe("tool filtering", () => {
       port: 9090,
       conversationId: "conv-abc-123",
     });
-    const bridge = config.mcpServers?.["xcode-bridge"] as { type: string; url: string; tools: string[] };
+    const bridge = config.mcpServers?.["xcode-bridge"] as {
+      type: string;
+      url: string;
+      tools: string[];
+    };
     expect(bridge.type).toBe("http");
     expect(bridge.url).toBe("http://127.0.0.1:9090/mcp/conv-abc-123");
     expect(bridge.tools).toEqual(["*"]);
@@ -400,7 +477,10 @@ describe("tool filtering", () => {
       supportsReasoningEffort: false,
       hasToolBridge: true,
     });
-    const bridge = config.mcpServers?.["xcode-bridge"] as { type: string; url: string };
+    const bridge = config.mcpServers?.["xcode-bridge"] as {
+      type: string;
+      url: string;
+    };
     expect(bridge.type).toBe("http");
     expect(bridge.url).toBe("http://127.0.0.1:8080/mcp/conv-1");
   });
@@ -467,8 +547,19 @@ describe("excludedTools", () => {
 
   it("subagent request (no tools, bridge enabled) still excludes SDK built-ins", () => {
     const config = createProviderSessionConfig(
-      { model: "claude-haiku-4-5-20251001", logger, config: makeConfig({ toolBridge: true }), supportsReasoningEffort: false },
-      { conversationId: "sub-1", tools: [], config: makeConfig({ toolBridge: true }), logger, port: 8080 },
+      {
+        model: "claude-haiku-4-5-20251001",
+        logger,
+        config: makeConfig({ toolBridge: true }),
+        supportsReasoningEffort: false,
+      },
+      {
+        conversationId: "sub-1",
+        tools: [],
+        config: makeConfig({ toolBridge: true }),
+        logger,
+        port: 8080,
+      },
     );
     expect(config.excludedTools).toContain("web_fetch");
     expect(config.excludedTools).toContain("bash");

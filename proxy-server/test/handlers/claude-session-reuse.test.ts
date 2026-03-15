@@ -18,7 +18,9 @@ const config: ServerConfig = {
   autoApprovePermissions: true,
 };
 
-const claudeCliHeaders = { "user-agent": "claude-cli/2.1.14 (external, sdk-cli)" };
+const claudeCliHeaders = {
+  "user-agent": "claude-cli/2.1.14 (external, sdk-cli)",
+};
 
 function makePayload(model = "claude-sonnet-4-20250514") {
   return {
@@ -102,8 +104,14 @@ describe("Concurrent request handling", () => {
 
     expect(createSessionSpy).toHaveBeenCalledTimes(2);
 
-    const config1 = createSessionSpy.mock.calls[0]?.[0] as Record<string, unknown>;
-    const config2 = createSessionSpy.mock.calls[1]?.[0] as Record<string, unknown>;
+    const config1 = createSessionSpy.mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >;
+    const config2 = createSessionSpy.mock.calls[1]?.[0] as Record<
+      string,
+      unknown
+    >;
     expect(config1).toBeDefined();
     expect(config2).toBeDefined();
   });

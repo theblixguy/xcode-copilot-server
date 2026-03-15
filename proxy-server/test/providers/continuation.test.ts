@@ -16,12 +16,19 @@ function createMockConversation(): Conversation {
     sentMessageCount: 0,
     isPrimary: false,
     model: null,
-    get sessionActive() { return state.session.sessionActive; },
-    set sessionActive(active: boolean) {
-      if (active) state.session.markSessionActive(); else state.session.markSessionInactive();
+    get sessionActive() {
+      return state.session.sessionActive;
     },
-    get hadError() { return state.session.hadError; },
-    set hadError(errored: boolean) { if (errored) state.session.markSessionErrored(); },
+    set sessionActive(active: boolean) {
+      if (active) state.session.markSessionActive();
+      else state.session.markSessionInactive();
+    },
+    get hadError() {
+      return state.session.hadError;
+    },
+    set hadError(errored: boolean) {
+      if (errored) state.session.markSessionErrored();
+    },
   };
 }
 
@@ -39,14 +46,22 @@ describe("handleContinuation", () => {
     const reply = createMockReply();
     const order: string[] = [];
 
-    const startStream = vi.fn(() => { order.push("start"); });
+    const startStream = vi.fn(() => {
+      order.push("start");
+    });
     const resolveResults = vi.fn(() => {
       order.push("resolve");
-      queueMicrotask(() => { conv.state.replies.notifyStreamingDone(); });
+      queueMicrotask(() => {
+        conv.state.replies.notifyStreamingDone();
+      });
     });
     const countMessages = vi.fn(() => 3);
 
-    const result = await handleContinuation(conv, reply, logger, { startStream, resolveResults, countMessages });
+    const result = await handleContinuation(conv, reply, logger, {
+      startStream,
+      resolveResults,
+      countMessages,
+    });
 
     expect(result).toBe(true);
     expect(order).toEqual(["start", "resolve"]);
@@ -58,10 +73,16 @@ describe("handleContinuation", () => {
     const reply = createMockReply();
 
     const resolveResults = vi.fn(() => {
-      queueMicrotask(() => { conv.state.replies.notifyStreamingDone(); });
+      queueMicrotask(() => {
+        conv.state.replies.notifyStreamingDone();
+      });
     });
 
-    await handleContinuation(conv, reply, logger, { startStream: vi.fn(), resolveResults, countMessages: () => 1 });
+    await handleContinuation(conv, reply, logger, {
+      startStream: vi.fn(),
+      resolveResults,
+      countMessages: () => 1,
+    });
 
     expect(conv.sentMessageCount).toBe(1);
   });
@@ -86,10 +107,16 @@ describe("handleContinuation", () => {
     const reply = createMockReply();
 
     const resolveResults = vi.fn(() => {
-      queueMicrotask(() => { conv.state.replies.notifyStreamingDone(); });
+      queueMicrotask(() => {
+        conv.state.replies.notifyStreamingDone();
+      });
     });
 
-    const result = await handleContinuation(conv, reply, logger, { startStream: vi.fn(), resolveResults, countMessages: () => 5 });
+    const result = await handleContinuation(conv, reply, logger, {
+      startStream: vi.fn(),
+      resolveResults,
+      countMessages: () => 5,
+    });
     expect(result).toBe(true);
   });
 });

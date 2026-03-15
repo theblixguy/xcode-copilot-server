@@ -26,6 +26,8 @@
     "dev": "tsx src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",
+    "fmt": "oxfmt --write src/ test/",
+    "fmt:check": "oxfmt --check src/ test/",
     "lint": "oxlint",
     "typecheck": "tsc -p tsconfig.check.json",
     "prepublishOnly": "npm run build"
@@ -43,6 +45,7 @@
     "@types/node": "25.5.0",
     "@types/plist": "3.0.5",
     "llm-mock-server": "1.0.3",
+    "oxfmt": "0.40.0",
     "oxlint": "1.55.0",
     "patch-package": "8.0.1",
     "tsx": "4.21.0",

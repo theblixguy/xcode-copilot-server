@@ -1,5 +1,10 @@
 import type { FastifyReply } from "fastify";
-import type { CopilotSession, Logger, Stats, CommonEventHandler } from "copilot-sdk-proxy";
+import type {
+  CopilotSession,
+  Logger,
+  Stats,
+  CommonEventHandler,
+} from "copilot-sdk-proxy";
 import { createCommonEventHandler } from "copilot-sdk-proxy";
 import type { ToolBridgeState } from "../../tool-bridge/state.js";
 import { isRecord } from "../../utils/type-guards.js";
@@ -7,7 +12,9 @@ import { BRIDGE_TOOL_PREFIX } from "../../bridge-constants.js";
 
 // Xcode sends tool names without the bridge prefix.
 function stripBridgePrefix(name: string): string {
-  return name.startsWith(BRIDGE_TOOL_PREFIX) ? name.slice(BRIDGE_TOOL_PREFIX.length) : name;
+  return name.startsWith(BRIDGE_TOOL_PREFIX)
+    ? name.slice(BRIDGE_TOOL_PREFIX.length)
+    : name;
 }
 
 export interface StrippedToolRequest {
@@ -36,7 +43,9 @@ interface SessionStreamingOptions {
   stats: Stats;
 }
 
-export function runSessionStreaming(opts: SessionStreamingOptions): Promise<void> {
+export function runSessionStreaming(
+  opts: SessionStreamingOptions,
+): Promise<void> {
   return new StreamingHandler(opts).run();
 }
 
@@ -122,8 +131,12 @@ class StreamingHandler {
       : requests;
 
     return filtered.map((tr) => {
-      const resolved = this.state.toolCache.resolveToolName(stripBridgePrefix(tr.name));
-      const args: Record<string, unknown> = isRecord(tr.arguments) ? tr.arguments : {};
+      const resolved = this.state.toolCache.resolveToolName(
+        stripBridgePrefix(tr.name),
+      );
+      const args: Record<string, unknown> = isRecord(tr.arguments)
+        ? tr.arguments
+        : {};
       return {
         toolCallId: tr.toolCallId,
         name: resolved,
@@ -132,7 +145,9 @@ class StreamingHandler {
     });
   }
 
-  private onMessage(data: { toolRequests?: { toolCallId: string; name: string; arguments?: unknown }[] }): void {
+  private onMessage(data: {
+    toolRequests?: { toolCallId: string; name: string; arguments?: unknown }[];
+  }): void {
     if (!data.toolRequests || data.toolRequests.length === 0) {
       const r = this.getReply();
       if (r) this.common.flushDeltas();
@@ -143,7 +158,9 @@ class StreamingHandler {
     if (stripped.length === 0) return;
 
     for (const tr of stripped) {
-      this.logger.info(`Tool request: name="${tr.name}", id="${tr.toolCallId}"`);
+      this.logger.info(
+        `Tool request: name="${tr.name}", id="${tr.toolCallId}"`,
+      );
       this.state.toolRouter.registerExpected(tr.toolCallId, tr.name);
     }
 
@@ -186,7 +203,10 @@ class StreamingHandler {
 
   private setupClientDisconnect(): void {
     this.initialReply.raw.on("close", () => {
-      if (!this.sessionDone && this.state.replies.currentReply === this.initialReply) {
+      if (
+        !this.sessionDone &&
+        this.state.replies.currentReply === this.initialReply
+      ) {
         this.logger.info("Client disconnected, aborting session");
         this.protocol.teardown();
         this.protocol.reset();

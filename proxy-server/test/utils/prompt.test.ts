@@ -32,7 +32,9 @@ describe("filterExcludedFiles", () => {
   });
 
   it("no code blocks at all", () => {
-    expect(filterExcludedFiles("just plain text", mockPatterns)).toBe("just plain text");
+    expect(filterExcludedFiles("just plain text", mockPatterns)).toBe(
+      "just plain text",
+    );
   });
 
   it("empty string", () => {

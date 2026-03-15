@@ -1,4 +1,10 @@
-import { parsePort, parseLogLevel, parseIdleTimeout, PROVIDER_NAMES, isProviderName } from "copilot-sdk-proxy";
+import {
+  parsePort,
+  parseLogLevel,
+  parseIdleTimeout,
+  PROVIDER_NAMES,
+  isProviderName,
+} from "copilot-sdk-proxy";
 import type { ProviderName, ProviderMode } from "copilot-sdk-proxy";
 
 export { parsePort, parseLogLevel, parseIdleTimeout, isProviderName };
@@ -19,7 +25,10 @@ export function parseProviderMode(value: string): ProviderMode {
 
 const PATCHABLE_PROXIES: ReadonlySet<string> = new Set(["claude", "codex"]);
 
-export function validateAutoPatch(proxy: ProviderName, autoPatch: boolean): void {
+export function validateAutoPatch(
+  proxy: ProviderName,
+  autoPatch: boolean,
+): void {
   if (autoPatch && !PATCHABLE_PROXIES.has(proxy)) {
     throw new Error(
       `--auto-patch is only supported for: ${[...PATCHABLE_PROXIES].join(", ")}`,

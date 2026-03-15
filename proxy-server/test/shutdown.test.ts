@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { registerShutdownHandlers } from "../src/shutdown.js";
 
-function createMockContext(overrides?: Partial<Parameters<typeof registerShutdownHandlers>[0]>) {
+function createMockContext(
+  overrides?: Partial<Parameters<typeof registerShutdownHandlers>[0]>,
+) {
   return {
     app: { close: vi.fn().mockResolvedValue(undefined) },
     service: { stop: vi.fn().mockResolvedValue(undefined) },
@@ -23,7 +25,10 @@ describe("registerShutdownHandlers", () => {
 
   beforeEach(() => {
     listeners.clear();
-    vi.spyOn(process, "on").mockImplementation(((event: string, fn: SignalHandler) => {
+    vi.spyOn(process, "on").mockImplementation(((
+      event: string,
+      fn: SignalHandler,
+    ) => {
       const fns = listeners.get(event) ?? [];
       fns.push(fn);
       listeners.set(event, fns);
@@ -54,9 +59,11 @@ describe("registerShutdownHandlers", () => {
   });
 
   it("sets idle timer when idleTimeoutMinutes > 0", () => {
-    const spy = vi.spyOn(global, "setInterval").mockReturnValue(
-      { unref: vi.fn() } as unknown as ReturnType<typeof setInterval>,
-    );
+    const spy = vi
+      .spyOn(global, "setInterval")
+      .mockReturnValue({ unref: vi.fn() } as unknown as ReturnType<
+        typeof setInterval
+      >);
     const ctx = createMockContext({ idleTimeoutMinutes: 5 });
     registerShutdownHandlers(ctx);
 
