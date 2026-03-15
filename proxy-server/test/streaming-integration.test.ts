@@ -11,8 +11,12 @@ import { codexProvider } from "../src/providers/codex/provider.js";
 import { openaiProvider } from "../src/providers/openai/provider.js";
 import type { AppContext } from "../src/context.js";
 import { BYTES_PER_MIB, type ServerConfig } from "../src/config-schema.js";
-import { BRIDGE_TOOL_PREFIX } from "../src/bridge-constants.js";
+import { BRIDGE_TOOL_PREFIX } from "../src/tool-bridge/bridge-constants.js";
 import type { Provider } from "../src/providers/types.js";
+import {
+  JSONRPC_METHOD_NOT_FOUND,
+  JSONRPC_PARSE_ERROR,
+} from "../src/tool-bridge/constants.js";
 
 const BASE_EVENT = {
   id: "e1",
@@ -218,7 +222,39 @@ function collectTextContent(
     .join("");
 }
 
-async function createApp(
+function createSendRejectSession(error: Error): CopilotSession {
+  return {
+    on() {
+      return () => {};
+    },
+    abort: () => Promise.resolve(),
+    setModel: () => Promise.resolve(),
+    send: () => Promise.reject(error),
+  } as unknown as CopilotSession;
+}
+
+function createSendRejectCtx(error: Error): AppContext {
+  return {
+    service: {
+      cwd: process.cwd(),
+      createSession: () => Promise.resolve(createSendRejectSession(error)),
+      listModels: () =>
+        Promise.resolve([
+          {
+            id: "test-model",
+            capabilities: { supports: { reasoningEffort: false } },
+          },
+        ]),
+      ping: () => Promise.resolve({ message: "ok", timestamp: Date.now() }),
+    } as unknown as AppContext["service"],
+    logger: new Logger("none"),
+    config,
+    port: 8080,
+    stats: new Stats(),
+  };
+}
+
+function createApp(
   ctx: AppContext,
   provider: Provider,
 ): Promise<FastifyInstance> {
@@ -348,6 +384,23 @@ describe("OpenAI streaming integration", () => {
       "Answer",
     );
   });
+
+  it("completes stream when session.send() rejects", async () => {
+    const ctx = createSendRejectCtx(new Error("connection refused"));
+    app = await createApp(ctx, openaiProvider);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: { ...xcodeHeaders, "content-type": "application/json" },
+      payload: {
+        model: "test-model",
+        messages: [{ role: "user", content: "Hi" }],
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+  });
 });
 
 describe("Claude streaming integration", () => {
@@ -441,6 +494,24 @@ describe("Claude streaming integration", () => {
     );
     expect(collectTextContent(events, "claude")).toBe("Answer");
   });
+
+  it("completes stream when session.send() rejects", async () => {
+    const ctx = createSendRejectCtx(new Error("connection refused"));
+    app = await createApp(ctx, claudeProvider);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/messages",
+      headers: { ...claudeHeaders, "content-type": "application/json" },
+      payload: {
+        model: "test-model",
+        messages: [{ role: "user", content: "Hi" }],
+        max_tokens: 100,
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+  });
 });
 
 describe("Codex streaming integration", () => {
@@ -489,6 +560,20 @@ describe("Codex streaming integration", () => {
     expect(reasoningDelta).toBeDefined();
     expect(reasoningDelta!.delta).toBe("Deep thought");
     expect(collectTextContent(events, "codex")).toBe("Answer");
+  });
+
+  it("completes stream when session.send() rejects", async () => {
+    const ctx = createSendRejectCtx(new Error("connection refused"));
+    app = await createApp(ctx, codexProvider);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/responses",
+      headers: { ...codexHeaders, "content-type": "application/json" },
+      payload: { model: "test-model", input: "Hi" },
+    });
+
+    expect(res.statusCode).toBe(200);
   });
 });
 
@@ -669,7 +754,7 @@ describe("MCP routes", () => {
 
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    expect(body.error.code).toBe(-32601);
+    expect(body.error.code).toBe(JSONRPC_METHOD_NOT_FOUND);
   });
 
   it("returns parse error for invalid JSON-RPC", async () => {
@@ -688,7 +773,7 @@ describe("MCP routes", () => {
 
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    expect(body.error.code).toBe(-32700);
+    expect(body.error.code).toBe(JSONRPC_PARSE_ERROR);
   });
 
   it("accepts notifications (no id) with 202", async () => {

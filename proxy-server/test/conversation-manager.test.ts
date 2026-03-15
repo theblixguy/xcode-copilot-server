@@ -225,16 +225,10 @@ describe("ConversationManager", () => {
       primary.state.toolRouter.registerExpected("toolu_fetch", "WebFetch");
       primary.state.session.markSessionInactive();
 
-      let taskResolve: (r: string) => void = () => {};
-      let taskReject: (e: Error) => void = () => {};
       primary.state.toolRouter.registerMCPRequest(
         "Task",
-        (r) => {
-          taskResolve = () => r;
-        },
-        (e) => {
-          taskReject = () => e;
-        },
+        () => {},
+        () => {},
       );
       primary.state.toolRouter.registerMCPRequest(
         "WebFetch",
@@ -253,9 +247,6 @@ describe("ConversationManager", () => {
         true,
       );
       expect(manager.findByContinuationIds(["toolu_task"])).toBe(primary);
-
-      void taskResolve;
-      void taskReject;
     });
 
     it("primary is reusable again after pending tool calls are resolved", () => {

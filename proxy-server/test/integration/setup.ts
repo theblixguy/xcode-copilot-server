@@ -11,7 +11,7 @@ export const TIMEOUT = 60_000;
 export const OPENAI_MODEL = "gpt-5.4";
 export const CLAUDE_MODEL = "claude-sonnet-4-6";
 
-export let service: CopilotService;
+let service: CopilotService;
 export let mock: MockServer;
 
 const logger = new Logger("none");

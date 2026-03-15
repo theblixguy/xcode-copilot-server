@@ -14,6 +14,7 @@ import {
 } from "./cli-validators.js";
 import { startServer, type StartOptions } from "./startup.js";
 import { installAgent, uninstallAgent } from "./launchd/index.js";
+import { errorMessage } from "./utils/type-guards.js";
 
 const PACKAGE_ROOT = dirname(import.meta.dirname);
 const DEFAULT_CONFIG_PATH = join(PACKAGE_ROOT, "config.json5");
@@ -26,10 +27,9 @@ try {
   );
   version = z.object({ version: z.string() }).parse(raw).version;
 } catch (err) {
-  throw new Error(
-    `Failed to read package.json: ${err instanceof Error ? err.message : String(err)}`,
-    { cause: err },
-  );
+  throw new Error(`Failed to read package.json: ${errorMessage(err)}`, {
+    cause: err,
+  });
 }
 
 interface PatchOptions {

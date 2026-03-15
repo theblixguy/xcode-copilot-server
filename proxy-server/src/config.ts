@@ -14,7 +14,7 @@ import {
   MS_PER_MINUTE,
 } from "./config-schema.js";
 import type { ServerConfig } from "./config-schema.js";
-import { isErrnoException } from "./utils/type-guards.js";
+import { isErrnoException, errorMessage } from "./utils/type-guards.js";
 
 function resolveServerPaths(
   servers: Record<string, MCPServer>,
@@ -73,7 +73,7 @@ async function parseConfigFile(
       return null;
     }
     throw new Error(
-      `Failed to read config file at ${absolutePath}: ${err instanceof Error ? err.message : String(err)}`,
+      `Failed to read config file at ${absolutePath}: ${errorMessage(err)}`,
       { cause: err },
     );
   }
@@ -82,10 +82,9 @@ async function parseConfigFile(
   try {
     raw = JSON5.parse(text);
   } catch (err) {
-    throw new Error(
-      `Failed to parse config file: ${err instanceof Error ? err.message : String(err)}`,
-      { cause: err },
-    );
+    throw new Error(`Failed to parse config file: ${errorMessage(err)}`, {
+      cause: err,
+    });
   }
 
   if (!raw || typeof raw !== "object") {

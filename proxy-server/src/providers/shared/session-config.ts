@@ -8,7 +8,7 @@ import type { ServerConfig } from "../../config-schema.js";
 import {
   BRIDGE_SERVER_NAME,
   BRIDGE_TOOL_PREFIX,
-} from "../../bridge-constants.js";
+} from "../../tool-bridge/bridge-constants.js";
 
 const SDK_BUILT_IN_TOOLS: string[] = [
   // shell
@@ -43,7 +43,7 @@ interface SessionConfigOptions extends BaseSessionConfigOptions {
 }
 
 interface ToolBridgeContext {
-  tools: unknown[] | undefined;
+  tools: readonly unknown[] | undefined;
   config: ServerConfig;
   logger: Logger;
 }
@@ -65,7 +65,7 @@ function resolveToolBridge({
 
 interface ProviderContext {
   conversationId: string;
-  tools: unknown[] | undefined;
+  tools: readonly unknown[] | undefined;
   config: ServerConfig;
   logger: Logger;
   port: number;
