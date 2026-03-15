@@ -1,8 +1,8 @@
-import type { FunctionCallOutputInput, Logger } from "copilot-sdk-proxy";
+import type { FunctionCallOutput, Logger } from "copilot-sdk-proxy";
 import type { ToolBridgeState } from "../../tool-bridge/state.js";
 
 export function resolveResponsesToolResults(
-  outputs: FunctionCallOutputInput[],
+  outputs: FunctionCallOutput[],
   state: ToolBridgeState,
   logger: Logger,
 ): void {

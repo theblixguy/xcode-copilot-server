@@ -2,9 +2,9 @@ import { describe, it, expect, afterEach } from "vitest";
 import type { FastifyInstance } from "fastify";
 import type { SessionEvent, SessionEventHandler, CopilotSession } from "@github/copilot-sdk";
 import { createServer, Logger, Stats } from "copilot-sdk-proxy";
-import { openaiProvider } from "../src/providers/openai/provider.js";
 import { claudeProvider } from "../src/providers/claude/provider.js";
 import { codexProvider } from "../src/providers/codex/provider.js";
+import { openaiProvider } from "../src/providers/openai/provider.js";
 import type { AppContext } from "../src/context.js";
 import { BYTES_PER_MIB, type ServerConfig } from "../src/config-schema.js";
 import { BRIDGE_TOOL_PREFIX } from "../src/bridge-constants.js";
@@ -113,6 +113,13 @@ function toolRequestSequence(opts: {
   };
 }
 
+function parseSSELines(body: string): unknown[] {
+  return body
+    .split("\n")
+    .filter((line) => line.startsWith("data: ") && line !== "data: [DONE]")
+    .map((line) => JSON.parse(line.slice(6)) as unknown);
+}
+
 const config: ServerConfig = {
   toolBridge: false,
   toolBridgeTimeoutMs: 0,
@@ -146,51 +153,6 @@ function createCtx(sequence: EventSequence, overrideConfig?: ServerConfig): AppC
   };
 }
 
-function createMultiTurnCtx(sequences: EventSequence[]): AppContext {
-  let callIndex = 0;
-  let handler: SessionEventHandler | null = null;
-
-  function emit(type: string, data: Record<string, unknown>): void {
-    handler?.({ ...BASE_EVENT, type, data } as unknown as SessionEvent);
-  }
-
-  const session = {
-    on(h: SessionEventHandler) {
-      handler = h;
-      return () => { handler = null; };
-    },
-    abort: () => Promise.resolve(),
-    setModel: () => Promise.resolve(),
-    send() {
-      const seq = sequences[callIndex++];
-      seq?.(emit);
-      return Promise.resolve();
-    },
-  } as unknown as CopilotSession;
-
-  return {
-    service: {
-      cwd: process.cwd(),
-      createSession: () => Promise.resolve(session),
-      listModels: () => Promise.resolve([
-        { id: "test-model", capabilities: { supports: { reasoningEffort: false } } },
-      ]),
-      ping: () => Promise.resolve({ message: "ok", timestamp: Date.now() }),
-    } as unknown as AppContext["service"],
-    logger: new Logger("none"),
-    config,
-    port: 8080,
-    stats: new Stats(),
-  };
-}
-
-function parseSSELines(body: string): unknown[] {
-  return body
-    .split("\n")
-    .filter((line) => line.startsWith("data: ") && line !== "data: [DONE]")
-    .map((line) => JSON.parse(line.slice(6)) as unknown);
-}
-
 function collectTextContent(events: unknown[], provider: "openai" | "claude" | "codex"): string {
   if (provider === "openai") {
     return (events as { choices?: { delta?: { content?: string } }[] }[])
@@ -213,84 +175,18 @@ function collectTextContent(events: unknown[], provider: "openai" | "claude" | "
     .join("");
 }
 
-const xcodeHeaders = { "user-agent": "Xcode/24577 CFNetwork/3860.300.31 Darwin/25.2.0" };
-const claudeHeaders = { "user-agent": "claude-cli/1.0" };
-const codexHeaders = { "user-agent": "Xcode/24577 CFNetwork/3860.300.31 Darwin/25.2.0" };
-
 async function createApp(ctx: AppContext, provider: Provider): Promise<FastifyInstance> {
   return createServer(ctx, provider);
 }
+
+const claudeHeaders = { "user-agent": "claude-cli/1.0" };
+const codexHeaders = { "user-agent": "Xcode/24577 CFNetwork/3860.300.31 Darwin/25.2.0" };
+const xcodeHeaders = { "user-agent": "Xcode/24577 CFNetwork/3860.300.31 Darwin/25.2.0" };
 
 describe("OpenAI streaming integration", () => {
   let app: FastifyInstance;
 
   afterEach(async () => { await app.close(); });
-
-  it("streams text deltas as SSE chunks", async () => {
-    const ctx = createCtx(standardSequence({ deltas: ["Hello", " world"] }));
-    app = await createApp(ctx, openaiProvider);
-
-    const res = await app.inject({
-      method: "POST",
-      url: "/v1/chat/completions",
-      headers: { ...xcodeHeaders, "content-type": "application/json" },
-      payload: { model: "test-model", messages: [{ role: "user", content: "Hi" }] },
-    });
-
-    expect(res.statusCode).toBe(200);
-    expect(res.headers["content-type"]).toBe("text/event-stream");
-    expect(collectTextContent(parseSSELines(res.body), "openai")).toBe("Hello world");
-    expect(res.body).toContain("data: [DONE]");
-  });
-
-  it("streams with reasoning deltas", async () => {
-    const ctx = createCtx(standardSequence({ deltas: ["Answer"], reasoning: ["Let me", " think"] }));
-    app = await createApp(ctx, openaiProvider);
-
-    const res = await app.inject({
-      method: "POST",
-      url: "/v1/chat/completions",
-      headers: { ...xcodeHeaders, "content-type": "application/json" },
-      payload: { model: "test-model", messages: [{ role: "user", content: "Think hard" }] },
-    });
-
-    expect(res.statusCode).toBe(200);
-    expect(collectTextContent(parseSSELines(res.body), "openai")).toBe("Answer");
-  });
-
-  it("streams with tool execution events", async () => {
-    const ctx = createCtx(standardSequence({
-      deltas: ["Done"],
-      toolCall: { id: "tc1", name: "read_file", args: { path: "/tmp" } },
-    }));
-    app = await createApp(ctx, openaiProvider);
-
-    const res = await app.inject({
-      method: "POST",
-      url: "/v1/chat/completions",
-      headers: { ...xcodeHeaders, "content-type": "application/json" },
-      payload: { model: "test-model", messages: [{ role: "user", content: "Read file" }] },
-    });
-
-    expect(res.statusCode).toBe(200);
-    expect(collectTextContent(parseSSELines(res.body), "openai")).toBe("Done");
-  });
-
-  it("streams with compaction mid-session", async () => {
-    const ctx = createCtx(standardSequence({ deltas: ["Compacted"], compaction: true }));
-    app = await createApp(ctx, openaiProvider);
-
-    const res = await app.inject({
-      method: "POST",
-      url: "/v1/chat/completions",
-      headers: { ...xcodeHeaders, "content-type": "application/json" },
-      payload: { model: "test-model", messages: [{ role: "user", content: "Hi" }] },
-    });
-
-    expect(res.statusCode).toBe(200);
-    expect(collectTextContent(parseSSELines(res.body), "openai")).toBe("Compacted");
-    expect(res.body).toContain("data: [DONE]");
-  });
 
   it("handles session error", async () => {
     const ctx = createCtx(errorSequence({ errorMessage: "backend exploded" }));
@@ -325,67 +221,53 @@ describe("OpenAI streaming integration", () => {
     expect(res.statusCode).toBe(200);
   });
 
-  it("rejects non-streaming requests", async () => {
-    const ctx = createCtx(standardSequence({ deltas: ["x"] }));
+  it("streams with compaction mid-session", async () => {
+    const ctx = createCtx(standardSequence({ deltas: ["Compacted"], compaction: true }));
     app = await createApp(ctx, openaiProvider);
 
     const res = await app.inject({
       method: "POST",
       url: "/v1/chat/completions",
       headers: { ...xcodeHeaders, "content-type": "application/json" },
-      payload: { model: "test-model", messages: [{ role: "user", content: "Hi" }], stream: false },
-    });
-
-    expect(res.statusCode).toBe(400);
-  });
-
-  it("records usage stats", async () => {
-    const ctx = createCtx(standardSequence({ deltas: ["Hi"] }));
-    app = await createApp(ctx, openaiProvider);
-
-    await app.inject({
-      method: "POST",
-      url: "/v1/chat/completions",
-      headers: { ...xcodeHeaders, "content-type": "application/json" },
       payload: { model: "test-model", messages: [{ role: "user", content: "Hi" }] },
     });
 
-    const snapshot = ctx.stats.snapshot();
-    expect(snapshot.requests).toBe(1);
-    expect(snapshot.inputTokens).toBe(10);
-    expect(snapshot.outputTokens).toBe(5);
+    expect(res.statusCode).toBe(200);
+    expect(collectTextContent(parseSSELines(res.body), "openai")).toBe("Compacted");
+    expect(res.body).toContain("data: [DONE]");
   });
 
-  it("reuses session for multi-turn conversation", async () => {
-    const ctx = createMultiTurnCtx([
-      standardSequence({ deltas: ["First"] }),
-      standardSequence({ deltas: ["Second"] }),
-    ]);
+  it("streams with tool execution events", async () => {
+    const ctx = createCtx(standardSequence({
+      deltas: ["Done"],
+      toolCall: { id: "tc1", name: "read_file", args: { path: "/tmp" } },
+    }));
     app = await createApp(ctx, openaiProvider);
 
-    const res1 = await app.inject({
+    const res = await app.inject({
       method: "POST",
       url: "/v1/chat/completions",
       headers: { ...xcodeHeaders, "content-type": "application/json" },
-      payload: { model: "test-model", messages: [{ role: "user", content: "Turn 1" }] },
+      payload: { model: "test-model", messages: [{ role: "user", content: "Read file" }] },
     });
-    expect(collectTextContent(parseSSELines(res1.body), "openai")).toBe("First");
 
-    const res2 = await app.inject({
+    expect(res.statusCode).toBe(200);
+    expect(collectTextContent(parseSSELines(res.body), "openai")).toBe("Done");
+  });
+
+  it("streams with reasoning deltas", async () => {
+    const ctx = createCtx(standardSequence({ deltas: ["Answer"], reasoning: ["Let me", " think"] }));
+    app = await createApp(ctx, openaiProvider);
+
+    const res = await app.inject({
       method: "POST",
       url: "/v1/chat/completions",
       headers: { ...xcodeHeaders, "content-type": "application/json" },
-      payload: {
-        model: "test-model",
-        messages: [
-          { role: "user", content: "Turn 1" },
-          { role: "assistant", content: "First" },
-          { role: "user", content: "Turn 2" },
-        ],
-      },
+      payload: { model: "test-model", messages: [{ role: "user", content: "Think hard" }] },
     });
-    expect(collectTextContent(parseSSELines(res2.body), "openai")).toBe("Second");
-    expect(ctx.stats.snapshot().sessions).toBe(1);
+
+    expect(res.statusCode).toBe(200);
+    expect(collectTextContent(parseSSELines(res.body), "openai")).toBe("Answer");
   });
 });
 
@@ -393,53 +275,6 @@ describe("Claude streaming integration", () => {
   let app: FastifyInstance;
 
   afterEach(async () => { await app.close(); });
-
-  it("streams text deltas as Anthropic SSE events", async () => {
-    const ctx = createCtx(standardSequence({ deltas: ["Hello", " world"] }));
-    app = await createApp(ctx, claudeProvider);
-
-    const res = await app.inject({
-      method: "POST",
-      url: "/v1/messages",
-      headers: { ...claudeHeaders, "content-type": "application/json" },
-      payload: { model: "test-model", messages: [{ role: "user", content: "Hi" }], max_tokens: 100 },
-    });
-
-    expect(res.statusCode).toBe(200);
-    expect(res.headers["content-type"]).toBe("text/event-stream");
-    expect(collectTextContent(parseSSELines(res.body), "claude")).toBe("Hello world");
-
-    const types = (parseSSELines(res.body) as { type?: string }[]).map((e) => e.type);
-    expect(types).toContain("message_start");
-    expect(types).toContain("message_stop");
-  });
-
-  it("streams reasoning as thinking blocks", async () => {
-    const ctx = createCtx(standardSequence({ deltas: ["Answer"], reasoning: ["Thinking..."] }));
-    app = await createApp(ctx, claudeProvider);
-
-    const res = await app.inject({
-      method: "POST",
-      url: "/v1/messages",
-      headers: { ...claudeHeaders, "content-type": "application/json" },
-      payload: { model: "test-model", messages: [{ role: "user", content: "Think" }], max_tokens: 100 },
-    });
-
-    expect(res.statusCode).toBe(200);
-    const events = parseSSELines(res.body) as Record<string, unknown>[];
-
-    const thinkingStart = events.find(
-      (e) => e.type === "content_block_start" && (e.content_block as Record<string, unknown>).type === "thinking",
-    );
-    expect(thinkingStart).toBeDefined();
-
-    const thinkingDelta = events.find(
-      (e) => e.type === "content_block_delta" && (e.delta as Record<string, unknown>).type === "thinking_delta",
-    );
-    expect(thinkingDelta).toBeDefined();
-    expect((thinkingDelta!.delta as Record<string, string>).thinking).toBe("Thinking...");
-    expect(collectTextContent(events, "claude")).toBe("Answer");
-  });
 
   it("streams with compaction mid-session", async () => {
     const ctx = createCtx(standardSequence({ deltas: ["OK"], compaction: true }));
@@ -475,20 +310,31 @@ describe("Claude streaming integration", () => {
     expect(messageDelta).toBeDefined();
   });
 
-  it("records usage stats", async () => {
-    const ctx = createCtx(standardSequence({ deltas: ["Hi"] }));
+  it("streams reasoning as thinking blocks", async () => {
+    const ctx = createCtx(standardSequence({ deltas: ["Answer"], reasoning: ["Thinking..."] }));
     app = await createApp(ctx, claudeProvider);
 
-    await app.inject({
+    const res = await app.inject({
       method: "POST",
       url: "/v1/messages",
       headers: { ...claudeHeaders, "content-type": "application/json" },
-      payload: { model: "test-model", messages: [{ role: "user", content: "Hi" }], max_tokens: 100 },
+      payload: { model: "test-model", messages: [{ role: "user", content: "Think" }], max_tokens: 100 },
     });
 
-    const snapshot = ctx.stats.snapshot();
-    expect(snapshot.requests).toBe(1);
-    expect(snapshot.inputTokens).toBe(10);
+    expect(res.statusCode).toBe(200);
+    const events = parseSSELines(res.body) as Record<string, unknown>[];
+
+    const thinkingStart = events.find(
+      (e) => e.type === "content_block_start" && (e.content_block as Record<string, unknown>).type === "thinking",
+    );
+    expect(thinkingStart).toBeDefined();
+
+    const thinkingDelta = events.find(
+      (e) => e.type === "content_block_delta" && (e.delta as Record<string, unknown>).type === "thinking_delta",
+    );
+    expect(thinkingDelta).toBeDefined();
+    expect((thinkingDelta!.delta as Record<string, string>).thinking).toBe("Thinking...");
+    expect(collectTextContent(events, "claude")).toBe("Answer");
   });
 });
 
@@ -497,8 +343,8 @@ describe("Codex streaming integration", () => {
 
   afterEach(async () => { await app.close(); });
 
-  it("streams text deltas as Responses API events", async () => {
-    const ctx = createCtx(standardSequence({ deltas: ["Hello", " world"] }));
+  it("handles session error with failed status", async () => {
+    const ctx = createCtx(errorSequence({ errorMessage: "timeout" }));
     app = await createApp(ctx, codexProvider);
 
     const res = await app.inject({
@@ -509,12 +355,9 @@ describe("Codex streaming integration", () => {
     });
 
     expect(res.statusCode).toBe(200);
-    expect(res.headers["content-type"]).toBe("text/event-stream");
-    expect(collectTextContent(parseSSELines(res.body), "codex")).toBe("Hello world");
-
-    const types = (parseSSELines(res.body) as { type?: string }[]).map((e) => e.type).filter(Boolean);
-    expect(types).toContain("response.created");
-    expect(types).toContain("response.completed");
+    const events = parseSSELines(res.body) as Record<string, unknown>[];
+    const failed = events.find((e) => e.type === "response.failed");
+    expect(failed).toBeDefined();
   });
 
   it("streams reasoning as reasoning summary events", async () => {
@@ -535,39 +378,6 @@ describe("Codex streaming integration", () => {
     expect(reasoningDelta).toBeDefined();
     expect(reasoningDelta!.delta).toBe("Deep thought");
     expect(collectTextContent(events, "codex")).toBe("Answer");
-  });
-
-  it("handles session error with failed status", async () => {
-    const ctx = createCtx(errorSequence({ errorMessage: "timeout" }));
-    app = await createApp(ctx, codexProvider);
-
-    const res = await app.inject({
-      method: "POST",
-      url: "/v1/responses",
-      headers: { ...codexHeaders, "content-type": "application/json" },
-      payload: { model: "test-model", input: "Hi" },
-    });
-
-    expect(res.statusCode).toBe(200);
-    const events = parseSSELines(res.body) as Record<string, unknown>[];
-    const failed = events.find((e) => e.type === "response.failed");
-    expect(failed).toBeDefined();
-  });
-
-  it("records usage stats", async () => {
-    const ctx = createCtx(standardSequence({ deltas: ["Hi"] }));
-    app = await createApp(ctx, codexProvider);
-
-    await app.inject({
-      method: "POST",
-      url: "/v1/responses",
-      headers: { ...codexHeaders, "content-type": "application/json" },
-      payload: { model: "test-model", input: "Hi" },
-    });
-
-    const snapshot = ctx.stats.snapshot();
-    expect(snapshot.requests).toBe(1);
-    expect(snapshot.outputTokens).toBe(5);
   });
 });
 

@@ -18,13 +18,8 @@ const SDK_BUILT_IN_TOOLS: string[] = [
   "skill", "web_fetch", "fetch_copilot_cli_documentation",
 ];
 
-interface SessionConfigOptions {
-  model: string;
-  systemMessage?: string | undefined;
-  logger: Logger;
+interface SessionConfigOptions extends BaseSessionConfigOptions {
   config: ServerConfig;
-  supportsReasoningEffort: boolean;
-  cwd?: string | undefined;
   hasToolBridge?: boolean | undefined;
   port: number;
   conversationId: string;
@@ -76,6 +71,7 @@ export function createSessionConfig({
   config,
   supportsReasoningEffort,
   cwd,
+  provider,
   hasToolBridge,
   port,
   conversationId,
@@ -87,6 +83,7 @@ export function createSessionConfig({
     config,
     supportsReasoningEffort,
     cwd,
+    provider,
   });
 
   // Hide SDK built-ins so the model uses bridge tools (forwarded to Xcode).
