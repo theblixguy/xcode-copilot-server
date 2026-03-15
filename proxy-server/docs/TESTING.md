@@ -94,6 +94,7 @@ Per-provider coverage:
 These test things that llm-mock-server can't simulate:
 
 - Session error mid-stream (no deltas, partial deltas)
+- Prompt send failure (session.send() rejection)
 - Context compaction events
 - Reasoning block structure (Claude thinking blocks, Codex reasoning summary events)
 - Tool execution event logging

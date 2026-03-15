@@ -13,9 +13,13 @@ A proxy API server that lets you use GitHub Copilot in Xcode, either as a custom
 - [Launchd agent](#launchd-agent)
 - [CLI reference](#cli-reference)
 - [Security](#security)
+- [Testing](proxy-server/docs/TESTING.md)
 - [License](#license)
 
 ## Why
+
+> [!WARNING]
+> Most other Copilot proxy servers (whether remote or local) work by reverse-engineering private Copilot APIs and spoofing the user-agent to impersonate VS Code. GitHub's abuse detection [flags this kind of usage](https://github.com/orgs/community/discussions/160013) and can restrict or suspend your Copilot access. The proxy projects [themselves warn about this risk](https://github.com/ericc-ch/copilot-api#important-notes). You should avoid using any of those servers. This server uses the official [Copilot SDK](https://github.com/github/copilot-sdk), which is the sanctioned way to build on top of Copilot.
 
 Xcode 26 added support for third-party LLM providers, but it only supports ChatGPT and Claude out of the box. If you have a GitHub Copilot subscription, there's no built-in way to use it.
 
