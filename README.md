@@ -33,7 +33,7 @@ In OpenAI mode, the server also connects to Xcode's built-in MCP tools (via `xcr
 
 ## Quick start
 
-You need [Node.js](https://nodejs.org) 25.6.0 or later and a GitHub Copilot subscription.
+You need [Node.js](https://nodejs.org) 22 or later and a GitHub Copilot subscription.
 
 **1. Authenticate** with one of these (you only need one):
 
