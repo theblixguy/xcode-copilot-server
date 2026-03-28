@@ -45,7 +45,7 @@
   "devDependencies": {
     "@types/node": "25.5.0",
     "@types/plist": "3.0.5",
-    "llm-mock-server": "1.0.4",
+    "llm-mock-server": "1.0.6",
     "oxfmt": "0.40.0",
     "oxlint": "1.55.0",
     "tsx": "4.21.0",
