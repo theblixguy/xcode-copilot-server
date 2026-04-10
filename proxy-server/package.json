@@ -28,7 +28,8 @@
     "fmt:check": "oxfmt --check src/ test/",
     "lint": "oxlint",
     "typecheck": "tsc -p tsconfig.check.json",
-    "prepublishOnly": "npm run build"
+    "prepack": "cp ../README.md . && npm run build",
+    "postpack": "rm -f README.md"
   },
   "dependencies": {
     "commander": "14.0.3",
