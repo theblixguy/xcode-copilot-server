@@ -1,4 +1,4 @@
-# xcode-copilot-server [![npm version](https://img.shields.io/npm/v/xcode-copilot-server)](https://www.npmjs.com/package/xcode-copilot-server) ![npm downloads](https://img.shields.io/npm/d18m/xcode-copilot-server)
+# xcode-copilot-server [![npm version](https://img.shields.io/npm/v/xcode-copilot-server)](https://www.npmjs.com/package/xcode-copilot-server) [![npm downloads](https://img.shields.io/npm/dm/xcode-copilot-server?label=npm)](https://www.npmjs.com/package/xcode-copilot-server)
 
 A proxy API server that lets you use GitHub Copilot in Xcode, either as a custom model provider or as the backend for Claude Agent and Codex Agent.
 
