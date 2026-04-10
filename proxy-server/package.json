@@ -16,11 +16,9 @@
   },
   "files": [
     "dist/",
-    "patches/",
     "config.json5"
   ],
   "scripts": {
-    "postinstall": "patch-package",
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
@@ -39,7 +37,6 @@
     "json5": "2.2.3",
     "koffi": "2.15.2",
     "plist": "3.1.0",
-    "patch-package": "8.0.1",
     "zod": "4.3.6"
   },
   "devDependencies": {
