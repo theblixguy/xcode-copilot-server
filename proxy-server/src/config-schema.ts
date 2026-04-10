@@ -65,7 +65,7 @@ export type ServerConfig = {
   bodyLimit: number;
   requestTimeoutMs: number;
   autoApprovePermissions: ApprovalRule;
-  reasoningEffort?: ReasoningEffort | undefined;
+  reasoningEffort?: ReasoningEffort;
 };
 
 export const DEFAULT_CONFIG = {

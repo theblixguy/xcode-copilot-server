@@ -116,7 +116,9 @@ function buildServerConfig(
     allowedCliTools: parsed.allowedCliTools,
     excludedFilePatterns: parsed.excludedFilePatterns,
     autoApprovePermissions: parsed.autoApprovePermissions,
-    reasoningEffort: parsed.reasoningEffort,
+    ...(parsed.reasoningEffort
+      ? { reasoningEffort: parsed.reasoningEffort }
+      : {}),
     bodyLimit: parsed.bodyLimit * BYTES_PER_MIB,
     requestTimeoutMs: parsed.requestTimeout * MS_PER_MINUTE,
     toolBridge: provider.toolBridge,
@@ -162,7 +164,9 @@ export async function loadAllProviderConfigs(
         allowedCliTools: result.data.allowedCliTools,
         excludedFilePatterns: result.data.excludedFilePatterns,
         autoApprovePermissions: result.data.autoApprovePermissions,
-        reasoningEffort: result.data.reasoningEffort,
+        ...(result.data.reasoningEffort
+          ? { reasoningEffort: result.data.reasoningEffort }
+          : {}),
         bodyLimit: result.data.bodyLimit * BYTES_PER_MIB,
         requestTimeoutMs: result.data.requestTimeout * MS_PER_MINUTE,
         toolBridge: false,
