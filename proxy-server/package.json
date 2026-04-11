@@ -36,7 +36,7 @@
     "copilot-sdk-proxy": "4.1.2",
     "fastify": "5.8.4",
     "json5": "2.2.3",
-    "koffi": "2.15.2",
+    "koffi": "2.15.6",
     "plist": "3.1.0",
     "zod": "4.3.6"
   },
