@@ -18,41 +18,37 @@ const ProviderConfigSchema = z.object({
     .min(0, "toolBridgeTimeout must be >= 0")
     .default(0),
   mcpServers: z.record(z.string(), MCPServerSchema).default({}),
+  reasoningEffort: ReasoningEffortSchema.optional(),
 });
 
-export const ServerConfigSchema = z.object({
-  openai: ProviderConfigSchema.default({
-    toolBridge: false,
-    toolBridgeTimeout: 0,
-    mcpServers: {},
-  }),
-  claude: ProviderConfigSchema.default({
-    toolBridge: false,
-    toolBridgeTimeout: 0,
-    mcpServers: {},
-  }),
-  codex: ProviderConfigSchema.default({
-    toolBridge: false,
-    toolBridgeTimeout: 0,
-    mcpServers: {},
-  }),
-  allowedCliTools: z
-    .array(z.string())
-    .refine(
-      (arr) => !arr.includes("*") || arr.length === 1,
-      'allowedCliTools: use ["*"] alone to allow all tools, don\'t mix with other entries',
-    )
-    .default([]),
-  excludedFilePatterns: z.array(z.string()).default([]),
-  bodyLimit: z
-    .number()
-    .positive()
-    .max(100, "bodyLimit cannot exceed 100")
-    .default(10),
-  requestTimeout: z.number().min(0, "requestTimeout must be >= 0").default(0),
-  reasoningEffort: ReasoningEffortSchema.optional(),
-  autoApprovePermissions: ApprovalRuleSchema.default(["read", "mcp"]),
+const providerDefaults = () => ({
+  toolBridge: false,
+  toolBridgeTimeout: 0,
+  mcpServers: {},
 });
+
+export const ServerConfigSchema = z
+  .object({
+    claude: ProviderConfigSchema.default(providerDefaults),
+    codex: ProviderConfigSchema.default(providerDefaults),
+    openai: ProviderConfigSchema.default(providerDefaults),
+    allowedCliTools: z
+      .array(z.string())
+      .refine(
+        (arr) => !arr.includes("*") || arr.length === 1,
+        'allowedCliTools: use ["*"] alone to allow all tools, don\'t mix with other entries',
+      )
+      .default([]),
+    excludedFilePatterns: z.array(z.string()).default([]),
+    bodyLimit: z
+      .number()
+      .positive()
+      .max(100, "bodyLimit cannot exceed 100")
+      .default(10),
+    requestTimeout: z.number().min(0, "requestTimeout must be >= 0").default(0),
+    autoApprovePermissions: ApprovalRuleSchema.default(["read", "mcp"]),
+  })
+  .strict();
 
 type ApprovalRule = z.infer<typeof ApprovalRuleSchema>;
 

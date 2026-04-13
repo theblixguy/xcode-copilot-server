@@ -127,10 +127,24 @@ describe("loadConfig", () => {
     expect(args[0]).toBe("/usr/bin/server.js");
   });
 
-  it("loads reasoningEffort", async () => {
-    const path = writeConfig("reason.json5", `{ reasoningEffort: "high" }`);
+  it("loads per-provider reasoningEffort", async () => {
+    const path = writeConfig(
+      "reason.json5",
+      `{ openai: { reasoningEffort: "high" } }`,
+    );
     const config = await loadConfig(path, logger, "openai");
     expect(config.reasoningEffort).toBe("high");
+  });
+
+  it("does not leak reasoningEffort across providers", async () => {
+    const path = writeConfig(
+      "reason-split.json5",
+      `{ openai: { reasoningEffort: "xhigh" }, claude: { reasoningEffort: "max" } }`,
+    );
+    const openaiConfig = await loadConfig(path, logger, "openai");
+    const codexConfig = await loadConfig(path, logger, "codex");
+    expect(openaiConfig.reasoningEffort).toBe("xhigh");
+    expect(codexConfig.reasoningEffort).toBeUndefined();
   });
 
   it("loads allowedCliTools", async () => {
@@ -228,7 +242,10 @@ describe("config validation", () => {
   });
 
   it("rejects invalid reasoningEffort", async () => {
-    const path = writeConfig("bad.json5", `{ reasoningEffort: "invalid" }`);
+    const path = writeConfig(
+      "bad.json5",
+      `{ openai: { reasoningEffort: "invalid" } }`,
+    );
     await expect(loadConfig(path, logger, "openai")).rejects.toThrow(
       /reasoningEffort/i,
     );
