@@ -74,14 +74,16 @@ describe("ServerConfigSchema", () => {
 
   it("rejects invalid reasoningEffort", () => {
     expect(() =>
-      ServerConfigSchema.parse({ reasoningEffort: "invalid" }),
+      ServerConfigSchema.parse({ claude: { reasoningEffort: "invalid" } }),
     ).toThrow();
   });
 
-  it("accepts valid reasoningEffort values", () => {
-    for (const effort of ["low", "medium", "high", "xhigh"]) {
-      const result = ServerConfigSchema.parse({ reasoningEffort: effort });
-      expect(result.reasoningEffort).toBe(effort);
+  it("accepts valid reasoningEffort values per provider", () => {
+    for (const effort of ["low", "medium", "high", "xhigh", "max"]) {
+      const result = ServerConfigSchema.parse({
+        claude: { reasoningEffort: effort },
+      });
+      expect(result.claude.reasoningEffort).toBe(effort);
     }
   });
 

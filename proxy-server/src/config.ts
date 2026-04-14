@@ -116,8 +116,8 @@ function buildServerConfig(
     allowedCliTools: parsed.allowedCliTools,
     excludedFilePatterns: parsed.excludedFilePatterns,
     autoApprovePermissions: parsed.autoApprovePermissions,
-    ...(parsed.reasoningEffort
-      ? { reasoningEffort: parsed.reasoningEffort }
+    ...(provider.reasoningEffort
+      ? { reasoningEffort: provider.reasoningEffort }
       : {}),
     bodyLimit: parsed.bodyLimit * BYTES_PER_MIB,
     requestTimeoutMs: parsed.requestTimeout * MS_PER_MINUTE,
@@ -158,15 +158,12 @@ export async function loadAllProviderConfigs(
       ? buildServerConfig(result.data, result.configDir, "codex")
       : DEFAULT_CONFIG,
   };
-  // Common fields only, no per-provider toolBridge / mcpServers.
+  // Shared config carries only provider-independent fields.
   const shared: ServerConfig = result
     ? {
         allowedCliTools: result.data.allowedCliTools,
         excludedFilePatterns: result.data.excludedFilePatterns,
         autoApprovePermissions: result.data.autoApprovePermissions,
-        ...(result.data.reasoningEffort
-          ? { reasoningEffort: result.data.reasoningEffort }
-          : {}),
         bodyLimit: result.data.bodyLimit * BYTES_PER_MIB,
         requestTimeoutMs: result.data.requestTimeout * MS_PER_MINUTE,
         toolBridge: false,

@@ -7,6 +7,35 @@
 {
   // Which section gets used depends on the --proxy flag.
 
+  // Reasoning effort for models that support it.
+  // OpenAI models accept: "low", "medium", "high", "xhigh"
+  // Claude models accept: "low", "medium", "high", "max"
+
+  claude: {
+    // Intercepts tool calls and forwards them to Xcode so Claude Agent
+    // drives tool execution through the IDE instead of the Copilot CLI.
+    toolBridge: true,
+    // Tool bridge timeout in minutes. 0: disabled.
+    toolBridgeTimeout: 0,
+
+    // No MCP servers needed, because Claude Agent handles tools natively.
+    mcpServers: {},
+
+    reasoningEffort: "max",
+  },
+
+  codex: {
+    // Same as Claude: intercepts tool calls and forwards them to Xcode
+    // so Codex drives tool execution through the IDE.
+    toolBridge: true,
+    // Tool bridge timeout in minutes. 0: disabled.
+    toolBridgeTimeout: 0,
+
+    mcpServers: {},
+
+    reasoningEffort: "xhigh",
+  },
+
   openai: {
     // No tool bridge needed for OpenAI because Xcode drives tool execution
     // directly.
@@ -22,27 +51,8 @@
         allowedTools: ["*"],
       },
     },
-  },
 
-  claude: {
-    // Intercepts tool calls and forwards them to Xcode so Claude Agent
-    // drives tool execution through the IDE instead of the Copilot CLI.
-    toolBridge: true,
-    // Tool bridge timeout in minutes. 0: disabled.
-    toolBridgeTimeout: 0,
-
-    // No MCP servers needed, because Claude Agent handles tools natively.
-    mcpServers: {},
-  },
-
-  codex: {
-    // Same as Claude: intercepts tool calls and forwards them to Xcode
-    // so Codex drives tool execution through the IDE.
-    toolBridge: true,
-    // Tool bridge timeout in minutes. 0: disabled.
-    toolBridgeTimeout: 0,
-
-    mcpServers: {},
+    reasoningEffort: "xhigh",
   },
 
   // Built-in Copilot CLI tools allowlist (glob, grep, bash, etc). Use ["*"] to allow
@@ -68,10 +78,6 @@
   // bloat the prompt with irrelevant code. Add patterns here to strip those
   // files before they reach the model, e.g. ["mock", "generated"].
   excludedFilePatterns: [],
-
-  // Reasoning effort for models that support it, e.g. "low", "medium", "high",
-  // "xhigh".
-  reasoningEffort: "xhigh",
 
   // Auto-approve permission requests. Set to true to approve all, false to deny
   // all, or pass an array of specific kinds to approve, e.g.
