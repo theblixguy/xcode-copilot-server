@@ -12,7 +12,8 @@
         "argsIgnorePattern": "^_"
       }
     ],
-    "typescript/no-explicit-any": "off"
+    "typescript/no-explicit-any": "off",
+    "no-underscore-dangle": "off"
   },
   "ignorePatterns": ["bin/", "dist/", "node_modules/", "scripts/"]
 }

@@ -8,7 +8,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import plistLib from "plist";
+import { build as plistBuild, parse as plistParse } from "plist";
 import { Logger } from "copilot-sdk-proxy";
 import {
   generatePlist,
@@ -53,7 +53,7 @@ interface ParsedPlist {
 }
 
 function parsePlist(xml: string): ParsedPlist {
-  return plistLib.parse(xml) as unknown as ParsedPlist;
+  return plistParse(xml) as unknown as ParsedPlist;
 }
 
 describe("generatePlist", () => {
@@ -294,7 +294,7 @@ describe("parsePlistArgs", () => {
   });
 
   it("handles ProgramArguments with fewer than two elements", () => {
-    const xml = plistLib.build({ ProgramArguments: ["/usr/bin/node"] });
+    const xml = plistBuild({ ProgramArguments: ["/usr/bin/node"] });
     const parsed = parsePlistArgs(xml);
     // No --proxy flag means auto mode
     expect(parsed.proxy).toBe("auto");

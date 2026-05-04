@@ -163,7 +163,7 @@ describe("permission callbacks", () => {
       permissionRequest("shell"),
       invocation,
     );
-    expect(result).toEqual({ kind: "approved" });
+    expect(result).toEqual({ kind: "approve-once" });
   });
 
   it("denies all permissions when rule is false", async () => {
@@ -178,7 +178,7 @@ describe("permission callbacks", () => {
       permissionRequest("read"),
       invocation,
     );
-    expect(result).toEqual({ kind: "denied-by-rules", rules: [] });
+    expect(result).toEqual({ kind: "reject" });
   });
 
   it("approves matching permission from string array", async () => {
@@ -193,7 +193,10 @@ describe("permission callbacks", () => {
       permissionRequest("read"),
       invocation,
     );
-    expect(result).toEqual({ kind: "approved" });
+    expect(result).toEqual({
+      kind: "approve-for-session",
+      approval: { kind: "read" },
+    });
   });
 
   it("denies non-matching permission from string array", async () => {
@@ -208,7 +211,7 @@ describe("permission callbacks", () => {
       permissionRequest("shell"),
       invocation,
     );
-    expect(result).toEqual({ kind: "denied-by-rules", rules: [] });
+    expect(result).toEqual({ kind: "reject" });
   });
 });
 

@@ -3,7 +3,7 @@ import { readFile, writeFile, unlink, mkdir } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { homedir } from "node:os";
 import { Command } from "commander";
-import plist, { type PlistObject } from "plist";
+import { build as buildPlist, parse as parsePlist } from "plist";
 import type { Logger } from "copilot-sdk-proxy";
 import type { ProviderMode } from "copilot-sdk-proxy";
 import { isProviderName } from "../cli-validators.js";
@@ -81,7 +81,7 @@ export function generatePlist(options: PlistOptions): string {
 
   const hasEnv = Object.keys(envVars).length > 0;
 
-  const obj: PlistObject = {
+  const obj = {
     Label: AGENT_LABEL,
     ProgramArguments: args,
     Sockets: {
@@ -97,7 +97,7 @@ export function generatePlist(options: PlistOptions): string {
     ...(hasEnv ? { EnvironmentVariables: envVars } : {}),
   };
 
-  return plist.build(obj) + "\n";
+  return buildPlist(obj) + "\n";
 }
 
 interface ParsedPlistArgs {
@@ -108,7 +108,7 @@ interface ParsedPlistArgs {
 export function parsePlistArgs(plistContent: string): ParsedPlistArgs {
   let raw: unknown;
   try {
-    raw = plist.parse(plistContent);
+    raw = parsePlist(plistContent);
   } catch {
     // Malformed plist, fall back to safe defaults
     return { proxy: null, autoPatch: false };
