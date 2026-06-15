@@ -18,23 +18,14 @@ import type {
 } from "./types.js";
 import { extractLocalhostPort } from "./url-utils.js";
 import { defaultExec, type ExecFn } from "../utils/child-process.js";
-import { isRecord } from "../utils/type-guards.js";
+import { z } from "zod";
 
-interface EnvBackup {
-  OPENAI_BASE_URL: string | null;
-  OPENAI_API_KEY: string | null;
-}
+const EnvBackupSchema = z.object({
+  OPENAI_BASE_URL: z.string().nullable(),
+  OPENAI_API_KEY: z.string().nullable(),
+});
 
-function isEnvBackup(value: unknown): value is EnvBackup {
-  if (!isRecord(value)) return false;
-  return (
-    "OPENAI_BASE_URL" in value &&
-    (typeof value.OPENAI_BASE_URL === "string" ||
-      value.OPENAI_BASE_URL === null) &&
-    "OPENAI_API_KEY" in value &&
-    (typeof value.OPENAI_API_KEY === "string" || value.OPENAI_API_KEY === null)
-  );
-}
+type EnvBackup = z.infer<typeof EnvBackupSchema>;
 
 function defaultCodexBackupPath(): string {
   return join(
@@ -136,11 +127,12 @@ async function readEnvBackup(
     logger.warn("Backup file contains invalid JSON, unsetting env vars");
     return null;
   }
-  if (!isEnvBackup(parsed)) {
+  const result = EnvBackupSchema.safeParse(parsed);
+  if (!result.success) {
     logger.warn("Backup file has unexpected shape, unsetting env vars");
     return null;
   }
-  return parsed;
+  return result.data;
 }
 
 export async function restoreCodexSettings(

@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { ToolStateProvider } from "../conversation-manager.js";
 import type { Logger } from "copilot-sdk-proxy";
 import { BRIDGE_SERVER_NAME } from "./bridge-constants.js";
-import { isRecord, errorMessage } from "../utils/type-guards.js";
+import { errorMessage } from "../utils/type-guards.js";
 import {
   JSONRPC_PARSE_ERROR,
   JSONRPC_INVALID_PARAMS,
@@ -16,6 +16,13 @@ const JsonRpcRequestSchema = z.object({
   id: z.union([z.number(), z.string()]).optional(),
   method: z.string(),
   params: z.record(z.string(), z.unknown()).optional(),
+});
+
+// A non-object or missing arguments field is coerced to {} rather than
+// rejected, matching what tools/call callers send in practice.
+const ToolCallParamsSchema = z.object({
+  name: z.string().min(1),
+  arguments: z.record(z.string(), z.unknown()).default({}).catch({}),
 });
 
 function jsonRpcResult(id: number | string, result: unknown) {
@@ -74,14 +81,15 @@ async function handleToolCall(
     return jsonRpcError(id, JSONRPC_INTERNAL_ERROR, "Conversation not found");
   }
 
-  const rawName = params?.["name"];
-  const name = typeof rawName === "string" ? rawName : undefined;
-  const rawArgs = params?.["arguments"];
-  const args: Record<string, unknown> = isRecord(rawArgs) ? rawArgs : {};
-
-  if (!name) {
-    return jsonRpcError(id, JSONRPC_INVALID_PARAMS, "Missing tool name");
+  const parsed = ToolCallParamsSchema.safeParse(params);
+  if (!parsed.success) {
+    return jsonRpcError(
+      id,
+      JSONRPC_INVALID_PARAMS,
+      "Missing or invalid tool name",
+    );
   }
+  const { name, arguments: args } = parsed.data;
 
   const resolved = state.toolCache.resolveToolName(name);
   if (resolved !== name) {

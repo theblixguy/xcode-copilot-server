@@ -218,7 +218,37 @@ describe("POST /mcp/:convId — tools/call", () => {
     const body = res.json();
     expect(body.id).toBe(6);
     expect(body.error.code).toBe(JSONRPC_INVALID_PARAMS);
-    expect(body.error.message).toContain("Missing tool name");
+    expect(body.error.message).toContain("tool name");
+  });
+
+  it("coerces a non-object arguments field to an empty object", async () => {
+    const conv = manager.create();
+    conv.state.toolCache.cacheTools([
+      {
+        name: "Read",
+        description: "Read a file",
+        input_schema: { type: "object", properties: {} },
+      },
+    ]);
+
+    vi.spyOn(conv.state.toolRouter, "registerMCPRequest").mockImplementation(
+      (_name, resolve) => {
+        resolve("ok");
+      },
+    );
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/mcp/${conv.id}`,
+      payload: jsonRpc("tools/call", 8, {
+        name: "Read",
+        arguments: "not an object",
+      }),
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.id).toBe(8);
+    expect(body.result.content).toEqual([{ type: "text", text: "ok" }]);
   });
 
   it("returns error for unknown conversation", async () => {

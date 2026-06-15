@@ -4,12 +4,12 @@ import { dirname, join, resolve } from "node:path";
 import { homedir } from "node:os";
 import { Command } from "commander";
 import { build as buildPlist, parse as parsePlist } from "plist";
+import { z } from "zod";
 import type { Logger } from "copilot-sdk-proxy";
 import type { ProviderMode } from "copilot-sdk-proxy";
 import { isProviderName } from "../cli-validators.js";
 import { patchSettings, restoreSettings } from "../settings-patcher/index.js";
 import { defaultExec, type ExecFn } from "../utils/child-process.js";
-import { isRecord } from "../utils/type-guards.js";
 
 export const AGENT_LABEL = "com.xcode-copilot-server";
 
@@ -105,6 +105,10 @@ interface ParsedPlistArgs {
   autoPatch: boolean;
 }
 
+const PlistArgsSchema = z.object({
+  ProgramArguments: z.array(z.unknown()),
+});
+
 export function parsePlistArgs(plistContent: string): ParsedPlistArgs {
   let raw: unknown;
   try {
@@ -114,19 +118,14 @@ export function parsePlistArgs(plistContent: string): ParsedPlistArgs {
     return { proxy: null, autoPatch: false };
   }
 
-  if (!isRecord(raw)) {
+  const result = PlistArgsSchema.safeParse(raw);
+  if (!result.success) {
     return { proxy: null, autoPatch: false };
   }
 
-  const parsed = raw;
-  const args = parsed["ProgramArguments"];
-  if (!Array.isArray(args)) {
-    return { proxy: null, autoPatch: false };
-  }
-
-  const flagArgs = args
-    .slice(2)
-    .filter((a): a is string => typeof a === "string");
+  const flagArgs = result.data.ProgramArguments.slice(2).filter(
+    (a): a is string => typeof a === "string",
+  );
 
   const cmd = new Command()
     .exitOverride()
