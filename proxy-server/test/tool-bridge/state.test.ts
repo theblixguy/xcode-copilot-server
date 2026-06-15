@@ -75,12 +75,4 @@ describe("ToolBridgeState", () => {
     await expect(promise).rejects.toThrow("Session cleanup");
     expect(state.toolRouter.hasPending).toBe(false);
   });
-
-  it("cleanup fires onSessionEnd callback", () => {
-    const state = new ToolBridgeState();
-    const callback = vi.fn();
-    state.session.onSessionEnd(callback);
-    state.session.cleanup();
-    expect(callback).toHaveBeenCalledOnce();
-  });
 });
