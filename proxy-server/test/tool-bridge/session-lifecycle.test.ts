@@ -27,6 +27,52 @@ describe("SessionLifecycle", () => {
     });
   });
 
+  describe("status", () => {
+    it("starts idle and follows the active and error transitions", () => {
+      const { session } = create();
+      expect(session.status).toBe("idle");
+
+      session.markSessionActive();
+      expect(session.status).toBe("active");
+
+      session.markSessionInactive();
+      expect(session.status).toBe("idle");
+
+      session.markSessionErrored();
+      expect(session.status).toBe("errored");
+    });
+
+    // The SDK sets hadError, then sets sessionActive to false in a finally
+    // block. Going inactive must not wipe the error the caller is about to read.
+    it("keeps an errored status when the session goes inactive", () => {
+      const { session } = create();
+      session.markSessionActive();
+      session.markSessionErrored();
+      session.markSessionInactive();
+
+      expect(session.status).toBe("errored");
+      expect(session.hadError).toBe(true);
+      expect(session.sessionActive).toBe(false);
+    });
+
+    it("keeps an errored status through cleanup", () => {
+      const { session } = create();
+      session.markSessionErrored();
+      session.cleanup();
+
+      expect(session.hadError).toBe(true);
+    });
+
+    it("clears a previous error when a new cycle starts", () => {
+      const { session } = create();
+      session.markSessionErrored();
+      session.markSessionActive();
+
+      expect(session.status).toBe("active");
+      expect(session.hadError).toBe(false);
+    });
+  });
+
   describe("markSessionActive", () => {
     it("clears stale entries from a previous abandoned cycle", () => {
       const { router, session } = create();
