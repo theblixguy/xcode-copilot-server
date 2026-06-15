@@ -7,7 +7,6 @@ import type {
 } from "copilot-sdk-proxy";
 import { createCommonEventHandler } from "copilot-sdk-proxy";
 import type { ToolBridgeState } from "../../tool-bridge/state.js";
-import { isRecord } from "../../utils/type-guards.js";
 import { BRIDGE_TOOL_PREFIX } from "../../tool-bridge/bridge-constants.js";
 
 // Xcode sends tool names without the bridge prefix.
@@ -15,6 +14,14 @@ function stripBridgePrefix(name: string): string {
   return name.startsWith(BRIDGE_TOOL_PREFIX)
     ? name.slice(BRIDGE_TOOL_PREFIX.length)
     : name;
+}
+
+// Subset of the SDK's tool request we consume. arguments is a JSON object
+// (the SDK types it as Record<string, unknown>), not an arbitrary unknown.
+interface ToolRequest {
+  toolCallId: string;
+  name: string;
+  arguments?: Record<string, unknown>;
 }
 
 export interface StrippedToolRequest {
@@ -123,9 +130,7 @@ class StreamingHandler {
     });
   }
 
-  private stripAndNormalize(
-    requests: { toolCallId: string; name: string; arguments?: unknown }[],
-  ): StrippedToolRequest[] {
+  private stripAndNormalize(requests: ToolRequest[]): StrippedToolRequest[] {
     const filtered = this.hasBridge
       ? requests.filter((tr) => tr.name.startsWith(BRIDGE_TOOL_PREFIX))
       : requests;
@@ -134,20 +139,18 @@ class StreamingHandler {
       const resolved = this.state.toolCache.resolveToolName(
         stripBridgePrefix(tr.name),
       );
-      const args: Record<string, unknown> = isRecord(tr.arguments)
-        ? tr.arguments
-        : {};
       return {
         toolCallId: tr.toolCallId,
         name: resolved,
-        arguments: this.state.toolCache.normalizeArgs(resolved, args),
+        arguments: this.state.toolCache.normalizeArgs(
+          resolved,
+          tr.arguments ?? {},
+        ),
       };
     });
   }
 
-  private onMessage(data: {
-    toolRequests?: { toolCallId: string; name: string; arguments?: unknown }[];
-  }): void {
+  private onMessage(data: { toolRequests?: ToolRequest[] }): void {
     if (!data.toolRequests || data.toolRequests.length === 0) {
       const r = this.getReply();
       if (r) this.common.flushDeltas();
