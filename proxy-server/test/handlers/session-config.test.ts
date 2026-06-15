@@ -30,12 +30,32 @@ function mcpStdio(overrides: Partial<MCPLocalServer> = {}): MCPLocalServer {
   return { type: "stdio", command: "node", args: [], ...overrides };
 }
 
-function permissionRequest(kind: PermissionRequest["kind"]): PermissionRequest {
-  return { kind };
+function permissionRequest(kind: "shell" | "read"): PermissionRequest {
+  switch (kind) {
+    case "shell":
+      return {
+        kind: "shell",
+        canOfferSessionApproval: true,
+        commands: [],
+        fullCommandText: "echo hi",
+        hasWriteFileRedirection: false,
+        intention: "test",
+        possiblePaths: [],
+        possibleUrls: [],
+      };
+    case "read":
+      return { kind: "read", intention: "test", path: "/test" };
+  }
 }
 
 function toolUseInput(toolName: string) {
-  return { toolName, toolArgs: {}, timestamp: Date.now(), cwd: "/test" };
+  return {
+    toolName,
+    toolArgs: {},
+    sessionId: "test",
+    timestamp: new Date(),
+    workingDirectory: "/test",
+  };
 }
 
 function userInputRequest(question: string) {
@@ -50,6 +70,14 @@ function getOnPreToolUse(config: ReturnType<typeof createSessionConfig>) {
   const hook = config.hooks?.onPreToolUse;
   if (!hook) throw new Error("Expected hooks.onPreToolUse to be defined");
   return hook;
+}
+
+function getOnPermissionRequest(
+  config: ReturnType<typeof createSessionConfig>,
+) {
+  const handler = config.onPermissionRequest;
+  if (!handler) throw new Error("Expected onPermissionRequest to be defined");
+  return handler;
 }
 
 describe("createSessionConfig", () => {
@@ -159,7 +187,7 @@ describe("permission callbacks", () => {
       config: makeConfig({ autoApprovePermissions: true }),
       supportsReasoningEffort: false,
     });
-    const result = await config.onPermissionRequest(
+    const result = await getOnPermissionRequest(config)(
       permissionRequest("shell"),
       invocation,
     );
@@ -174,7 +202,7 @@ describe("permission callbacks", () => {
       config: makeConfig({ autoApprovePermissions: false }),
       supportsReasoningEffort: false,
     });
-    const result = await config.onPermissionRequest(
+    const result = await getOnPermissionRequest(config)(
       permissionRequest("read"),
       invocation,
     );
@@ -189,7 +217,7 @@ describe("permission callbacks", () => {
       config: makeConfig({ autoApprovePermissions: ["read", "write"] }),
       supportsReasoningEffort: false,
     });
-    const result = await config.onPermissionRequest(
+    const result = await getOnPermissionRequest(config)(
       permissionRequest("read"),
       invocation,
     );
@@ -207,7 +235,7 @@ describe("permission callbacks", () => {
       config: makeConfig({ autoApprovePermissions: ["read"] }),
       supportsReasoningEffort: false,
     });
-    const result = await config.onPermissionRequest(
+    const result = await getOnPermissionRequest(config)(
       permissionRequest("shell"),
       invocation,
     );
