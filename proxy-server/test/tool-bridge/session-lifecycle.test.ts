@@ -82,33 +82,6 @@ describe("SessionLifecycle", () => {
     });
   });
 
-  describe("onSessionEnd callback", () => {
-    it("fires when markSessionInactive is called", () => {
-      const { session } = create();
-      const callback = vi.fn();
-      session.onSessionEnd(callback);
-      session.markSessionInactive();
-      expect(callback).toHaveBeenCalledOnce();
-    });
-
-    it("fires when cleanup is called", () => {
-      const { session } = create();
-      const callback = vi.fn();
-      session.onSessionEnd(callback);
-      session.cleanup();
-      expect(callback).toHaveBeenCalledOnce();
-    });
-
-    it("is cleared after firing (not called twice)", () => {
-      const { session } = create();
-      const callback = vi.fn();
-      session.onSessionEnd(callback);
-      session.markSessionInactive();
-      session.markSessionInactive();
-      expect(callback).toHaveBeenCalledOnce();
-    });
-  });
-
   describe("cleanup", () => {
     it("rejects all pending with 'Session cleanup' error", async () => {
       const { router, session } = create();

@@ -157,50 +157,90 @@ describe("ConversationManager", () => {
     });
   });
 
-  describe("auto-removal via onSessionEnd", () => {
-    it("removes non-primary conversation when session becomes inactive", () => {
+  describe("removing conversations", () => {
+    it("keeps an idle conversation until the next request", () => {
       const manager = createManager();
+      const primary = manager.create({ isPrimary: true });
+      primary.session = { on: () => () => {} } as never;
+
       const conv = manager.create();
       conv.state.session.markSessionActive();
-
-      expect(manager.size).toBe(1);
       conv.state.session.markSessionInactive();
-      expect(manager.size).toBe(0);
+
+      // Going idle does not remove it on its own.
+      expect(manager.getState(conv.id)).toBe(conv.state);
+
+      // The next request sweeps it.
+      manager.findForNewRequest();
       expect(manager.getState(conv.id)).toBeUndefined();
     });
 
-    it("removes non-primary conversation on cleanup", () => {
+    it("keeps the primary conversation when idle", () => {
       const manager = createManager();
-      const conv = manager.create();
+      const primary = manager.create({ isPrimary: true });
+      primary.session = { on: () => () => {} } as never;
+      primary.state.session.markSessionActive();
+      primary.state.session.markSessionInactive();
 
-      expect(manager.size).toBe(1);
-      conv.state.session.cleanup();
-      expect(manager.size).toBe(0);
-    });
-
-    it("does NOT auto-remove primary conversation on session idle", () => {
-      const manager = createManager();
-      const conv = manager.create({ isPrimary: true });
-      conv.state.session.markSessionActive();
-
-      expect(manager.size).toBe(1);
-      conv.state.session.markSessionInactive();
-      expect(manager.size).toBe(1);
-      expect(manager.getState(conv.id)).toBe(conv.state);
-      expect(manager.getPrimary()).toBe(conv);
+      manager.findForNewRequest();
+      expect(manager.getPrimary()).toBe(primary);
     });
 
     // An isolated conversation that goes idle right after emitting tool
     // requests must stay alive because the bridge still has tools/call to deliver.
-    it("does NOT auto-remove non-primary conversation that has outstanding tool calls", () => {
+    it("keeps a conversation that asked for a tool", () => {
       const manager = createManager();
+      const primary = manager.create({ isPrimary: true });
+      primary.session = { on: () => () => {} } as never;
+
       const conv = manager.create();
       conv.state.session.markSessionActive();
       conv.state.toolRouter.registerExpected("toolu_01abc", "XcodeRead");
       conv.state.session.markSessionInactive();
 
-      expect(manager.size).toBe(1);
+      manager.findForNewRequest();
       expect(manager.getState(conv.id)).toBe(conv.state);
+    });
+
+    // While a finished conversation is still in the map, nothing should route
+    // to it, just as if it had already been removed.
+    it("does not route to a finished conversation", () => {
+      const manager = createManager();
+      const primary = manager.create({ isPrimary: true });
+      primary.session = { on: () => () => {} } as never;
+
+      // An isolated conversation runs a tool call to completion, then goes idle.
+      const finished = manager.create();
+      finished.state.session.markSessionActive();
+      finished.state.toolRouter.registerExpected("toolu_done", "Read");
+      finished.state.toolRouter.registerMCPRequest(
+        "Read",
+        () => {},
+        () => {},
+      );
+      finished.state.toolRouter.resolveToolCall("toolu_done", "result");
+      finished.state.session.markSessionInactive();
+
+      // It is still in the map, but nothing can route to it.
+      expect(manager.getState(finished.id)).toBe(finished.state);
+      expect(manager.findByContinuationIds(["toolu_done"])).toBeUndefined();
+      expect(manager.findByExpectedTool("Read")).toBeUndefined();
+    });
+
+    it("removes a finished conversation on the next request", () => {
+      const manager = createManager();
+      const primary = manager.create({ isPrimary: true });
+      primary.session = { on: () => () => {} } as never;
+
+      const finished = manager.create();
+      finished.state.session.markSessionActive();
+      finished.state.session.markSessionInactive();
+
+      const { conversation, isReuse } = manager.findForNewRequest();
+
+      expect(isReuse).toBe(true);
+      expect(conversation).toBe(primary);
+      expect(manager.getState(finished.id)).toBeUndefined();
     });
   });
 
@@ -443,7 +483,7 @@ describe("ConversationManager", () => {
 
     // A new request must not evict an isolated conversation that still has a
     // tool call in flight, or the bridge loses it before the result comes back.
-    it("does NOT evict conversations with in-flight tool calls", async () => {
+    it("does not evict a conversation with a pending tool call", async () => {
       const manager = createManager();
       const primary = manager.create({ isPrimary: true });
       primary.session = { on: () => () => {} } as never;

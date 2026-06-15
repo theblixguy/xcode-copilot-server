@@ -71,22 +71,6 @@ export class ConversationManager implements ToolStateProvider {
 
     if (isPrimary) {
       this.primaryId = id;
-    } else {
-      const onSessionEnd = (): void => {
-        // The bridge sends tools/call right after the session goes idle.
-        // Removing the conversation while those calls are still pending would
-        // make them fail with "Conversation not found", so defer until they drain.
-        if (state.toolRouter.hasPending) {
-          this.logger.debug(
-            `Conversation ${id} session ended but tool calls pending, deferring removal`,
-          );
-          state.session.onSessionEnd(onSessionEnd);
-          return;
-        }
-        this.logger.debug(`Conversation ${id} session ended, removing`);
-        this.conversations.delete(id);
-      };
-      state.session.onSessionEnd(onSessionEnd);
     }
 
     this.logger.debug(
@@ -112,22 +96,30 @@ export class ConversationManager implements ToolStateProvider {
     }
   }
 
-  private evictStale(): void {
+  // A conversation can be removed once no future request can route to it. That
+  // means it is not the primary, its session is idle, and no tool calls are
+  // pending. The bridge sends tools/call just after the session goes idle, so
+  // the pending check keeps an isolated conversation alive to answer them.
+  private isDisposable(conv: Conversation): boolean {
+    return (
+      !conv.isPrimary &&
+      !conv.state.session.sessionActive &&
+      !conv.state.toolRouter.hasPending
+    );
+  }
+
+  private evictDisposable(): void {
     for (const [id, conv] of this.conversations) {
-      if (
-        !conv.isPrimary &&
-        !conv.state.session.sessionActive &&
-        !conv.state.toolRouter.hasPending
-      ) {
+      if (this.isDisposable(conv)) {
         conv.state.session.cleanup();
         this.conversations.delete(id);
-        this.logger.debug(`Evicted stale conversation ${id}`);
+        this.logger.debug(`Evicted idle conversation ${id}`);
       }
     }
   }
 
   findForNewRequest(): { conversation: Conversation; isReuse: boolean } {
-    this.evictStale();
+    this.evictDisposable();
 
     const primary = this.getPrimary();
     if (primary) {

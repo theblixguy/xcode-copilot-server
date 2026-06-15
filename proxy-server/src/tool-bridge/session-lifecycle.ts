@@ -4,7 +4,6 @@ export class SessionLifecycle {
   private readonly toolRouter: ToolRouter;
   private _sessionActive = false;
   private _hadError = false;
-  private _onSessionEnd: (() => void) | null = null;
 
   constructor(toolRouter: ToolRouter) {
     this.toolRouter = toolRouter;
@@ -29,29 +28,14 @@ export class SessionLifecycle {
     this._hadError = true;
   }
 
-  onSessionEnd(callback: () => void): void {
-    this._onSessionEnd = callback;
-  }
-
   markSessionInactive(): void {
+    // Don't reject expected entries here. The session goes idle before the
+    // bridge's tools/call requests arrive, so they are still needed.
     this._sessionActive = false;
-    // Don't reject expected entries here. handler-core's finally block
-    // calls this before the MCP tools/call request arrives, so rejecting
-    // would wipe entries the bridge still needs. cleanup() handles that.
-    this.fireSessionEnd();
   }
 
   cleanup(): void {
     this._sessionActive = false;
     this.toolRouter.rejectAll("Session cleanup");
-    this.fireSessionEnd();
-  }
-
-  private fireSessionEnd(): void {
-    // Clear before calling so the callback can register a new one without
-    // this method overwriting it.
-    const callback = this._onSessionEnd;
-    this._onSessionEnd = null;
-    if (callback) callback();
   }
 }
