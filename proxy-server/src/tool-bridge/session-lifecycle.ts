@@ -48,9 +48,10 @@ export class SessionLifecycle {
   }
 
   private fireSessionEnd(): void {
-    if (this._onSessionEnd) {
-      this._onSessionEnd();
-      this._onSessionEnd = null;
-    }
+    // Clear before calling so the callback can register a new one without
+    // this method overwriting it.
+    const callback = this._onSessionEnd;
+    this._onSessionEnd = null;
+    if (callback) callback();
   }
 }
