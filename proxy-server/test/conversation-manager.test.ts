@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { ConversationManager } from "../src/conversation-manager.js";
 import { Logger } from "copilot-sdk-proxy";
 
@@ -188,6 +188,19 @@ describe("ConversationManager", () => {
       expect(manager.size).toBe(1);
       expect(manager.getState(conv.id)).toBe(conv.state);
       expect(manager.getPrimary()).toBe(conv);
+    });
+
+    // An isolated conversation that goes idle right after emitting tool
+    // requests must stay alive because the bridge still has tools/call to deliver.
+    it("does NOT auto-remove non-primary conversation that has outstanding tool calls", () => {
+      const manager = createManager();
+      const conv = manager.create();
+      conv.state.session.markSessionActive();
+      conv.state.toolRouter.registerExpected("toolu_01abc", "XcodeRead");
+      conv.state.session.markSessionInactive();
+
+      expect(manager.size).toBe(1);
+      expect(manager.getState(conv.id)).toBe(conv.state);
     });
   });
 
@@ -400,6 +413,20 @@ describe("ConversationManager", () => {
       expect(manager.getPrimary()).toBe(primary);
     });
 
+    it("calls cleanup on evicted conversations", () => {
+      const manager = createManager();
+      const primary = manager.create({ isPrimary: true });
+      primary.session = { on: () => () => {} } as never;
+
+      const isolated = manager.create();
+      const cleanup = vi.spyOn(isolated.state.session, "cleanup");
+
+      manager.findForNewRequest();
+
+      expect(cleanup).toHaveBeenCalledOnce();
+      expect(manager.getState(isolated.id)).toBeUndefined();
+    });
+
     it("does NOT evict active non-primary conversations", () => {
       const manager = createManager();
       const primary = manager.create({ isPrimary: true });
@@ -414,7 +441,9 @@ describe("ConversationManager", () => {
       expect(manager.size).toBe(3);
     });
 
-    it("calls cleanup on evicted conversations", async () => {
+    // A new request must not evict an isolated conversation that still has a
+    // tool call in flight, or the bridge loses it before the result comes back.
+    it("does NOT evict conversations with in-flight tool calls", async () => {
       const manager = createManager();
       const primary = manager.create({ isPrimary: true });
       primary.session = { on: () => () => {} } as never;
@@ -426,7 +455,12 @@ describe("ConversationManager", () => {
       });
 
       manager.findForNewRequest();
-      await expect(resultPromise).rejects.toThrow();
+
+      expect(manager.getState(isolated.id)).toBe(isolated.state);
+      expect(isolated.state.toolRouter.resolveToolCall("call-1", "ok")).toBe(
+        true,
+      );
+      await expect(resultPromise).resolves.toBe("ok");
     });
   });
 });

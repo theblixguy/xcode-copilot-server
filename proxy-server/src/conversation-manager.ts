@@ -72,10 +72,21 @@ export class ConversationManager implements ToolStateProvider {
     if (isPrimary) {
       this.primaryId = id;
     } else {
-      state.session.onSessionEnd(() => {
+      const onSessionEnd = (): void => {
+        // The bridge sends tools/call right after the session goes idle.
+        // Removing the conversation while those calls are still pending would
+        // make them fail with "Conversation not found", so defer until they drain.
+        if (state.toolRouter.hasPending) {
+          this.logger.debug(
+            `Conversation ${id} session ended but tool calls pending, deferring removal`,
+          );
+          state.session.onSessionEnd(onSessionEnd);
+          return;
+        }
         this.logger.debug(`Conversation ${id} session ended, removing`);
         this.conversations.delete(id);
-      });
+      };
+      state.session.onSessionEnd(onSessionEnd);
     }
 
     this.logger.debug(
@@ -103,7 +114,11 @@ export class ConversationManager implements ToolStateProvider {
 
   private evictStale(): void {
     for (const [id, conv] of this.conversations) {
-      if (!conv.isPrimary && !conv.state.session.sessionActive) {
+      if (
+        !conv.isPrimary &&
+        !conv.state.session.sessionActive &&
+        !conv.state.toolRouter.hasPending
+      ) {
         conv.state.session.cleanup();
         this.conversations.delete(id);
         this.logger.debug(`Evicted stale conversation ${id}`);
