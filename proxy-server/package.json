@@ -34,7 +34,7 @@
   "dependencies": {
     "commander": "15.0.0",
     "copilot-sdk-proxy": "5.2.0",
-    "fastify": "5.8.5",
+    "fastify": "5.9.0",
     "json5": "2.2.3",
     "koffi": "3.0.2",
     "plist": "5.0.0",
